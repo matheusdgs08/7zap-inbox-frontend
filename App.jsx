@@ -463,6 +463,8 @@ export default function App() {
   const [showLabel, setShowLabel] = useState(false);
   const [showColManager, setShowColManager] = useState(false);
   const [kanbanCols, setKanbanCols] = useState(loadColumns);
+  const [suggestion, setSuggestion] = useState("");
+  const [loadingSuggest, setLoadingSuggest] = useState(false);
   const bottomRef = useRef(null);
   const pollRef = useRef(null);
 
@@ -565,10 +567,22 @@ export default function App() {
   const moveKanbanCard = async (conv, newStage) => {
     try {
       await fetch(`${API_URL}/conversations/${conv.id}/kanban`, {
-        method: "PUT", headers, body: JSON.stringify({ kanban_stage: newStage }),
+        method: "PUT", headers, body: JSON.stringify({ stage: newStage }),
       });
     } catch (e) {}
     setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, kanban_stage: newStage } : c));
+  };
+
+  const fetchSuggestion = async () => {
+    if (!selected || loadingSuggest) return;
+    setLoadingSuggest(true);
+    setSuggestion("");
+    try {
+      const r = await fetch(`${API_URL}/conversations/${selected.id}/suggest`, { headers });
+      const d = await r.json();
+      setSuggestion(d.suggestion || "");
+    } catch (e) { setSuggestion("Erro ao buscar sugestão."); }
+    setLoadingSuggest(false);
   };
 
   const filtered = conversations.filter(c =>
@@ -662,7 +676,7 @@ export default function App() {
                     Nenhuma conversa {filter === "open" ? "aberta" : filter === "pending" ? "pendente" : "resolvida"}
                   </div>
                 ) : filtered.map(conv => (
-                  <div key={conv.id} onClick={() => setSelected(conv)} style={{
+                  <div key={conv.id} onClick={() => { setSelected(conv); setSuggestion(""); }} style={{
                     display: "flex", alignItems: "flex-start", gap: 10, padding: "11px 14px", cursor: "pointer",
                     background: selected?.id === conv.id ? "#1a1a2e" : "transparent",
                     borderLeft: selected?.id === conv.id ? "3px solid #00c853" : "3px solid transparent",
@@ -715,8 +729,9 @@ export default function App() {
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
-                    <button onClick={() => setShowLabel(true)} style={{ padding: "6px 12px", borderRadius: 7, border: "1px solid #252540", background: "transparent", color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>🏷 Etiqueta</button>
+                    <button onClick={() => { setShowLabel(true); }} style={{ padding: "6px 12px", borderRadius: 7, border: "1px solid #252540", background: "transparent", color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>🏷 Etiqueta</button>
                     <button onClick={() => setShowAssign(true)} style={{ padding: "6px 12px", borderRadius: 7, border: "1px solid #252540", background: "transparent", color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>👤 Atribuir</button>
+                    <button onClick={fetchSuggestion} disabled={loadingSuggest} style={{ padding: "6px 12px", borderRadius: 7, border: "1px solid #7c4dff44", background: loadingSuggest ? "#1a1a2e" : "#7c4dff15", color: loadingSuggest ? "#444" : "#a78bfa", fontSize: 12, cursor: loadingSuggest ? "not-allowed" : "pointer", fontFamily: "inherit", fontWeight: 600 }}>{loadingSuggest ? "⏳ Pensando..." : "✨ Co-pilot"}</button>
                     <button onClick={() => resolveConv(selected.id)} style={{ padding: "6px 12px", borderRadius: 7, border: "1px solid #252540", background: "transparent", color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>✓ Resolver</button>
                   </div>
                 </div>
@@ -750,6 +765,41 @@ export default function App() {
                 </div>
 
                 <div style={{ padding: "10px 14px", borderTop: "1px solid #1a1a2e", background: "#0d0d18" }}>
+                  {/* Co-pilot suggestion box */}
+                  {suggestion && (
+                    <div style={{
+                      marginBottom: 10, padding: "12px 14px",
+                      background: "#1a1030", border: "1px solid #7c4dff44",
+                      borderRadius: 10,
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                        <span style={{ fontSize: 13 }}>✨</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "#a78bfa" }}>SUGESTÃO DO CO-PILOT</span>
+                        <span onClick={() => setSuggestion("")} style={{ marginLeft: "auto", fontSize: 16, cursor: "pointer", color: "#555", lineHeight: 1 }}>×</span>
+                      </div>
+                      <div style={{ fontSize: 13, color: "#c4b5fd", lineHeight: 1.5, marginBottom: 10 }}>{suggestion}</div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button onClick={() => { setInput(suggestion); setSuggestion(""); }} style={{
+                          flex: 1, padding: "6px 0", borderRadius: 7, border: "none",
+                          background: "linear-gradient(135deg, #7c4dff, #5b21b6)",
+                          color: "#fff", fontSize: 12, fontWeight: 700,
+                          cursor: "pointer", fontFamily: "inherit",
+                        }}>✓ Usar resposta</button>
+                        <button onClick={fetchSuggestion} style={{
+                          padding: "6px 14px", borderRadius: 7,
+                          border: "1px solid #7c4dff44", background: "transparent",
+                          color: "#a78bfa", fontSize: 12, fontWeight: 600,
+                          cursor: "pointer", fontFamily: "inherit",
+                        }}>↻ Nova</button>
+                        <button onClick={() => setSuggestion("")} style={{
+                          padding: "6px 14px", borderRadius: 7,
+                          border: "1px solid #252540", background: "transparent",
+                          color: "#555", fontSize: 12,
+                          cursor: "pointer", fontFamily: "inherit",
+                        }}>Ignorar</button>
+                      </div>
+                    </div>
+                  )}
                   <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
                     <textarea value={input} onChange={e => setInput(e.target.value)}
                       onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }}}
