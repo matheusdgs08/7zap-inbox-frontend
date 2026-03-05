@@ -1,11 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-
 const API_URL = "https://7zap-inbox-production.up.railway.app";
 const API_KEY = "7zap_inbox_secret";
 const TENANT_ID = "98c38c97-2796-471f-bfc9-f093ff3ae6e9";
-
 const headers = { "x-api-key": API_KEY, "Content-Type": "application/json" };
-
 function timeAgo(dateStr) {
   const now = new Date(); const date = new Date(dateStr);
   const diff = Math.floor((now - date) / 1000);
@@ -19,7 +16,6 @@ function initials(name) {
   return name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase();
 }
 function uid() { return Math.random().toString(36).slice(2, 10); }
-
 const DEFAULT_COLUMNS = [
   { id: "new", label: "Nova", color: "#7c4dff" },
   { id: "attending", label: "Em Atendimento", color: "#00c853" },
@@ -53,6 +49,24 @@ function LabelChip({ label, onRemove }) {
   return <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 20, background: label.color + "22", border: `1px solid ${label.color}44`, color: label.color, fontSize: 11, fontWeight: 600 }}>{label.name}{onRemove && <span onClick={onRemove} style={{ cursor: "pointer", opacity: 0.7, marginLeft: 2 }}>×</span>}</span>;
 }
 
+// ─── Kanban Stage Badge ───────────────────────────────────────────────────────
+function KanbanBadge({ stage, columns }) {
+  if (!stage || stage === "new") return null;
+  const col = columns.find(c => c.id === stage);
+  if (!col) return null;
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 4,
+      padding: "2px 8px", borderRadius: 20,
+      background: col.color + "22", border: `1px solid ${col.color}44`,
+      color: col.color, fontSize: 11, fontWeight: 600,
+    }}>
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: col.color, display: "inline-block" }} />
+      {col.label}
+    </span>
+  );
+}
+
 // ─── Tasks Panel ──────────────────────────────────────────────────────────────
 function TasksPanel({ convId, agents, onClose }) {
   const [tasks, setTasks] = useState([]);
@@ -61,7 +75,6 @@ function TasksPanel({ convId, agents, onClose }) {
   const [dueAt, setDueAt] = useState("");
   const [assignedTo, setAssignedTo] = useState("");
   const [creating, setCreating] = useState(false);
-
   const fetchTasks = async () => {
     try {
       const r = await fetch(`${API_URL}/tasks?tenant_id=${TENANT_ID}`, { headers });
@@ -70,9 +83,7 @@ function TasksPanel({ convId, agents, onClose }) {
     } catch (e) {}
     setLoading(false);
   };
-
   useEffect(() => { fetchTasks(); }, [convId]);
-
   const createTask = async () => {
     if (!title.trim() || creating) return;
     setCreating(true);
@@ -86,16 +97,13 @@ function TasksPanel({ convId, agents, onClose }) {
     } catch (e) {}
     setCreating(false);
   };
-
   const completeTask = async (taskId) => {
     try {
       await fetch(`${API_URL}/tasks/${taskId}/done`, { method: "PUT", headers });
       setTasks(prev => prev.filter(t => t.id !== taskId));
     } catch (e) {}
   };
-
   const isOverdue = (due) => due && new Date(due) < new Date();
-
   return (
     <div style={{ width: 300, flexShrink: 0, borderLeft: "1px solid #1a1a2e", background: "#0d0d18", display: "flex", flexDirection: "column" }}>
       <div style={{ padding: "14px 16px", borderBottom: "1px solid #1a1a2e", display: "flex", alignItems: "center", gap: 8 }}>
@@ -103,24 +111,13 @@ function TasksPanel({ convId, agents, onClose }) {
         <span style={{ background: "#00c85322", color: "#00c853", fontSize: 11, fontWeight: 700, padding: "1px 7px", borderRadius: 20 }}>{tasks.length}</span>
         <span onClick={onClose} style={{ marginLeft: "auto", cursor: "pointer", color: "#555", fontSize: 18, lineHeight: 1 }}>×</span>
       </div>
-
-      {/* New task form */}
       <div style={{ padding: "14px 16px", borderBottom: "1px solid #1a1a2e" }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: "#666", marginBottom: 8 }}>NOVA TAREFA</div>
-        <input
-          value={title} onChange={e => setTitle(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && createTask()}
-          placeholder="Título da tarefa..."
-          style={{ width: "100%", padding: "8px 10px", background: "#13131f", border: "1px solid #252540", borderRadius: 7, color: "#e8e8f0", fontSize: 12, outline: "none", boxSizing: "border-box", fontFamily: "inherit", marginBottom: 8 }}
-        />
+        <input value={title} onChange={e => setTitle(e.target.value)} onKeyDown={e => e.key === "Enter" && createTask()} placeholder="Título da tarefa..." style={{ width: "100%", padding: "8px 10px", background: "#13131f", border: "1px solid #252540", borderRadius: 7, color: "#e8e8f0", fontSize: 12, outline: "none", boxSizing: "border-box", fontFamily: "inherit", marginBottom: 8 }} />
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-          <input
-            type="datetime-local" value={dueAt} onChange={e => setDueAt(e.target.value)}
-            style={{ flex: 1, padding: "7px 8px", background: "#13131f", border: "1px solid #252540", borderRadius: 7, color: "#888", fontSize: 11, outline: "none", fontFamily: "inherit", colorScheme: "dark" }}
-          />
+          <input type="datetime-local" value={dueAt} onChange={e => setDueAt(e.target.value)} style={{ flex: 1, padding: "7px 8px", background: "#13131f", border: "1px solid #252540", borderRadius: 7, color: "#888", fontSize: 11, outline: "none", fontFamily: "inherit", colorScheme: "dark" }} />
         </div>
-        <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)}
-          style={{ width: "100%", padding: "7px 10px", background: "#13131f", border: "1px solid #252540", borderRadius: 7, color: assignedTo ? "#e8e8f0" : "#555", fontSize: 12, outline: "none", marginBottom: 10, fontFamily: "inherit", boxSizing: "border-box" }}>
+        <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)} style={{ width: "100%", padding: "7px 10px", background: "#13131f", border: "1px solid #252540", borderRadius: 7, color: assignedTo ? "#e8e8f0" : "#555", fontSize: 12, outline: "none", marginBottom: 10, fontFamily: "inherit", boxSizing: "border-box" }}>
           <option value="">Responsável (opcional)</option>
           {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
         </select>
@@ -128,8 +125,6 @@ function TasksPanel({ convId, agents, onClose }) {
           {creating ? "Criando..." : "+ Criar tarefa"}
         </button>
       </div>
-
-      {/* Task list */}
       <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
         {loading ? <div style={{ textAlign: "center", color: "#555", fontSize: 12, padding: 16 }}>Carregando...</div>
           : tasks.length === 0 ? (
@@ -140,17 +135,11 @@ function TasksPanel({ convId, agents, onClose }) {
           ) : tasks.map(task => (
             <div key={task.id} style={{ background: "#13131f", border: `1px solid ${isOverdue(task.due_at) ? "#f4433644" : "#252540"}`, borderRadius: 9, padding: "10px 12px", marginBottom: 8 }}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                <div onClick={() => completeTask(task.id)} style={{ width: 16, height: 16, borderRadius: 4, border: "2px solid #00c853", cursor: "pointer", flexShrink: 0, marginTop: 1, display: "flex", alignItems: "center", justifyContent: "center" }}
-                  onMouseEnter={e => e.currentTarget.style.background = "#00c85333"}
-                  onMouseLeave={e => e.currentTarget.style.background = "transparent"} />
+                <div onClick={() => completeTask(task.id)} style={{ width: 16, height: 16, borderRadius: 4, border: "2px solid #00c853", cursor: "pointer", flexShrink: 0, marginTop: 1, display: "flex", alignItems: "center", justifyContent: "center" }} onMouseEnter={e => e.currentTarget.style.background = "#00c85333"} onMouseLeave={e => e.currentTarget.style.background = "transparent"} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: "#e8e8f0", marginBottom: 4 }}>{task.title}</div>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {task.due_at && (
-                      <span style={{ fontSize: 10, color: isOverdue(task.due_at) ? "#f44336" : "#888" }}>
-                        📅 {new Date(task.due_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                      </span>
-                    )}
+                    {task.due_at && <span style={{ fontSize: 10, color: isOverdue(task.due_at) ? "#f44336" : "#888" }}>📅 {new Date(task.due_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>}
                     {task.users?.name && <span style={{ fontSize: 10, color: "#00c853" }}>👤 {task.users.name}</span>}
                   </div>
                 </div>
@@ -421,7 +410,6 @@ export default function App() {
       </div>
 
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-
         {/* CONFIG */}
         {view === "config" && (
           <div style={{ flex: 1, overflowY: "auto", padding: 40, maxWidth: 720 }}>
@@ -462,7 +450,6 @@ export default function App() {
         {/* INBOX */}
         {view === "inbox" && (
           <>
-            {/* Sidebar */}
             <div style={{ width: 300, flexShrink: 0, display: "flex", flexDirection: "column", borderRight: "1px solid #1a1a2e", background: "#0d0d18" }}>
               <div style={{ padding: "12px 14px", borderBottom: "1px solid #1a1a2e" }}>
                 <div style={{ position: "relative" }}>
@@ -488,7 +475,11 @@ export default function App() {
                           <span style={{ fontWeight: 600, fontSize: 13, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{conv.contacts?.name || conv.contacts?.phone}</span>
                           <span style={{ fontSize: 11, color: "#555", flexShrink: 0 }}>{timeAgo(conv.last_message_at)}</span>
                         </div>
-                        {conv.labels?.length > 0 && <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 4 }}>{conv.labels.map(l => <LabelChip key={l.id} label={l} />)}</div>}
+                        {/* ← BADGES: etiquetas + estágio kanban */}
+                        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 4 }}>
+                          {conv.labels?.map(l => <LabelChip key={l.id} label={l} />)}
+                          <KanbanBadge stage={conv.kanban_stage} columns={kanbanCols} />
+                        </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           <StatusDot status={conv.status} />
                           <span style={{ fontSize: 11, color: "#555", flex: 1 }}>{conv.assigned_agent ? `👤 ${conv.assigned_agent}` : conv.contacts?.phone}</span>
@@ -503,19 +494,19 @@ export default function App() {
               </div>
             </div>
 
-            {/* Chat area */}
             {selected ? (
               <div style={{ flex: 1, display: "flex", minWidth: 0 }}>
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-                  {/* Chat header */}
                   <div style={{ padding: "10px 14px", borderBottom: "1px solid #1a1a2e", display: "flex", alignItems: "center", gap: 10, background: "#0d0d18", flexWrap: "wrap" }}>
                     <Avatar name={selected.contacts?.name || selected.contacts?.phone} size={34} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 700, fontSize: 13 }}>{selected.contacts?.name || selected.contacts?.phone}</div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      {/* ← BADGES no header: etiquetas + estágio kanban */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 2 }}>
                         <span style={{ fontSize: 11, color: "#555" }}>{selected.contacts?.phone}</span>
                         {selected.assigned_agent && <span style={{ fontSize: 11, color: "#00c853" }}>· 👤 {selected.assigned_agent}</span>}
                         {selected.labels?.map(l => <LabelChip key={l.id} label={l} />)}
+                        <KanbanBadge stage={selected.kanban_stage} columns={kanbanCols} />
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
@@ -527,7 +518,6 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Messages */}
                   <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 6 }}>
                     {messages.length === 0 ? <div style={{ textAlign: "center", color: "#444", fontSize: 13, marginTop: 40 }}>Nenhuma mensagem ainda</div>
                       : messages.map((msg, i) => {
@@ -536,7 +526,7 @@ export default function App() {
                         return (
                           <div key={msg.id || i} style={{ display: "flex", justifyContent: isOut ? "flex-end" : "flex-start", marginBottom: 2 }}>
                             <div style={{ maxWidth: "65%", padding: "10px 14px", borderRadius: isOut ? "16px 4px 16px 16px" : "4px 16px 16px 16px", background: isInternal ? "#2a2010" : isOut ? "#00c85322" : "#1a1a2e", border: isInternal ? "1px solid #ffd60044" : isOut ? "1px solid #00c85340" : "1px solid #252540", fontSize: 14, lineHeight: 1.5, color: isInternal ? "#ffd600" : isOut ? "#b0f0c0" : "#e8e8f0" }}>
-                              {isInternal && <div style={{ fontSize: 10, fontWeight: 700, color: "#ffd600", marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>📝 NOTA INTERNA</div>}
+                              {isInternal && <div style={{ fontSize: 10, fontWeight: 700, color: "#ffd600", marginBottom: 4 }}>📝 NOTA INTERNA</div>}
                               <div style={{ wordBreak: "break-word" }}>{msg.content}</div>
                               <div style={{ fontSize: 10, color: "#555", marginTop: 4, textAlign: isOut ? "right" : "left" }}>{new Date(msg.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</div>
                             </div>
@@ -546,9 +536,7 @@ export default function App() {
                     <div ref={bottomRef} />
                   </div>
 
-                  {/* Input area */}
                   <div style={{ padding: "10px 14px", borderTop: "1px solid #1a1a2e", background: "#0d0d18" }}>
-                    {/* Co-pilot suggestion */}
                     {suggestion && (
                       <div style={{ marginBottom: 10, padding: "12px 14px", background: "#1a1030", border: "1px solid #7c4dff44", borderRadius: 10 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
@@ -563,8 +551,6 @@ export default function App() {
                         </div>
                       </div>
                     )}
-
-                    {/* Note mode banner */}
                     {noteMode && (
                       <div style={{ marginBottom: 8, padding: "6px 12px", background: "#ffd60011", border: "1px solid #ffd60033", borderRadius: 7, display: "flex", alignItems: "center", gap: 8 }}>
                         <span style={{ fontSize: 12 }}>📝</span>
@@ -572,26 +558,13 @@ export default function App() {
                         <span onClick={() => setNoteMode(false)} style={{ marginLeft: "auto", cursor: "pointer", color: "#ffd600", fontSize: 14, opacity: 0.7 }}>×</span>
                       </div>
                     )}
-
                     <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-                      {/* Note toggle button */}
-                      <button
-                        onClick={() => setNoteMode(n => !n)}
-                        title="Nota interna (visível só para equipe)"
-                        style={{ padding: "9px 10px", borderRadius: 9, border: `1px solid ${noteMode ? "#ffd60044" : "#252540"}`, background: noteMode ? "#ffd60015" : "transparent", color: noteMode ? "#ffd600" : "#555", fontSize: 14, cursor: "pointer", flexShrink: 0 }}>
-                        📝
-                      </button>
-                      <textarea value={input} onChange={e => setInput(e.target.value)}
-                        onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                        placeholder={noteMode ? "Escreva uma nota interna... (visível só para a equipe)" : "Digite uma mensagem... (Enter para enviar)"}
-                        rows={1}
-                        style={{ flex: 1, padding: "9px 13px", background: noteMode ? "#1a1500" : "#1a1a2e", border: `1px solid ${noteMode ? "#ffd60033" : "#252540"}`, borderRadius: 9, color: noteMode ? "#ffd600" : "#e8e8f0", fontSize: 14, outline: "none", resize: "none", fontFamily: "inherit", lineHeight: 1.5, maxHeight: 120, overflowY: "auto" }} />
+                      <button onClick={() => setNoteMode(n => !n)} title="Nota interna" style={{ padding: "9px 10px", borderRadius: 9, border: `1px solid ${noteMode ? "#ffd60044" : "#252540"}`, background: noteMode ? "#ffd60015" : "transparent", color: noteMode ? "#ffd600" : "#555", fontSize: 14, cursor: "pointer", flexShrink: 0 }}>📝</button>
+                      <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }} placeholder={noteMode ? "Escreva uma nota interna..." : "Digite uma mensagem... (Enter para enviar)"} rows={1} style={{ flex: 1, padding: "9px 13px", background: noteMode ? "#1a1500" : "#1a1a2e", border: `1px solid ${noteMode ? "#ffd60033" : "#252540"}`, borderRadius: 9, color: noteMode ? "#ffd600" : "#e8e8f0", fontSize: 14, outline: "none", resize: "none", fontFamily: "inherit", lineHeight: 1.5, maxHeight: 120, overflowY: "auto" }} />
                       <button onClick={sendMessage} disabled={sending || !input.trim()} style={{ padding: "9px 16px", borderRadius: 9, border: "none", background: sending || !input.trim() ? "#1a1a2e" : noteMode ? "linear-gradient(135deg, #ffd600, #f57f17)" : "linear-gradient(135deg, #00c853, #00796b)", color: sending || !input.trim() ? "#444" : "#000", fontSize: 14, fontWeight: 700, cursor: sending || !input.trim() ? "not-allowed" : "pointer", fontFamily: "inherit", transition: "all 0.15s", flexShrink: 0 }}>{sending ? "..." : noteMode ? "Nota" : "Enviar"}</button>
                     </div>
                   </div>
                 </div>
-
-                {/* Tasks panel */}
                 {showTasks && <TasksPanel convId={selected.id} agents={agents} onClose={() => setShowTasks(false)} />}
               </div>
             ) : (
