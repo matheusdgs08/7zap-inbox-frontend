@@ -35,7 +35,6 @@ function loadColumns() {
   return DEFAULT_COLUMNS;
 }
 function saveColumns(cols) { try { localStorage.setItem("7zap_kanban_columns", JSON.stringify(cols)); } catch (e) {} }
-
 function Avatar({ name, size = 36 }) {
   const colors = ["#00c853","#00bcd4","#7c4dff","#ff6d00","#e91e63","#3d5afe"];
   const color = colors[(name || "").charCodeAt(0) % colors.length];
@@ -61,41 +60,25 @@ function TaskDetailModal({ task, agents, onClose, onComplete }) {
   const [newUpdate, setNewUpdate] = useState("");
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchUpdates();
-  }, [task.id]);
-
+  useEffect(() => { fetchUpdates(); }, [task.id]);
   const fetchUpdates = async () => {
-    try {
-      const r = await fetch(`${API_URL}/tasks/${task.id}/updates`, { headers });
-      const d = await r.json();
-      setUpdates(d.updates || []);
-    } catch (e) {}
+    try { const r = await fetch(`${API_URL}/tasks/${task.id}/updates`, { headers }); const d = await r.json(); setUpdates(d.updates || []); } catch (e) {}
     setLoading(false);
   };
-
   const sendUpdate = async () => {
     if (!newUpdate.trim() || sending) return;
     setSending(true);
     try {
-      await fetch(`${API_URL}/tasks/${task.id}/updates`, {
-        method: "POST", headers,
-        body: JSON.stringify({ content: newUpdate.trim(), created_by: "Atendente" }),
-      });
-      setNewUpdate("");
-      await fetchUpdates();
+      await fetch(`${API_URL}/tasks/${task.id}/updates`, { method: "POST", headers, body: JSON.stringify({ content: newUpdate.trim(), created_by: "Atendente" }) });
+      setNewUpdate(""); await fetchUpdates();
     } catch (e) {}
     setSending(false);
   };
-
   const isOverdue = task.due_at && new Date(task.due_at) < new Date();
   const assignedName = task.users?.name || agents.find(a => a.id === task.assigned_to)?.name;
-
   return (
     <div style={{ position: "fixed", inset: 0, background: "#00000090", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300 }} onClick={onClose}>
       <div onClick={e => e.stopPropagation()} style={{ background: "#13131f", border: "1px solid #252540", borderRadius: 16, width: 500, maxHeight: "85vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px #00000080" }}>
-        {/* Header */}
         <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid #1a1a2e" }}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
             <div style={{ flex: 1 }}>
@@ -105,25 +88,17 @@ function TaskDetailModal({ task, agents, onClose, onComplete }) {
             <span onClick={onClose} style={{ cursor: "pointer", color: "#555", fontSize: 20, lineHeight: 1, flexShrink: 0 }}>×</span>
           </div>
           <div style={{ display: "flex", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
-            {task.due_at && (
-              <span style={{ fontSize: 12, color: isOverdue ? "#f44336" : "#888", display: "flex", alignItems: "center", gap: 4 }}>
-                📅 {new Date(task.due_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-                {isOverdue && <span style={{ background: "#f4433322", color: "#f44336", fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 10 }}>VENCIDA</span>}
-              </span>
-            )}
-            {assignedName && <span style={{ fontSize: 12, color: "#00c853", display: "flex", alignItems: "center", gap: 4 }}>👤 {assignedName}</span>}
+            {task.due_at && <span style={{ fontSize: 12, color: isOverdue ? "#f44336" : "#888", display: "flex", alignItems: "center", gap: 4 }}>📅 {new Date(task.due_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}{isOverdue && <span style={{ background: "#f4433322", color: "#f44336", fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 10 }}>VENCIDA</span>}</span>}
+            {assignedName && <span style={{ fontSize: 12, color: "#00c853" }}>👤 {assignedName}</span>}
           </div>
         </div>
-
-        {/* Updates timeline */}
         <div style={{ flex: 1, overflowY: "auto", padding: "16px 24px" }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: "#555", marginBottom: 12 }}>ATUALIZAÇÕES</div>
           {loading ? <div style={{ color: "#555", fontSize: 13, textAlign: "center", padding: 16 }}>Carregando...</div>
-          : updates.length === 0
-            ? <div style={{ color: "#444", fontSize: 13, textAlign: "center", padding: 16 }}>Nenhuma atualização ainda. Seja o primeiro!</div>
+            : updates.length === 0 ? <div style={{ color: "#444", fontSize: 13, textAlign: "center", padding: 16 }}>Nenhuma atualização ainda. Seja o primeiro!</div>
             : updates.map((u, i) => (
               <div key={u.id || i} style={{ display: "flex", gap: 10, marginBottom: 14 }}>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
                   <Avatar name={u.created_by || "?"} size={28} />
                   {i < updates.length - 1 && <div style={{ width: 2, flex: 1, background: "#1a1a2e", marginTop: 4 }} />}
                 </div>
@@ -137,26 +112,13 @@ function TaskDetailModal({ task, agents, onClose, onComplete }) {
               </div>
             ))}
         </div>
-
-        {/* New update input */}
         <div style={{ padding: "14px 24px", borderTop: "1px solid #1a1a2e" }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: "#555", marginBottom: 8 }}>NOVA ATUALIZAÇÃO</div>
           <div style={{ display: "flex", gap: 8 }}>
-            <textarea
-              value={newUpdate}
-              onChange={e => setNewUpdate(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendUpdate(); } }}
-              placeholder="Descreva o que foi feito, próximos passos..."
-              rows={2}
-              style={{ flex: 1, padding: "9px 12px", background: "#0d0d18", border: "1px solid #252540", borderRadius: 9, color: "#e8e8f0", fontSize: 13, outline: "none", resize: "none", fontFamily: "inherit", lineHeight: 1.5 }}
-            />
-            <button onClick={sendUpdate} disabled={!newUpdate.trim() || sending} style={{ padding: "0 16px", borderRadius: 9, border: "none", background: newUpdate.trim() ? "linear-gradient(135deg, #00c853, #00796b)" : "#1a1a2e", color: newUpdate.trim() ? "#000" : "#444", fontSize: 13, fontWeight: 700, cursor: newUpdate.trim() ? "pointer" : "not-allowed", fontFamily: "inherit", flexShrink: 0 }}>
-              {sending ? "..." : "↑"}
-            </button>
+            <textarea value={newUpdate} onChange={e => setNewUpdate(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendUpdate(); } }} placeholder="Descreva o que foi feito, próximos passos..." rows={2} style={{ flex: 1, padding: "9px 12px", background: "#0d0d18", border: "1px solid #252540", borderRadius: 9, color: "#e8e8f0", fontSize: 13, outline: "none", resize: "none", fontFamily: "inherit", lineHeight: 1.5 }} />
+            <button onClick={sendUpdate} disabled={!newUpdate.trim() || sending} style={{ padding: "0 16px", borderRadius: 9, border: "none", background: newUpdate.trim() ? "linear-gradient(135deg, #00c853, #00796b)" : "#1a1a2e", color: newUpdate.trim() ? "#000" : "#444", fontSize: 13, fontWeight: 700, cursor: newUpdate.trim() ? "pointer" : "not-allowed", fontFamily: "inherit", flexShrink: 0 }}>{sending ? "..." : "↑"}</button>
           </div>
-          <button onClick={() => onComplete(task.id)} style={{ marginTop: 10, width: "100%", padding: "9px 0", borderRadius: 9, border: "1px solid #00c85344", background: "#00c85310", color: "#00c853", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
-            ✅ Marcar como concluída
-          </button>
+          <button onClick={() => onComplete(task.id)} style={{ marginTop: 10, width: "100%", padding: "9px 0", borderRadius: 9, border: "1px solid #00c85344", background: "#00c85310", color: "#00c853", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>✅ Marcar como concluída</button>
         </div>
       </div>
     </div>
@@ -173,41 +135,25 @@ function TasksPanel({ convId, agents, onClose }) {
   const [assignedTo, setAssignedTo] = useState("");
   const [creating, setCreating] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
-
   const fetchTasks = async () => {
-    try {
-      const r = await fetch(`${API_URL}/tasks?tenant_id=${TENANT_ID}`, { headers });
-      const d = await r.json();
-      setTasks((d.tasks || []).filter(t => t.conversation_id === convId));
-    } catch (e) {}
+    try { const r = await fetch(`${API_URL}/tasks?tenant_id=${TENANT_ID}`, { headers }); const d = await r.json(); setTasks((d.tasks || []).filter(t => t.conversation_id === convId)); } catch (e) {}
     setLoading(false);
   };
   useEffect(() => { fetchTasks(); }, [convId]);
-
   const createTask = async () => {
     if (!title.trim() || creating) return;
     setCreating(true);
     try {
-      await fetch(`${API_URL}/conversations/${convId}/tasks?tenant_id=${TENANT_ID}`, {
-        method: "POST", headers,
-        body: JSON.stringify({ title: title.trim(), description: description.trim() || null, assigned_to: assignedTo || null, due_at: dueAt || null }),
-      });
+      await fetch(`${API_URL}/conversations/${convId}/tasks?tenant_id=${TENANT_ID}`, { method: "POST", headers, body: JSON.stringify({ title: title.trim(), description: description.trim() || null, assigned_to: assignedTo || null, due_at: dueAt || null }) });
       setTitle(""); setDescription(""); setDueAt(""); setAssignedTo("");
       await fetchTasks();
     } catch (e) {}
     setCreating(false);
   };
-
   const completeTask = async (taskId) => {
-    try {
-      await fetch(`${API_URL}/tasks/${taskId}/done`, { method: "PUT", headers });
-      setTasks(prev => prev.filter(t => t.id !== taskId));
-      setSelectedTask(null);
-    } catch (e) {}
+    try { await fetch(`${API_URL}/tasks/${taskId}/done`, { method: "PUT", headers }); setTasks(prev => prev.filter(t => t.id !== taskId)); setSelectedTask(null); } catch (e) {}
   };
-
   const isOverdue = (due) => due && new Date(due) < new Date();
-
   return (
     <>
       <div style={{ width: 300, flexShrink: 0, borderLeft: "1px solid #1a1a2e", background: "#0d0d18", display: "flex", flexDirection: "column" }}>
@@ -216,8 +162,6 @@ function TasksPanel({ convId, agents, onClose }) {
           <span style={{ background: "#00c85322", color: "#00c853", fontSize: 11, fontWeight: 700, padding: "1px 7px", borderRadius: 20 }}>{tasks.length}</span>
           <span onClick={onClose} style={{ marginLeft: "auto", cursor: "pointer", color: "#555", fontSize: 18, lineHeight: 1 }}>×</span>
         </div>
-
-        {/* Form */}
         <div style={{ padding: "14px 16px", borderBottom: "1px solid #1a1a2e" }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: "#666", marginBottom: 8 }}>NOVA TAREFA</div>
           <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Título da tarefa *" style={{ width: "100%", padding: "8px 10px", background: "#13131f", border: "1px solid #252540", borderRadius: 7, color: "#e8e8f0", fontSize: 12, outline: "none", boxSizing: "border-box", fontFamily: "inherit", marginBottom: 6 }} />
@@ -227,20 +171,12 @@ function TasksPanel({ convId, agents, onClose }) {
             <option value="">Responsável (opcional)</option>
             {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
-          <button onClick={createTask} disabled={!title.trim() || creating} style={{ width: "100%", padding: "8px 0", borderRadius: 7, border: "none", background: title.trim() ? "linear-gradient(135deg, #00c853, #00796b)" : "#1a1a2e", color: title.trim() ? "#000" : "#444", fontSize: 12, fontWeight: 700, cursor: title.trim() ? "pointer" : "not-allowed", fontFamily: "inherit" }}>
-            {creating ? "Criando..." : "+ Criar tarefa"}
-          </button>
+          <button onClick={createTask} disabled={!title.trim() || creating} style={{ width: "100%", padding: "8px 0", borderRadius: 7, border: "none", background: title.trim() ? "linear-gradient(135deg, #00c853, #00796b)" : "#1a1a2e", color: title.trim() ? "#000" : "#444", fontSize: 12, fontWeight: 700, cursor: title.trim() ? "pointer" : "not-allowed", fontFamily: "inherit" }}>{creating ? "Criando..." : "+ Criar tarefa"}</button>
         </div>
-
-        {/* List */}
         <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
           {loading ? <div style={{ textAlign: "center", color: "#555", fontSize: 12, padding: 16 }}>Carregando...</div>
-            : tasks.length === 0 ? (
-              <div style={{ textAlign: "center", padding: 24 }}>
-                <div style={{ fontSize: 28, marginBottom: 8 }}>📋</div>
-                <div style={{ fontSize: 12, color: "#555" }}>Nenhuma tarefa ainda</div>
-              </div>
-            ) : tasks.map(task => (
+            : tasks.length === 0 ? <div style={{ textAlign: "center", padding: 24 }}><div style={{ fontSize: 28, marginBottom: 8 }}>📋</div><div style={{ fontSize: 12, color: "#555" }}>Nenhuma tarefa ainda</div></div>
+            : tasks.map(task => (
               <div key={task.id} onClick={() => setSelectedTask(task)} style={{ background: "#13131f", border: `1px solid ${isOverdue(task.due_at) ? "#f4433644" : "#252540"}`, borderRadius: 9, padding: "10px 12px", marginBottom: 8, cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.borderColor = "#00c85344"} onMouseLeave={e => e.currentTarget.style.borderColor = isOverdue(task.due_at) ? "#f4433644" : "#252540"}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: "#e8e8f0", marginBottom: 4 }}>{task.title}</div>
                 {task.description && <div style={{ fontSize: 11, color: "#666", marginBottom: 6, lineHeight: 1.4, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{task.description}</div>}
@@ -253,15 +189,7 @@ function TasksPanel({ convId, agents, onClose }) {
             ))}
         </div>
       </div>
-
-      {selectedTask && (
-        <TaskDetailModal
-          task={selectedTask}
-          agents={agents}
-          onClose={() => setSelectedTask(null)}
-          onComplete={(id) => completeTask(id)}
-        />
-      )}
+      {selectedTask && <TaskDetailModal task={selectedTask} agents={agents} onClose={() => setSelectedTask(null)} onComplete={completeTask} />}
     </>
   );
 }
@@ -286,8 +214,7 @@ function ColumnManagerModal({ columns, onChange, onClose }) {
             <div key={col.id} style={{ position: "relative" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#0d0d18", border: "1px solid #252540", borderRadius: 10, padding: "10px 14px" }}>
                 <div onClick={() => setPickingColorFor(pickingColorFor === col.id ? null : col.id)} style={{ width: 22, height: 22, borderRadius: "50%", background: col.color, cursor: "pointer", flexShrink: 0, border: "2px solid #252540" }} />
-                {editingId === col.id
-                  ? <input autoFocus value={col.label} onChange={e => update(col.id, { label: e.target.value })} onBlur={() => setEditingId(null)} onKeyDown={e => e.key === "Enter" && setEditingId(null)} style={{ flex: 1, background: "#1a1a2e", border: "1px solid #00c85344", borderRadius: 6, color: "#e8e8f0", fontSize: 13, padding: "4px 10px", outline: "none", fontFamily: "inherit" }} />
+                {editingId === col.id ? <input autoFocus value={col.label} onChange={e => update(col.id, { label: e.target.value })} onBlur={() => setEditingId(null)} onKeyDown={e => e.key === "Enter" && setEditingId(null)} style={{ flex: 1, background: "#1a1a2e", border: "1px solid #00c85344", borderRadius: 6, color: "#e8e8f0", fontSize: 13, padding: "4px 10px", outline: "none", fontFamily: "inherit" }} />
                   : <span onClick={() => setEditingId(col.id)} style={{ flex: 1, fontSize: 13, fontWeight: 600, cursor: "text", color: col.color }}>{col.label}</span>}
                 <span onClick={() => setEditingId(col.id)} style={{ fontSize: 14, cursor: "pointer", opacity: 0.4 }}>✏️</span>
                 {cols.length > 1 && <span onClick={() => remove(col.id)} style={{ fontSize: 14, cursor: "pointer", opacity: 0.4 }}>🗑</span>}
@@ -471,10 +398,7 @@ export default function App() {
     if (!input.trim() || !selected || sending) return;
     setSending(true);
     try {
-      await fetch(`${API_URL}/conversations/${selected.id}/messages`, {
-        method: "POST", headers,
-        body: JSON.stringify({ conversation_id: selected.id, text: input.trim(), is_internal_note: noteMode }),
-      });
+      await fetch(`${API_URL}/conversations/${selected.id}/messages`, { method: "POST", headers, body: JSON.stringify({ conversation_id: selected.id, text: input.trim(), is_internal_note: noteMode }) });
       setInput(""); setNoteMode(false);
       await fetchMessages(selected.id); await fetchConversations();
     } catch (e) {}
@@ -482,6 +406,7 @@ export default function App() {
   };
   const resolveConv = async (convId) => { await fetch(`${API_URL}/conversations/${convId}/resolve`, { method: "PUT", headers }); setSelected(null); fetchConversations(); };
   const reopenConv = async (convId) => { await fetch(`${API_URL}/conversations/${convId}/reopen`, { method: "PUT", headers }); setSelected(null); setFilter("open"); fetchConversations(); };
+  const pendingConv = async (convId) => { await fetch(`${API_URL}/conversations/${convId}/pending`, { method: "PUT", headers }); setSelected(null); fetchConversations(); };
   const assignConv = async (agent) => {
     try { await fetch(`${API_URL}/conversations/${selected.id}/assign`, { method: "PUT", headers, body: JSON.stringify({ user_id: agent.id }) }); const patch = { assigned_to: agent.id, assigned_agent: agent.name }; setSelected(prev => ({ ...prev, ...patch })); setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, ...patch } : c)); } catch (e) {}
     setShowAssign(false);
@@ -504,6 +429,20 @@ export default function App() {
   };
 
   const filtered = conversations.filter(c => (c.contacts?.name || c.contacts?.phone || "").toLowerCase().includes(search.toLowerCase()));
+
+  // ── Action buttons logic ───────────────────────────────
+  const ActionButtons = ({ conv }) => {
+    if (conv.status === "resolved") {
+      return <button onClick={() => reopenConv(conv.id)} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #00c85344", background: "#00c85315", color: "#00c853", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>↩ Reabrir</button>;
+    }
+    return <>
+      {conv.status !== "pending"
+        ? <button onClick={() => pendingConv(conv.id)} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #ffd60044", background: "#ffd60010", color: "#ffd600", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>⏸ Pendente</button>
+        : <button onClick={() => reopenConv(conv.id)} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #00bcd444", background: "#00bcd410", color: "#00bcd4", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>▶ Reativar</button>
+      }
+      <button onClick={() => resolveConv(conv.id)} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #252540", background: "transparent", color: "#888", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>✓ Resolver</button>
+    </>;
+  };
 
   return (
     <div style={{ display: "flex", height: "100vh", width: "100vw", flexDirection: "column", background: "#0a0a0f", color: "#e8e8f0", fontFamily: "'DM Sans', 'Segoe UI', sans-serif", overflow: "hidden" }}>
@@ -606,15 +545,12 @@ export default function App() {
                         <KanbanBadge stage={selected.kanban_stage} columns={kanbanCols} />
                       </div>
                     </div>
-                    <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center" }}>
                       <button onClick={() => setShowLabel(true)} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #252540", background: "transparent", color: "#888", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>🏷 Etiqueta</button>
                       <button onClick={() => setShowAssign(true)} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #252540", background: "transparent", color: "#888", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>👤 Atribuir</button>
                       <button onClick={fetchSuggestion} disabled={loadingSuggest} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #7c4dff44", background: loadingSuggest ? "#1a1a2e" : "#7c4dff15", color: loadingSuggest ? "#444" : "#a78bfa", fontSize: 11, cursor: loadingSuggest ? "not-allowed" : "pointer", fontFamily: "inherit", fontWeight: 600 }}>{loadingSuggest ? "⏳..." : "✨ Co-pilot"}</button>
                       <button onClick={() => setShowTasks(t => !t)} style={{ padding: "5px 10px", borderRadius: 6, border: `1px solid ${showTasks ? "#00c85344" : "#252540"}`, background: showTasks ? "#00c85315" : "transparent", color: showTasks ? "#00c853" : "#888", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>✅ Tarefas</button>
-                      {selected.status === "resolved"
-                        ? <button onClick={() => reopenConv(selected.id)} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #00c85344", background: "#00c85315", color: "#00c853", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>↩ Reabrir</button>
-                        : <button onClick={() => resolveConv(selected.id)} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #252540", background: "transparent", color: "#888", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>✓ Resolver</button>
-                      }
+                      <ActionButtons conv={selected} />
                     </div>
                   </div>
 
