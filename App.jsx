@@ -179,10 +179,12 @@ function LabelManagerModal({ labels, onChange, onClose }) {
 }
 
 // ─── Leads Board (por etiqueta) ───────────────────────────────────────────────
-function LeadsBoard({ conversations, kanbanCols, labels, onSelectConv, onManageLabels }) {
+function LeadsBoard({ conversations, kanbanCols, labels, onSelectConv, onManageLabels, onMoveLabel }) {
+  const [dragging, setDragging] = useState(null); // conv.id being dragged
+  const [dragOver, setDragOver] = useState(null); // label.id or "unlabeled"
+
   const unlabeled = conversations.filter(c => !c.labels || c.labels.length === 0);
 
-  // Merge labels from conversations that may not be in local labels yet
   const allLabelIds = new Set(labels.map(l => l.id));
   const extraLabels = [];
   conversations.forEach(conv => {
@@ -192,11 +194,50 @@ function LeadsBoard({ conversations, kanbanCols, labels, onSelectConv, onManageL
   });
   const allLabels = [...labels, ...extraLabels];
 
+  const handleDrop = (targetLabelId) => {
+    if (!dragging) return;
+    const conv = conversations.find(c => c.id === dragging);
+    if (conv) onMoveLabel(conv, targetLabelId === "unlabeled" ? null : allLabels.find(l => l.id === targetLabelId));
+    setDragging(null);
+    setDragOver(null);
+  };
+
+  const renderCard = (conv, colLabel) => (
+    <div
+      key={conv.id}
+      draggable
+      onDragStart={(e) => { e.stopPropagation(); setDragging(conv.id); }}
+      onDragEnd={() => { setDragging(null); setDragOver(null); }}
+      onClick={() => !dragging && onSelectConv(conv)}
+      style={{ background: "#13131f", border: `1px solid ${dragging === conv.id ? (colLabel?.color || "#555") + "55" : "#252540"}`, borderRadius: 10, padding: "11px 13px", cursor: "grab", opacity: dragging === conv.id ? 0.4 : 1, transition: "border-color 0.15s" }}
+      onMouseEnter={e => { if (dragging !== conv.id) e.currentTarget.style.borderColor = (colLabel?.color || "#555") + "55"; }}
+      onMouseLeave={e => { if (dragging !== conv.id) e.currentTarget.style.borderColor = "#252540"; }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+        <Avatar name={conv.contacts?.name || conv.contacts?.phone} size={26} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{conv.contacts?.name || conv.contacts?.phone}</div>
+          <div style={{ fontSize: 11, color: "#555" }}>{conv.contacts?.phone}</div>
+        </div>
+        <span style={{ fontSize: 10, color: "#555", flexShrink: 0 }}>{timeAgo(conv.last_message_at)}</span>
+      </div>
+      <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 4 }}>
+        {(conv.labels || []).filter(l => l.id !== colLabel?.id).map(l => <LabelChip key={l.id} label={l} />)}
+        <KanbanBadge stage={conv.kanban_stage} columns={kanbanCols} />
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <StatusDot status={conv.status} />
+        <span style={{ fontSize: 10, color: "#555" }}>{conv.status === "open" ? "Aberto" : conv.status === "pending" ? "Pendente" : "Resolvido"}</span>
+        {conv.assigned_agent && <span style={{ fontSize: 10, color: "#666", marginLeft: "auto" }}>👤 {conv.assigned_agent}</span>}
+      </div>
+    </div>
+  );
+
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <div style={{ padding: "14px 24px", borderBottom: "1px solid #1a1a2e", display: "flex", alignItems: "center", gap: 12 }}>
         <span style={{ fontSize: 15, fontWeight: 700 }}>🏷 Leads por Etiqueta</span>
-        <span style={{ fontSize: 12, color: "#555" }}>Visualize seus contatos agrupados por etiqueta</span>
+        <span style={{ fontSize: 12, color: "#555" }}>Arraste para mover entre etiquetas</span>
         <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
           <span style={{ fontSize: 12, color: "#555", background: "#1a1a2e", padding: "4px 12px", borderRadius: 20 }}>{conversations.length} total</span>
           <button onClick={onManageLabels} style={{ padding: "6px 14px", borderRadius: 7, border: "1px solid #252540", background: "transparent", color: "#888", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>⚙️ Gerenciar etiquetas</button>
@@ -205,8 +246,15 @@ function LeadsBoard({ conversations, kanbanCols, labels, onSelectConv, onManageL
       <div style={{ flex: 1, display: "flex", gap: 16, padding: "20px 24px", overflowX: "auto", overflowY: "hidden" }}>
         {allLabels.map(label => {
           const cards = conversations.filter(c => (c.labels || []).some(l => l.id === label.id));
+          const isOver = dragOver === label.id;
           return (
-            <div key={label.id} style={{ width: 270, flexShrink: 0, display: "flex", flexDirection: "column", background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 12, overflow: "hidden" }}>
+            <div
+              key={label.id}
+              onDragOver={e => { e.preventDefault(); setDragOver(label.id); }}
+              onDragLeave={() => setDragOver(null)}
+              onDrop={() => handleDrop(label.id)}
+              style={{ width: 270, flexShrink: 0, display: "flex", flexDirection: "column", background: isOver ? "#1a1a2e" : "#0d0d18", border: `1px solid ${isOver ? label.color + "66" : "#1a1a2e"}`, borderRadius: 12, overflow: "hidden", transition: "all 0.15s" }}
+            >
               <div style={{ padding: "12px 14px", borderBottom: `2px solid ${label.color}44`, display: "flex", alignItems: "center", gap: 8 }}>
                 <div style={{ width: 10, height: 10, borderRadius: "50%", background: label.color, flexShrink: 0 }} />
                 <span style={{ fontWeight: 700, fontSize: 13, color: label.color, flex: 1 }}>{label.name}</span>
@@ -214,56 +262,37 @@ function LeadsBoard({ conversations, kanbanCols, labels, onSelectConv, onManageL
               </div>
               <div style={{ flex: 1, overflowY: "auto", padding: "10px 8px", display: "flex", flexDirection: "column", gap: 8 }}>
                 {cards.length === 0
-                  ? <div style={{ border: `2px dashed ${label.color}22`, borderRadius: 8, padding: 20, textAlign: "center", color: "#444", fontSize: 12 }}>Nenhum lead</div>
-                  : cards.map(conv => (
-                    <div key={conv.id} onClick={() => onSelectConv(conv)} style={{ background: "#13131f", border: "1px solid #252540", borderRadius: 10, padding: "11px 13px", cursor: "pointer", transition: "all 0.15s" }} onMouseEnter={e => e.currentTarget.style.borderColor = label.color + "55"} onMouseLeave={e => e.currentTarget.style.borderColor = "#252540"}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                        <Avatar name={conv.contacts?.name || conv.contacts?.phone} size={26} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{conv.contacts?.name || conv.contacts?.phone}</div>
-                          <div style={{ fontSize: 11, color: "#555" }}>{conv.contacts?.phone}</div>
-                        </div>
-                        <span style={{ fontSize: 10, color: "#555", flexShrink: 0 }}>{timeAgo(conv.last_message_at)}</span>
-                      </div>
-                      <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 4 }}>
-                        {(conv.labels || []).filter(l => l.id !== label.id).map(l => <LabelChip key={l.id} label={l} />)}
-                        <KanbanBadge stage={conv.kanban_stage} columns={kanbanCols} />
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <StatusDot status={conv.status} />
-                        <span style={{ fontSize: 10, color: "#555" }}>{conv.status === "open" ? "Aberto" : conv.status === "pending" ? "Pendente" : "Resolvido"}</span>
-                        {conv.assigned_agent && <span style={{ fontSize: 10, color: "#666", marginLeft: "auto" }}>👤 {conv.assigned_agent}</span>}
-                      </div>
+                  ? <div style={{ border: `2px dashed ${label.color}${isOver ? "88" : "22"}`, borderRadius: 8, padding: 20, textAlign: "center", color: isOver ? label.color : "#444", fontSize: 12, transition: "all 0.15s" }}>
+                      {isOver ? "➕ Soltar aqui" : "Nenhum lead"}
                     </div>
-                  ))
+                  : cards.map(conv => renderCard(conv, label))
                 }
+                {cards.length > 0 && isOver && (
+                  <div style={{ border: `2px dashed ${label.color}88`, borderRadius: 8, padding: 12, textAlign: "center", color: label.color, fontSize: 12 }}>➕ Soltar aqui</div>
+                )}
               </div>
             </div>
           );
         })}
-        {unlabeled.length > 0 && (
-          <div style={{ width: 270, flexShrink: 0, display: "flex", flexDirection: "column", background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 12, overflow: "hidden" }}>
+
+        {/* Coluna sem etiqueta */}
+        {(unlabeled.length > 0 || dragOver === "unlabeled") && (
+          <div
+            onDragOver={e => { e.preventDefault(); setDragOver("unlabeled"); }}
+            onDragLeave={() => setDragOver(null)}
+            onDrop={() => handleDrop("unlabeled")}
+            style={{ width: 270, flexShrink: 0, display: "flex", flexDirection: "column", background: dragOver === "unlabeled" ? "#1a1a2e" : "#0d0d18", border: `1px solid ${dragOver === "unlabeled" ? "#55555566" : "#1a1a2e"}`, borderRadius: 12, overflow: "hidden", transition: "all 0.15s" }}
+          >
             <div style={{ padding: "12px 14px", borderBottom: "2px solid #33333388", display: "flex", alignItems: "center", gap: 8 }}>
               <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#444", flexShrink: 0 }} />
               <span style={{ fontWeight: 700, fontSize: 13, color: "#555", flex: 1 }}>Sem etiqueta</span>
               <span style={{ background: "#33333322", color: "#555", fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20 }}>{unlabeled.length}</span>
             </div>
             <div style={{ flex: 1, overflowY: "auto", padding: "10px 8px", display: "flex", flexDirection: "column", gap: 8 }}>
-              {unlabeled.map(conv => (
-                <div key={conv.id} onClick={() => onSelectConv(conv)} style={{ background: "#13131f", border: "1px solid #252540", borderRadius: 10, padding: "11px 13px", cursor: "pointer", transition: "all 0.15s" }} onMouseEnter={e => e.currentTarget.style.borderColor = "#444"} onMouseLeave={e => e.currentTarget.style.borderColor = "#252540"}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                    <Avatar name={conv.contacts?.name || conv.contacts?.phone} size={26} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{conv.contacts?.name || conv.contacts?.phone}</div>
-                      <div style={{ fontSize: 11, color: "#555" }}>{timeAgo(conv.last_message_at)}</div>
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <StatusDot status={conv.status} />
-                    <span style={{ fontSize: 10, color: "#555" }}>{conv.status === "open" ? "Aberto" : conv.status === "pending" ? "Pendente" : "Resolvido"}</span>
-                  </div>
-                </div>
-              ))}
+              {unlabeled.length === 0
+                ? <div style={{ border: "2px dashed #55555588", borderRadius: 8, padding: 20, textAlign: "center", color: "#666", fontSize: 12 }}>➕ Soltar aqui para remover etiqueta</div>
+                : unlabeled.map(conv => renderCard(conv, null))
+              }
             </div>
           </div>
         )}
@@ -643,6 +672,19 @@ export default function App() {
     try { await fetch(`${API_URL}/conversations/${conv.id}/kanban`, { method: "PUT", headers, body: JSON.stringify({ stage: newStage }) }); } catch (e) {}
     setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, kanban_stage: newStage } : c));
   };
+
+  const moveLabelCard = async (conv, targetLabel) => {
+    const current = conv.labels || [];
+    let updated;
+    if (!targetLabel) {
+      updated = [];
+    } else {
+      const alreadyHas = current.some(l => l.id === targetLabel.id);
+      updated = alreadyHas ? current : [...current, targetLabel];
+    }
+    try { await fetch(`${API_URL}/conversations/${conv.id}/labels`, { method: "PUT", headers, body: JSON.stringify({ labels: updated }) }); } catch (e) {}
+    setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, labels: updated } : c));
+  };
   const fetchSuggestion = async () => {
     if (!selected || loadingSuggest) return; setLoadingSuggest(true); setSuggestion("");
     try { const r = await fetch(`${API_URL}/conversations/${selected.id}/suggest`, { headers }); const d = await r.json(); setSuggestion(d.suggestion || ""); } catch (e) { setSuggestion("Erro ao buscar sugestão."); }
@@ -708,6 +750,7 @@ export default function App() {
             labels={labels}
             onSelectConv={(conv) => { setSelected(conv); setView("inbox"); }}
             onManageLabels={() => setShowLabelManager(true)}
+            onMoveLabel={moveLabelCard}
           />
         )}
 
