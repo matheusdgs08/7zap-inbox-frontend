@@ -465,6 +465,9 @@ export default function App() {
   const [kanbanCols, setKanbanCols] = useState(loadColumns);
   const [suggestion, setSuggestion] = useState("");
   const [loadingSuggest, setLoadingSuggest] = useState(false);
+  const [copilotPrompt, setCopilotPrompt] = useState("");
+  const [savingPrompt, setSavingPrompt] = useState(false);
+  const [promptSaved, setPromptSaved] = useState(false);
   const bottomRef = useRef(null);
   const pollRef = useRef(null);
 
@@ -502,6 +505,28 @@ export default function App() {
     } catch (e) {}
   }, []);
 
+  const fetchTenant = useCallback(async () => {
+    try {
+      const r = await fetch(`${API_URL}/tenant?tenant_id=${TENANT_ID}`, { headers });
+      const d = await r.json();
+      setCopilotPrompt(d.copilot_prompt || "");
+    } catch (e) {}
+  }, []);
+
+  const savePrompt = async () => {
+    setSavingPrompt(true);
+    setPromptSaved(false);
+    try {
+      await fetch(`${API_URL}/tenant/copilot-prompt`, {
+        method: "PUT", headers,
+        body: JSON.stringify({ tenant_id: TENANT_ID, copilot_prompt: copilotPrompt }),
+      });
+      setPromptSaved(true);
+      setTimeout(() => setPromptSaved(false), 3000);
+    } catch (e) {}
+    setSavingPrompt(false);
+  };
+
   useEffect(() => {
     const fn = view === "kanban" ? fetchAllConversations : fetchConversations;
     fn();
@@ -518,7 +543,7 @@ export default function App() {
   }, [selected, fetchMessages]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
-  useEffect(() => { fetchAgents(); }, [fetchAgents]);
+  useEffect(() => { fetchAgents(); fetchTenant(); }, [fetchAgents, fetchTenant]);
 
   const sendMessage = async () => {
     if (!input.trim() || !selected || sending) return;
@@ -609,7 +634,7 @@ export default function App() {
           <span style={{ fontWeight: 700, fontSize: 15 }}>7zap</span>
         </div>
         <div style={{ display: "flex", gap: 4 }}>
-          {[{ id: "inbox", label: "📥 Inbox" }, { id: "kanban", label: "🗂 Kanban" }].map(tab => (
+          {[{ id: "inbox", label: "📥 Inbox" }, { id: "kanban", label: "🗂 Kanban" }, { id: "config", label: "⚙️ Config" }].map(tab => (
             <button key={tab.id} onClick={() => setView(tab.id)} style={{
               padding: "5px 14px", borderRadius: 6, border: "none",
               background: view === tab.id ? "#00c85320" : "transparent",
@@ -626,6 +651,98 @@ export default function App() {
 
       {/* Body */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+
+        {/* CONFIG */}
+        {view === "config" && (
+          <div style={{ flex: 1, overflowY: "auto", padding: 40, maxWidth: 720 }}>
+            <div style={{ marginBottom: 32 }}>
+              <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>⚙️ Configurações</div>
+              <div style={{ fontSize: 13, color: "#555" }}>Personalize o comportamento do 7zap para sua empresa</div>
+            </div>
+
+            {/* Co-pilot section */}
+            <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 28, marginBottom: 24 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                <span style={{ fontSize: 18 }}>✨</span>
+                <span style={{ fontSize: 16, fontWeight: 700 }}>Co-pilot IA</span>
+                <span style={{ background: "#7c4dff22", color: "#a78bfa", fontSize: 11, fontWeight: 700, padding: "2px 10px", borderRadius: 20 }}>Claude (Anthropic)</span>
+              </div>
+              <div style={{ fontSize: 13, color: "#555", marginBottom: 20 }}>
+                Defina o prompt do Co-pilot — tom de voz, produtos, regras e instruções do seu negócio. Quanto mais detalhado, melhor a sugestão.
+              </div>
+
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#888", marginBottom: 8 }}>Prompt do atendente</div>
+                <textarea
+                  value={copilotPrompt}
+                  onChange={e => setCopilotPrompt(e.target.value)}
+                  rows={10}
+                  placeholder={`Exemplo:\nVocê é um atendente da academia Estúdio Se7e, localizada na Vila Mariana em São Paulo.\n\nNossos planos:\n- Mensal: R$99/mês\n- Trimestral: R$249 (R$83/mês)\n- Anual: R$799 (R$66/mês)\n\nRegras:\n- Sempre use linguagem informal e simpática\n- Nunca prometa desconto sem falar com o gestor\n- Se o cliente perguntar sobre vagas, direcione para VagasDeAcademia.com.br\n- Responda de forma objetiva, máximo 2 parágrafos`}
+                  style={{
+                    width: "100%", padding: "14px 16px",
+                    background: "#13131f", border: "1px solid #252540",
+                    borderRadius: 10, color: "#e8e8f0", fontSize: 13,
+                    outline: "none", resize: "vertical", fontFamily: "inherit",
+                    lineHeight: 1.6, boxSizing: "border-box",
+                    minHeight: 200,
+                  }}
+                  onFocus={e => e.target.style.borderColor = "#7c4dff44"}
+                  onBlur={e => e.target.style.borderColor = "#252540"}
+                />
+                <div style={{ fontSize: 11, color: "#444", marginTop: 6 }}>
+                  {copilotPrompt.length} caracteres · Salvo no banco de dados por tenant
+                </div>
+              </div>
+
+              {/* Tips */}
+              <div style={{ background: "#13131f", border: "1px solid #252540", borderRadius: 10, padding: "14px 16px", marginBottom: 20 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#888", marginBottom: 8 }}>💡 Dicas para um bom prompt</div>
+                {[
+                  "Descreva o tipo de negócio e localização",
+                  "Liste os produtos/planos com preços",
+                  "Defina o tom de voz (formal, informal, amigável)",
+                  "Adicione regras específicas (ex: não dar desconto)",
+                  "Mencione perguntas frequentes dos clientes",
+                ].map((tip, i) => (
+                  <div key={i} style={{ display: "flex", gap: 8, marginBottom: 4 }}>
+                    <span style={{ color: "#7c4dff", flexShrink: 0 }}>•</span>
+                    <span style={{ fontSize: 12, color: "#666" }}>{tip}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <button onClick={savePrompt} disabled={savingPrompt} style={{
+                  padding: "10px 28px", borderRadius: 9, border: "none",
+                  background: savingPrompt ? "#1a1a2e" : "linear-gradient(135deg, #7c4dff, #5b21b6)",
+                  color: savingPrompt ? "#444" : "#fff",
+                  fontSize: 14, fontWeight: 700, cursor: savingPrompt ? "not-allowed" : "pointer",
+                  fontFamily: "inherit", transition: "all 0.15s",
+                }}>{savingPrompt ? "Salvando..." : "💾 Salvar prompt"}</button>
+                {promptSaved && (
+                  <span style={{ fontSize: 13, color: "#00c853", fontWeight: 600 }}>✓ Salvo com sucesso!</span>
+                )}
+              </div>
+            </div>
+
+            {/* Info box */}
+            <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 24 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>📋 Informações do Tenant</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {[
+                  ["Tenant ID", TENANT_ID],
+                  ["API URL", API_URL],
+                  ["Versão", "7zap Inbox v1.0"],
+                ].map(([label, value]) => (
+                  <div key={label} style={{ display: "flex", gap: 12 }}>
+                    <span style={{ fontSize: 12, color: "#555", width: 100, flexShrink: 0 }}>{label}</span>
+                    <span style={{ fontSize: 12, color: "#888", fontFamily: "monospace", wordBreak: "break-all" }}>{value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* KANBAN */}
         {view === "kanban" && (
