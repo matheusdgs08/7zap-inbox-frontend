@@ -179,6 +179,133 @@ function LabelManagerModal({ labels, onChange, onClose }) {
 }
 
 // ─── Leads Board (por etiqueta) ───────────────────────────────────────────────
+// ─── Global Tasks View ───────────────────────────────────────────────────────
+function GlobalTasksView({ pendingTasksMap, conversations, agents, onSelectConv, onRefresh }) {
+  const [allTasks, setAllTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [filterAgent, setFilterAgent] = useState("");
+  const [filterOverdue, setFilterOverdue] = useState(false);
+
+  const fetchAll = async () => {
+    setLoading(true);
+    try {
+      const r = await fetch(`${API_URL}/tasks?tenant_id=${TENANT_ID}`, { headers });
+      const d = await r.json();
+      setAllTasks((d.tasks || []).filter(t => !t.done));
+    } catch (e) {}
+    setLoading(false);
+  };
+  useEffect(() => { fetchAll(); }, []);
+
+  const completeTask = async (taskId) => {
+    try { await fetch(`${API_URL}/tasks/${taskId}/done`, { method: "PUT", headers }); } catch (e) {}
+    setAllTasks(prev => prev.filter(t => t.id !== taskId));
+    setSelectedTask(null);
+    if (onRefresh) onRefresh();
+  };
+
+  const getConv = (convId) => conversations.find(c => c.id === convId);
+  const isOverdue = (due) => due && new Date(due) < new Date();
+
+  const filtered = allTasks
+    .filter(t => !filterAgent || t.assigned_to === filterAgent)
+    .filter(t => !filterOverdue || isOverdue(t.due_at))
+    .sort((a, b) => {
+      // Vencidas primeiro, depois por data
+      const aOver = isOverdue(a.due_at) ? 0 : 1;
+      const bOver = isOverdue(b.due_at) ? 0 : 1;
+      if (aOver !== bOver) return aOver - bOver;
+      if (a.due_at && b.due_at) return new Date(a.due_at) - new Date(b.due_at);
+      return 0;
+    });
+
+  const overdueCount = allTasks.filter(t => isOverdue(t.due_at)).length;
+
+  return (
+    <>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        {/* Header */}
+        <div style={{ padding: "14px 24px", borderBottom: "1px solid #1a1a2e", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 15, fontWeight: 700 }}>✅ Tarefas em Aberto</span>
+          <span style={{ background: "#00c85322", color: "#00c853", fontSize: 12, fontWeight: 700, padding: "2px 10px", borderRadius: 20 }}>{allTasks.length} total</span>
+          {overdueCount > 0 && <span style={{ background: "#f4433322", color: "#f44336", fontSize: 12, fontWeight: 700, padding: "2px 10px", borderRadius: 20 }}>⚠ {overdueCount} vencida{overdueCount > 1 ? "s" : ""}</span>}
+          <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
+            <button onClick={() => setFilterOverdue(f => !f)} style={{ padding: "5px 12px", borderRadius: 7, border: `1px solid ${filterOverdue ? "#f4433344" : "#252540"}`, background: filterOverdue ? "#f4433315" : "transparent", color: filterOverdue ? "#f44336" : "#666", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>⚠ Vencidas</button>
+            <select value={filterAgent} onChange={e => setFilterAgent(e.target.value)} style={{ padding: "5px 10px", background: "#13131f", border: "1px solid #252540", borderRadius: 7, color: filterAgent ? "#e8e8f0" : "#555", fontSize: 12, outline: "none", fontFamily: "inherit", cursor: "pointer" }}>
+              <option value="">Todos os atendentes</option>
+              {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </select>
+            <button onClick={fetchAll} style={{ padding: "5px 12px", borderRadius: 7, border: "1px solid #252540", background: "transparent", color: "#666", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>↻ Atualizar</button>
+          </div>
+        </div>
+
+        {/* Tasks grid */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
+          {loading ? (
+            <div style={{ textAlign: "center", color: "#555", padding: 40 }}>Carregando tarefas...</div>
+          ) : filtered.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 60 }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#444", marginBottom: 6 }}>Nenhuma tarefa pendente!</div>
+              <div style={{ fontSize: 13, color: "#333" }}>Todas as tarefas foram concluídas.</div>
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 12 }}>
+              {filtered.map(task => {
+                const conv = getConv(task.conversation_id);
+                const overdue = isOverdue(task.due_at);
+                const assignedName = task.users?.name || agents.find(a => a.id === task.assigned_to)?.name;
+                return (
+                  <div
+                    key={task.id}
+                    onClick={() => setSelectedTask(task)}
+                    style={{ background: "#0d0d18", border: `1px solid ${overdue ? "#f4433633" : "#1a1a2e"}`, borderRadius: 12, padding: "14px 16px", cursor: "pointer", transition: "all 0.15s", position: "relative" }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = overdue ? "#f4433666" : "#252540"; e.currentTarget.style.background = "#13131f"; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = overdue ? "#f4433633" : "#1a1a2e"; e.currentTarget.style.background = "#0d0d18"; }}
+                  >
+                    {overdue && <div style={{ position: "absolute", top: 10, right: 12, background: "#f4433322", color: "#f44336", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 10 }}>VENCIDA</div>}
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#e8e8f0", marginBottom: 6, paddingRight: overdue ? 60 : 0 }}>{task.title}</div>
+                    {task.description && <div style={{ fontSize: 12, color: "#666", marginBottom: 10, lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{task.description}</div>}
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+                      {task.due_at && <span style={{ fontSize: 11, color: overdue ? "#f44336" : "#888", display: "flex", alignItems: "center", gap: 4 }}>📅 {new Date(task.due_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>}
+                      {assignedName && <span style={{ fontSize: 11, color: "#00c853" }}>👤 {assignedName}</span>}
+                    </div>
+                    {conv && (
+                      <div
+                        onClick={e => { e.stopPropagation(); onSelectConv(conv); }}
+                        style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", background: "#1a1a2e", borderRadius: 8, cursor: "pointer" }}
+                        onMouseEnter={e => e.currentTarget.style.background = "#252540"}
+                        onMouseLeave={e => e.currentTarget.style.background = "#1a1a2e"}
+                      >
+                        <Avatar name={conv.contacts?.name || conv.contacts?.phone} size={20} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#ccc" }}>{conv.contacts?.name || conv.contacts?.phone}</div>
+                          <div style={{ fontSize: 10, color: "#555" }}>{conv.contacts?.phone}</div>
+                        </div>
+                        <span style={{ fontSize: 10, color: "#555", flexShrink: 0 }}>→ ver conversa</span>
+                      </div>
+                    )}
+                    <div style={{ marginTop: 8, fontSize: 10, color: "#444" }}>Clique para ver detalhes e atualizações →</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+      {selectedTask && (
+        <TaskDetailModal
+          task={selectedTask}
+          agents={agents}
+          onClose={() => setSelectedTask(null)}
+          onComplete={completeTask}
+        />
+      )}
+    </>
+  );
+}
+
 function LeadsBoard({ conversations, kanbanCols, labels, onSelectConv, onManageLabels, onMoveLabel }) {
   const [dragging, setDragging] = useState(null);       // { convId, fromLabelId }
   const [dragOver, setDragOver] = useState(null);       // label.id or "unlabeled"
@@ -711,10 +838,12 @@ export default function App() {
 
   const filtered = conversations.filter(c => (c.contacts?.name || c.contacts?.phone || "").toLowerCase().includes(search.toLowerCase()));
 
+  const totalPendingTasks = Object.values(pendingTasksMap).reduce((a, b) => a + b, 0);
   const TABS = [
     { id: "inbox", label: "📥 Inbox" },
     { id: "leads", label: "🏷 Leads" },
     { id: "kanban", label: "🗂 Kanban" },
+    { id: "tasks_global", label: "✅ Tarefas" },
     { id: "config", label: "⚙️ Config" },
   ];
 
@@ -724,11 +853,14 @@ export default function App() {
       <div style={{ height: 48, flexShrink: 0, borderBottom: "1px solid #1a1a2e", background: "#0d0d18", display: "flex", alignItems: "center", padding: "0 20px", gap: 24 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ width: 26, height: 26, borderRadius: 7, background: "linear-gradient(135deg, #00c853, #00796b)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>⚡</div>
-          <span style={{ fontWeight: 700, fontSize: 15 }}>7zap</span>
+          <span style={{ fontWeight: 700, fontSize: 15 }}>7CRM</span>
         </div>
         <div style={{ display: "flex", gap: 4 }}>
           {TABS.map(tab => (
-            <button key={tab.id} onClick={() => setView(tab.id)} style={{ padding: "5px 14px", borderRadius: 6, border: "none", background: view === tab.id ? "#00c85320" : "transparent", color: view === tab.id ? "#00c853" : "#666", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{tab.label}</button>
+            <button key={tab.id} onClick={() => setView(tab.id)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 14px", borderRadius: 6, border: "none", background: view === tab.id ? "#00c85320" : "transparent", color: view === tab.id ? "#00c853" : "#666", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+              {tab.label}
+              {tab.id === "tasks_global" && totalPendingTasks > 0 && <span style={{ background: "#ff6d00", color: "#000", fontSize: 10, fontWeight: 800, padding: "1px 6px", borderRadius: 10, lineHeight: 1.4 }}>{totalPendingTasks}</span>}
+            </button>
           ))}
         </div>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#444" }}>
@@ -753,11 +885,22 @@ export default function App() {
             </div>
             <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 24 }}>
               <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>📋 Informações do Tenant</div>
-              {[["Tenant ID", TENANT_ID], ["API URL", API_URL], ["Versão", "7zap Inbox v1.0"]].map(([lbl, val]) => (
+              {[["Tenant ID", TENANT_ID], ["API URL", API_URL], ["Versão", "7CRM v1.0"]].map(([lbl, val]) => (
                 <div key={lbl} style={{ display: "flex", gap: 12, marginBottom: 8 }}><span style={{ fontSize: 12, color: "#555", width: 100, flexShrink: 0 }}>{lbl}</span><span style={{ fontSize: 12, color: "#888", fontFamily: "monospace", wordBreak: "break-all" }}>{val}</span></div>
               ))}
             </div>
           </div>
+        )}
+
+        {/* Global Tasks */}
+        {view === "tasks_global" && (
+          <GlobalTasksView
+            pendingTasksMap={pendingTasksMap}
+            conversations={conversations}
+            agents={agents}
+            onSelectConv={(conv) => { setSelected(conv); setView("inbox"); }}
+            onRefresh={fetchPendingTasks}
+          />
         )}
 
         {/* Leads */}
