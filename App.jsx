@@ -180,8 +180,8 @@ function LabelManagerModal({ labels, onChange, onClose }) {
 
 // ─── Leads Board (por etiqueta) ───────────────────────────────────────────────
 function LeadsBoard({ conversations, kanbanCols, labels, onSelectConv, onManageLabels, onMoveLabel }) {
-  const [dragging, setDragging] = useState(null); // conv.id being dragged
-  const [dragOver, setDragOver] = useState(null); // label.id or "unlabeled"
+  const [dragging, setDragging] = useState(null);       // { convId, fromLabelId }
+  const [dragOver, setDragOver] = useState(null);       // label.id or "unlabeled"
 
   const unlabeled = conversations.filter(c => !c.labels || c.labels.length === 0);
 
@@ -196,8 +196,8 @@ function LeadsBoard({ conversations, kanbanCols, labels, onSelectConv, onManageL
 
   const handleDrop = (targetLabelId) => {
     if (!dragging) return;
-    const conv = conversations.find(c => c.id === dragging);
-    if (conv) onMoveLabel(conv, targetLabelId === "unlabeled" ? null : allLabels.find(l => l.id === targetLabelId));
+    const conv = conversations.find(c => c.id === dragging.convId);
+    if (conv) onMoveLabel(conv, dragging.fromLabelId, targetLabelId === "unlabeled" ? null : allLabels.find(l => l.id === targetLabelId));
     setDragging(null);
     setDragOver(null);
   };
@@ -206,12 +206,12 @@ function LeadsBoard({ conversations, kanbanCols, labels, onSelectConv, onManageL
     <div
       key={conv.id}
       draggable
-      onDragStart={(e) => { e.stopPropagation(); setDragging(conv.id); }}
+      onDragStart={(e) => { e.stopPropagation(); setDragging({ convId: conv.id, fromLabelId: colLabel?.id || null }); }}
       onDragEnd={() => { setDragging(null); setDragOver(null); }}
       onClick={() => !dragging && onSelectConv(conv)}
-      style={{ background: "#13131f", border: `1px solid ${dragging === conv.id ? (colLabel?.color || "#555") + "55" : "#252540"}`, borderRadius: 10, padding: "11px 13px", cursor: "grab", opacity: dragging === conv.id ? 0.4 : 1, transition: "border-color 0.15s" }}
-      onMouseEnter={e => { if (dragging !== conv.id) e.currentTarget.style.borderColor = (colLabel?.color || "#555") + "55"; }}
-      onMouseLeave={e => { if (dragging !== conv.id) e.currentTarget.style.borderColor = "#252540"; }}
+      style={{ background: "#13131f", border: `1px solid ${dragging?.convId === conv.id ? (colLabel?.color || "#555") + "55" : "#252540"}`, borderRadius: 10, padding: "11px 13px", cursor: "grab", opacity: dragging?.convId === conv.id ? 0.4 : 1, transition: "border-color 0.15s" }}
+      onMouseEnter={e => { if (dragging?.convId !== conv.id) e.currentTarget.style.borderColor = (colLabel?.color || "#555") + "55"; }}
+      onMouseLeave={e => { if (dragging?.convId !== conv.id) e.currentTarget.style.borderColor = "#252540"; }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
         <Avatar name={conv.contacts?.name || conv.contacts?.phone} size={26} />
@@ -253,8 +253,7 @@ function LeadsBoard({ conversations, kanbanCols, labels, onSelectConv, onManageL
               onDragOver={e => { e.preventDefault(); setDragOver(label.id); }}
               onDragLeave={() => setDragOver(null)}
               onDrop={() => handleDrop(label.id)}
-              style={{ width: 270, flexShrink: 0, display: "flex", flexDirection: "column", background: isOver ? "#1a1a2e" : "#0d0d18", border: `1px solid ${isOver ? label.color + "66" : "#1a1a2e"}`, borderRadius: 12, overflow: "hidden", transition: "all 0.15s" }}
-            >
+              style={{ width: 270, flexShrink: 0, display: "flex", flexDirection: "column", background: isOver ? "#1a1a2e" : "#0d0d18", border: `1px solid ${isOver ? label.color + "66" : "#1a1a2e"}`, borderRadius: 12, overflow: "hidden", transition: "all 0.15s" }}            >
               <div style={{ padding: "12px 14px", borderBottom: `2px solid ${label.color}44`, display: "flex", alignItems: "center", gap: 8 }}>
                 <div style={{ width: 10, height: 10, borderRadius: "50%", background: label.color, flexShrink: 0 }} />
                 <span style={{ fontWeight: 700, fontSize: 13, color: label.color, flex: 1 }}>{label.name}</span>
@@ -673,14 +672,21 @@ export default function App() {
     setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, kanban_stage: newStage } : c));
   };
 
-  const moveLabelCard = async (conv, targetLabel) => {
+  const moveLabelCard = async (conv, fromLabelId, targetLabel) => {
     const current = conv.labels || [];
     let updated;
     if (!targetLabel) {
-      updated = [];
-    } else {
+      // Soltar em "Sem etiqueta" → remove só a etiqueta de origem
+      updated = current.filter(l => l.id !== fromLabelId);
+    } else if (!fromLabelId) {
+      // Veio de "Sem etiqueta" → apenas adiciona
       const alreadyHas = current.some(l => l.id === targetLabel.id);
       updated = alreadyHas ? current : [...current, targetLabel];
+    } else {
+      // SWAP: remove a de origem, adiciona a de destino
+      const withoutFrom = current.filter(l => l.id !== fromLabelId);
+      const alreadyHas = withoutFrom.some(l => l.id === targetLabel.id);
+      updated = alreadyHas ? withoutFrom : [...withoutFrom, targetLabel];
     }
     try { await fetch(`${API_URL}/conversations/${conv.id}/labels`, { method: "PUT", headers, body: JSON.stringify({ labels: updated }) }); } catch (e) {}
     setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, labels: updated } : c));
