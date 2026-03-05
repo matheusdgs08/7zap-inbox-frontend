@@ -372,7 +372,7 @@ function TaskDetailModal({ task, agents, onClose, onComplete }) {
 }
 
 // ─── Tasks Panel ──────────────────────────────────────────────────────────────
-function TasksPanel({ convId, agents, onClose }) {
+function TasksPanel({ convId, agents, onClose, onTaskDone }) {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState("");
@@ -393,7 +393,7 @@ function TasksPanel({ convId, agents, onClose }) {
     setCreating(false);
   };
   const completeTask = async (taskId) => {
-    try { await fetch(`${API_URL}/tasks/${taskId}/done`, { method: "PUT", headers }); setTasks(prev => prev.filter(t => t.id !== taskId)); setSelectedTask(null); } catch (e) {}
+    try { await fetch(`${API_URL}/tasks/${taskId}/done`, { method: "PUT", headers }); setTasks(prev => prev.filter(t => t.id !== taskId)); setSelectedTask(null); if (onTaskDone) onTaskDone(); } catch (e) {}
   };
   const isOverdue = (due) => due && new Date(due) < new Date();
   return (
@@ -587,6 +587,7 @@ export default function App() {
   const [filter, setFilter] = useState("open");
   const [search, setSearch] = useState("");
   const [agents, setAgents] = useState([]);
+  const [pendingTasksMap, setPendingTasksMap] = useState({}); // convId → count
   const [labels, setLabels] = useState(loadLabels);
   const [showAssign, setShowAssign] = useState(false);
   const [showLabelPicker, setShowLabelPicker] = useState(false);
@@ -620,6 +621,17 @@ export default function App() {
   const fetchTenant = useCallback(async () => {
     try { const r = await fetch(`${API_URL}/tenant?tenant_id=${TENANT_ID}`, { headers }); const d = await r.json(); setCopilotPrompt(d.copilot_prompt || ""); } catch (e) {}
   }, []);
+  const fetchPendingTasks = useCallback(async () => {
+    try {
+      const r = await fetch(`${API_URL}/tasks?tenant_id=${TENANT_ID}`, { headers });
+      const d = await r.json();
+      const map = {};
+      (d.tasks || []).forEach(t => {
+        if (!t.done) map[t.conversation_id] = (map[t.conversation_id] || 0) + 1;
+      });
+      setPendingTasksMap(map);
+    } catch (e) {}
+  }, []);
   const savePrompt = async () => {
     setSavingPrompt(true); setPromptSaved(false);
     try { await fetch(`${API_URL}/tenant/copilot-prompt`, { method: "PUT", headers, body: JSON.stringify({ tenant_id: TENANT_ID, copilot_prompt: copilotPrompt }) }); setPromptSaved(true); setTimeout(() => setPromptSaved(false), 3000); } catch (e) {}
@@ -639,7 +651,7 @@ export default function App() {
     return () => clearInterval(t);
   }, [selected, fetchMessages]);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
-  useEffect(() => { fetchAgents(); fetchTenant(); }, [fetchAgents, fetchTenant]);
+  useEffect(() => { fetchAgents(); fetchTenant(); fetchPendingTasks(); const t = setInterval(fetchPendingTasks, 30000); return () => clearInterval(t); }, [fetchAgents, fetchTenant, fetchPendingTasks]);
 
   const sendMessage = async () => {
     if (!input.trim() || !selected || sending) return;
@@ -800,6 +812,7 @@ export default function App() {
                           <StatusDot status={conv.status} />
                           <span style={{ fontSize: 11, color: "#555", flex: 1 }}>{conv.assigned_agent ? `👤 ${conv.assigned_agent}` : conv.contacts?.phone}</span>
                           {conv.unread_count > 0 && <span style={{ background: "#00c853", color: "#000", fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 10 }}>{conv.unread_count}</span>}
+                          {pendingTasksMap[conv.id] > 0 && <span title={`${pendingTasksMap[conv.id]} tarefa(s) pendente(s)`} style={{ background: "#ff6d0022", border: "1px solid #ff6d0066", color: "#ff6d00", fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 10, flexShrink: 0 }}>✅ {pendingTasksMap[conv.id]}</span>}
                         </div>
                       </div>
                     </div>
@@ -830,7 +843,7 @@ export default function App() {
                       <button onClick={() => setShowLabelPicker(true)} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #252540", background: "transparent", color: "#888", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>🏷 Etiqueta</button>
                       <button onClick={() => setShowAssign(true)} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #252540", background: "transparent", color: "#888", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>👤 Atribuir</button>
                       <button onClick={fetchSuggestion} disabled={loadingSuggest} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #7c4dff44", background: loadingSuggest ? "#1a1a2e" : "#7c4dff15", color: loadingSuggest ? "#444" : "#a78bfa", fontSize: 11, cursor: loadingSuggest ? "not-allowed" : "pointer", fontFamily: "inherit", fontWeight: 600 }}>{loadingSuggest ? "⏳..." : "✨ Co-pilot"}</button>
-                      <button onClick={() => setShowTasks(t => !t)} style={{ padding: "5px 10px", borderRadius: 6, border: `1px solid ${showTasks ? "#00c85344" : "#252540"}`, background: showTasks ? "#00c85315" : "transparent", color: showTasks ? "#00c853" : "#888", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>✅ Tarefas</button>
+                      <button onClick={() => setShowTasks(t => !t)} style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 6, border: `1px solid ${showTasks ? "#00c85344" : pendingTasksMap[selected?.id] > 0 ? "#ff6d0044" : "#252540"}`, background: showTasks ? "#00c85315" : pendingTasksMap[selected?.id] > 0 ? "#ff6d0010" : "transparent", color: showTasks ? "#00c853" : pendingTasksMap[selected?.id] > 0 ? "#ff6d00" : "#888", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>✅ Tarefas{!showTasks && pendingTasksMap[selected?.id] > 0 && <span style={{ background: "#ff6d00", color: "#000", fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 10 }}>{pendingTasksMap[selected.id]}</span>}</button>
                       {/* Status Dropdown */}
                       <StatusDropdown status={selected.status} onChange={(newStatus) => changeStatus(selected.id, newStatus)} />
                     </div>
@@ -885,7 +898,7 @@ export default function App() {
                     </div>
                   </div>
                 </div>
-                {showTasks && <TasksPanel convId={selected.id} agents={agents} onClose={() => setShowTasks(false)} />}
+                {showTasks && <TasksPanel convId={selected.id} agents={agents} onClose={() => { setShowTasks(false); fetchPendingTasks(); }} onTaskDone={fetchPendingTasks} />}
               </div>
             ) : (
               <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 14, color: "#333" }}>
