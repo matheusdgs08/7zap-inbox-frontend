@@ -1780,7 +1780,7 @@ function LeadsBoard({ conversations, kanbanCols, labels, onSelectConv, onManageL
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <div style={{ padding: "14px 24px", borderBottom: "1px solid #1a1a2e", display: "flex", alignItems: "center", gap: 12 }}>
-        <span style={{ fontSize: 15, fontWeight: 700 }}>🏷 Leads por Etiqueta</span>
+        <span style={{ fontSize: 15, fontWeight: 700 }}>🏷 Contatos por Etiqueta</span>
         <span style={{ fontSize: 12, color: "#555" }}>Arraste para mover entre etiquetas</span>
         <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
           <span style={{ fontSize: 12, color: "#555", background: "#1a1a2e", padding: "4px 12px", borderRadius: 20 }}>{conversations.length} total</span>
@@ -1993,7 +1993,7 @@ function ColumnManagerModal({ columns, onChange, onClose }) {
     <div style={{ position: "fixed", inset: 0, background: "#00000090", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200 }} onClick={onClose}>
       <div onClick={e => e.stopPropagation()} style={{ background: "#13131f", border: "1px solid #252540", borderRadius: 14, padding: 24, width: 420, maxHeight: "85vh", overflowY: "auto", boxShadow: "0 24px 64px #00000080" }}>
         <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>⚙️ Gerenciar Colunas</div>
-        <div style={{ fontSize: 12, color: "#555", marginBottom: 20 }}>Crie, renomeie ou delete colunas do Kanban</div>
+        <div style={{ fontSize: 12, color: "#555", marginBottom: 20 }}>Crie, renomeie ou delete colunas do Workspace</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
           {cols.map(col => (
             <div key={col.id} style={{ position: "relative" }}>
@@ -2079,7 +2079,7 @@ function KanbanBoard({ conversations, columns, onMoveCard, onSelectConv, onManag
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <div style={{ padding: "14px 24px", borderBottom: "1px solid #1a1a2e", display: "flex", alignItems: "center", gap: 12 }}>
-        <span style={{ fontSize: 15, fontWeight: 700 }}>Kanban de Conversas</span>
+        <span style={{ fontSize: 15, fontWeight: 700 }}>Workspace</span>
         <span style={{ fontSize: 12, color: "#555" }}>Arraste para mover entre colunas</span>
         <button onClick={onManageCols} style={{ marginLeft: "auto", padding: "6px 14px", borderRadius: 7, border: "1px solid #252540", background: "transparent", color: "#888", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>⚙️ Gerenciar colunas</button>
       </div>
@@ -2300,8 +2300,8 @@ function AppInner({ auth, onLogout }) {
   const totalPendingTasks = Object.values(pendingTasksMap).reduce((a, b) => a + b, 0);
   const WORK_TABS = [
     { id: "inbox", label: "📥 Inbox" },
-    { id: "leads", label: "🏷 Leads" },
-    { id: "kanban", label: "🗂 Kanban" },
+    { id: "leads", label: "🏷 Contatos" },
+    { id: "kanban", label: "🗂 Workspace" },
     { id: "tasks_global", label: "✅ Tarefas" },
     { id: "disparos", label: "📢 Disparos" },
     { id: "config", label: "⚙️ Config IA" },
