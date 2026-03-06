@@ -446,6 +446,222 @@ function AdminPanel({ auth, onLogout }) {
   );
 }
 
+
+// ─── Onboarding Inteligente ───────────────────────────────────────────────────
+function OnboardingView({ auth }) {
+  const [step, setStep] = useState("intro"); // intro | analyzing | result | done
+  const [days, setDays] = useState(90);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [editedPrompt, setEditedPrompt] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+  const [progress, setProgress] = useState(0);
+
+  const analyze = async () => {
+    setLoading(true); setError(""); setStep("analyzing"); setProgress(0);
+    
+    // Simula progresso enquanto aguarda
+    const progressInterval = setInterval(() => {
+      setProgress(p => Math.min(p + Math.random() * 8, 90));
+    }, 800);
+
+    try {
+      const r = await fetch(`${API_URL}/onboarding/analyze`, {
+        method: "POST", headers,
+        body: JSON.stringify({ tenant_id: TENANT_ID, days })
+      });
+      const d = await r.json();
+      clearInterval(progressInterval);
+      if (!r.ok) { setError(d.detail || "Erro na análise"); setStep("intro"); setLoading(false); return; }
+      setProgress(100);
+      setTimeout(() => {
+        setResult(d);
+        setEditedPrompt(d.generated_prompt);
+        setStep("result");
+      }, 500);
+    } catch (e) {
+      clearInterval(progressInterval);
+      setError("Erro de conexão. Tente novamente.");
+      setStep("intro");
+    }
+    setLoading(false);
+  };
+
+  const savePrompt = async () => {
+    setSaving(true);
+    try {
+      await fetch(`${API_URL}/onboarding/save-prompt`, {
+        method: "POST", headers,
+        body: JSON.stringify({ tenant_id: TENANT_ID, prompt: editedPrompt })
+      });
+      setSaved(true);
+      setTimeout(() => setStep("done"), 800);
+    } catch (e) {}
+    setSaving(false);
+  };
+
+  const inp = { width: "100%", padding: "9px 12px", background: "#13131f", border: "1px solid #252540", borderRadius: 8, color: "#e8e8f0", fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box" };
+
+  return (
+    <div style={{ flex: 1, overflowY: "auto", padding: 40 }}>
+      <div style={{ maxWidth: 680, margin: "0 auto" }}>
+
+        {/* ── INTRO ── */}
+        {step === "intro" && (
+          <>
+            <div style={{ marginBottom: 32 }}>
+              <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>🧠 Onboarding Inteligente</div>
+              <div style={{ fontSize: 13, color: "#555" }}>A IA lê seu histórico do WhatsApp e aprende como sua empresa funciona</div>
+            </div>
+
+            {/* How it works */}
+            <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 24, marginBottom: 20 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Como funciona</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {[
+                  { n: "1", title: "Seleciona o período", desc: "Escolha quantos dias de histórico a IA vai analisar", icon: "📅" },
+                  { n: "2", title: "IA analisa as conversas", desc: "Claude lê até 50 conversas e identifica padrões do seu negócio", icon: "🔍" },
+                  { n: "3", title: "Prompt gerado automaticamente", desc: "Tom de voz, FAQ, produtos e regras da sua empresa — tudo automatico", icon: "✨" },
+                  { n: "4", title: "Revise e ative", desc: "Edite se quiser e salve. Co-pilot começa a usar imediatamente", icon: "🚀" },
+                ].map(s => (
+                  <div key={s.n} style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+                    <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#00c85320", border: "1px solid #00c85340", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>{s.icon}</div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#e8e8f0", marginBottom: 2 }}>{s.title}</div>
+                      <div style={{ fontSize: 12, color: "#555" }}>{s.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Period selector */}
+            <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 24, marginBottom: 20 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>📅 Período de análise</div>
+              <div style={{ fontSize: 12, color: "#555", marginBottom: 16 }}>Mais dias = análise mais rica. Recomendamos 90 dias.</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                {[30, 60, 90, 180].map(d => (
+                  <button key={d} onClick={() => setDays(d)} style={{ flex: 1, padding: "10px 0", borderRadius: 9, border: `2px solid ${days === d ? "#00c853" : "#252540"}`, background: days === d ? "#00c85315" : "#13131f", color: days === d ? "#00c853" : "#555", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                    {d} dias
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {error && <div style={{ background: "#f4433315", border: "1px solid #f4433333", borderRadius: 10, padding: "12px 16px", fontSize: 13, color: "#f44336", marginBottom: 16 }}>❌ {error}</div>}
+
+            {/* Warning */}
+            <div style={{ background: "#7c4dff15", border: "1px solid #7c4dff33", borderRadius: 10, padding: "12px 16px", fontSize: 12, color: "#a78bfa", marginBottom: 20 }}>
+              ⚡ Disponível apenas no plano <strong>Pro e Business</strong>. Consome ~50 créditos de IA (uma única vez).
+            </div>
+
+            <button onClick={analyze} style={{ width: "100%", padding: "14px 0", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #00c853, #00796b)", color: "#000", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
+              🧠 Analisar meu histórico e gerar prompt →
+            </button>
+          </>
+        )}
+
+        {/* ── ANALYZING ── */}
+        {step === "analyzing" && (
+          <div style={{ textAlign: "center", paddingTop: 60 }}>
+            <div style={{ fontSize: 48, marginBottom: 24 }}>🧠</div>
+            <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Analisando suas conversas...</div>
+            <div style={{ fontSize: 13, color: "#555", marginBottom: 40 }}>Claude está lendo o histórico e aprendendo sobre seu negócio. Isso pode levar até 30 segundos.</div>
+            
+            {/* Progress bar */}
+            <div style={{ background: "#1a1a2e", borderRadius: 20, height: 8, marginBottom: 12, overflow: "hidden" }}>
+              <div style={{ height: "100%", borderRadius: 20, background: "linear-gradient(90deg, #00c853, #00bcd4)", width: `${progress}%`, transition: "width 0.8s ease" }} />
+            </div>
+            <div style={{ fontSize: 12, color: "#555" }}>{Math.round(progress)}% concluído</div>
+
+            <div style={{ marginTop: 40, display: "flex", flexDirection: "column", gap: 10, textAlign: "left", background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 12, padding: 20 }}>
+              {[
+                { label: "Buscando conversas...", done: progress > 15 },
+                { label: "Lendo mensagens...", done: progress > 35 },
+                { label: "Identificando padrões...", done: progress > 60 },
+                { label: "Gerando prompt personalizado...", done: progress > 85 },
+              ].map(s => (
+                <div key={s.label} style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13, color: s.done ? "#00c853" : "#333" }}>
+                  <span>{s.done ? "✓" : "⏳"}</span>
+                  {s.label}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── RESULT ── */}
+        {step === "result" && result && (
+          <>
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>✨ Prompt gerado!</div>
+              <div style={{ fontSize: 13, color: "#555" }}>
+                Analisamos <strong style={{ color: "#00c853" }}>{result.conversations_analyzed} conversas</strong> dos últimos <strong style={{ color: "#00c853" }}>{result.days_analyzed} dias</strong>. Revise e salve.
+              </div>
+            </div>
+
+            {/* Stats */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
+              {[
+                { label: "Conversas analisadas", value: result.conversations_analyzed, color: "#00c853" },
+                { label: "Dias de histórico", value: result.days_analyzed, color: "#00bcd4" },
+                { label: "Créditos usados", value: "~50", color: "#7c4dff" },
+              ].map(s => (
+                <div key={s.label} style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 10, padding: "12px 14px", textAlign: "center" }}>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: s.color }}>{s.value}</div>
+                  <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Editable prompt */}
+            <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 24, marginBottom: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                <div style={{ fontSize: 14, fontWeight: 700 }}>📝 Prompt gerado pela IA</div>
+                <span style={{ fontSize: 11, background: "#00c85322", color: "#00c853", padding: "2px 10px", borderRadius: 20, fontWeight: 700 }}>editável</span>
+              </div>
+              <div style={{ fontSize: 12, color: "#555", marginBottom: 12 }}>Personalize à vontade antes de salvar. Este será o "cérebro" do Co-pilot.</div>
+              <textarea
+                value={editedPrompt}
+                onChange={e => setEditedPrompt(e.target.value)}
+                rows={16}
+                style={{ width: "100%", padding: "14px 16px", background: "#13131f", border: "1px solid #252540", borderRadius: 10, color: "#e8e8f0", fontSize: 13, outline: "none", resize: "vertical", fontFamily: "monospace", lineHeight: 1.6, boxSizing: "border-box" }}
+              />
+              <div style={{ fontSize: 11, color: "#444", marginTop: 6 }}>{editedPrompt.length} caracteres</div>
+            </div>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setStep("intro")} style={{ padding: "12px 20px", borderRadius: 10, border: "1px solid #252540", background: "transparent", color: "#555", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>← Refazer</button>
+              <button onClick={savePrompt} disabled={saving || !editedPrompt.trim()} style={{ flex: 1, padding: "12px 0", borderRadius: 10, border: "none", background: saved ? "#00c853" : "linear-gradient(135deg,#00c853,#00796b)", color: "#000", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
+                {saving ? "Salvando..." : saved ? "✓ Salvo!" : "🚀 Salvar e ativar Co-pilot →"}
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ── DONE ── */}
+        {step === "done" && (
+          <div style={{ textAlign: "center", paddingTop: 60 }}>
+            <div style={{ fontSize: 64, marginBottom: 24 }}>🎉</div>
+            <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Co-pilot configurado!</div>
+            <div style={{ fontSize: 14, color: "#555", marginBottom: 32 }}>Seu Co-pilot agora conhece sua empresa. Abra uma conversa no Inbox e clique em ✨ para ver a mágica.</div>
+            <div style={{ background: "#00c85315", border: "1px solid #00c85333", borderRadius: 14, padding: 24, marginBottom: 32, textAlign: "left" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#00c853", marginBottom: 12 }}>O que mudou:</div>
+              {["Co-pilot agora usa o prompt personalizado da sua empresa", "Sugestões de resposta muito mais precisas e no tom certo", "FAQ automático baseado nas suas perguntas reais", "Você pode refinar o prompt a qualquer momento em Configurações"].map(f => (
+                <div key={f} style={{ display: "flex", gap: 8, fontSize: 13, color: "#888", marginBottom: 8 }}><span style={{ color: "#00c853" }}>✓</span>{f}</div>
+              ))}
+            </div>
+            <button onClick={() => setStep("intro")} style={{ padding: "10px 24px", borderRadius: 10, border: "1px solid #252540", background: "transparent", color: "#555", fontSize: 13, cursor: "pointer", fontFamily: "inherit", marginRight: 10 }}>Refazer análise</button>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
 // ─── Leads Board (por etiqueta) ───────────────────────────────────────────────
 
 // ─── Broadcasts / Disparos View ──────────────────────────────────────────────
@@ -1633,6 +1849,7 @@ function AppInner({ auth, onLogout }) {
     { id: "config", label: "⚙️ Config" },
     ...(auth.user.role === "admin" ? [{ id: "admin", label: "🔐 Admin" }] : []),
     ...(trialInfo?.status === "trial" ? [{ id: "upgrade", label: "⭐ Assinar" }] : []),
+    ...(auth.user.role === "admin" && trialInfo?.plan !== "trial" ? [{ id: "onboarding", label: "🧠 Onboarding IA" }] : []),
   ];
 
   // Blocked screen — trial expired
@@ -1724,6 +1941,11 @@ function AppInner({ auth, onLogout }) {
         {/* Admin */}
         {view === "admin" && auth.user.role === "admin" && (
           <AdminPanel auth={auth} onLogout={onLogout} />
+        )}
+
+        {/* Onboarding IA */}
+        {view === "onboarding" && auth.user.role === "admin" && (
+          <OnboardingView auth={auth} />
         )}
 
         {/* Upgrade */}
