@@ -2391,6 +2391,15 @@ function AppInner({ auth, onLogout }) {
         return c;
       });
       setConversations(merged);
+      // Keep selected in sync — but never overwrite labels if override active
+      setSelected(prev => {
+        if (!prev) return prev;
+        const fresh = merged.find(c => c.id === prev.id);
+        if (!fresh) return prev;
+        const ov = labelOverrideRef.current[prev.id];
+        const labels = (ov && ov.until > Date.now()) ? prev.labels : fresh.labels;
+        return { ...fresh, labels };
+      });
     } catch (e) {}
     setLoading(false);
   }, [filter]);
@@ -2403,6 +2412,14 @@ function AppInner({ auth, onLogout }) {
         return c;
       });
       setConversations(merged);
+      setSelected(prev => {
+        if (!prev) return prev;
+        const fresh = merged.find(c => c.id === prev.id);
+        if (!fresh) return prev;
+        const ov = labelOverrideRef.current[prev.id];
+        const labels = (ov && ov.until > Date.now()) ? prev.labels : fresh.labels;
+        return { ...fresh, labels };
+      });
     } catch (e) {}
     setLoading(false);
   }, []);
@@ -2496,12 +2513,25 @@ function AppInner({ auth, onLogout }) {
   };
   const toggleLabel = async (label) => {
     if (!selected) return;
-    const current = selected.labels || []; const exists = current.some(l => l.id === label.id);
-    const updated = exists ? current.filter(l => l.id !== label.id) : [...current, label];
-    try { await fetch(`${API_URL}/conversations/${selected.id}/labels`, { method: "PUT", headers, body: JSON.stringify({ labels: updated }) }); } catch (e) {}
+    const previous = selected.labels || [];
+    const exists = previous.some(l => l.id === label.id);
+    const updated = exists ? previous.filter(l => l.id !== label.id) : [...previous, label];
+    // Optimistic update
     setSelected(prev => ({ ...prev, labels: updated }));
     setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, labels: updated } : c));
-    labelOverrideRef.current[selected.id] = { labels: updated, until: Date.now() + 15000 };
+    labelOverrideRef.current[selected.id] = { labels: updated, until: Date.now() + 60000 };
+    try {
+      const resp = await fetch(`${API_URL}/conversations/${selected.id}/labels`, { method: "PUT", headers, body: JSON.stringify({ labels: updated }) });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      // Confirmed — extend the override so next poll doesn't overwrite
+      labelOverrideRef.current[selected.id] = { labels: updated, until: Date.now() + 60000 };
+    } catch (e) {
+      // Revert on failure
+      console.error("Label update failed:", e);
+      setSelected(prev => ({ ...prev, labels: previous }));
+      setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, labels: previous } : c));
+      labelOverrideRef.current[selected.id] = { labels: previous, until: Date.now() + 60000 };
+    }
   };
   const moveKanbanCard = async (conv, newStage) => {
     try { await fetch(`${API_URL}/conversations/${conv.id}/kanban`, { method: "PUT", headers, body: JSON.stringify({ stage: newStage }) }); } catch (e) {}
