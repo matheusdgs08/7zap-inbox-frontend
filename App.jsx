@@ -966,7 +966,7 @@ function WhatsAppScreen({ auth }) {
           <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 16, padding: 28, marginBottom: 20 }}>
             <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>📷 Conectar via QR Code</div>
             <div style={{ fontSize: 13, color: "#555", marginBottom: 24 }}>
-              Abra o WhatsApp no celular → <strong style={{ color: "#e8e8f0" }}>Menu (⋮)</strong> → <strong style={{ color: "#e8e8f0" }}>Dispositivos conectados</strong> → <strong style={{ color: "#e8e8f0" }}>Adicionar dispositivo</strong>
+              Abra o WhatsApp no celular → <strong style={{ color: "#e8e8f0" }}>Menu (3 pontos)</strong> → <strong style={{ color: "#e8e8f0" }}>Dispositivos conectados</strong> → <strong style={{ color: "#e8e8f0" }}>Adicionar dispositivo</strong>
             </div>
 
             {/* QR grande e centralizado */}
@@ -996,7 +996,7 @@ function WhatsAppScreen({ auth }) {
                 <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 10, color: "#666" }}>Como escanear:</div>
                 {[
                   "Abra o WhatsApp no celular",
-                  "Menu (⋮) → Dispositivos conectados",
+                  "Menu (3 pontos) → Dispositivos conectados",
                   "Adicionar dispositivo",
                   "Aponte a câmera para o QR acima ✅",
                 ].map((step, i) => (
