@@ -322,7 +322,10 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols }) {
           ))}
         </div>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ background: "#f4433322", border: "1px solid #f4433344", borderRadius: 8, padding: "5px 12px", fontSize: 11, color: "#f44336", fontWeight: 600 }}>⚠️ Intervalo mín. 60s — abaixo disso risco de ban</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <div style={{ background: "#f4433322", border: "1px solid #f4433344", borderRadius: 8, padding: "6px 12px", fontSize: 11, color: "#f44336", fontWeight: 600 }}>⚠️ Intervalo mínimo 60s entre mensagens — abaixo disso risco de ban</div>
+                <div style={{ background: "#ff6d0022", border: "1px solid #ff6d0044", borderRadius: 8, padding: "6px 12px", fontSize: 11, color: "#ff6d00", fontWeight: 600 }}>⚠️ Enviar para quem nunca te mandou mensagem também tem risco de ban</div>
+              </div>
         </div>
       </div>
 
