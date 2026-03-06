@@ -211,6 +211,12 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols }) {
   const [creatingSched, setCreatingSched] = useState(false);
 
   const [selectedBroadcast, setSelectedBroadcast] = useState(null);
+  const [toast, setToast] = useState(null); // {msg, color}
+
+  const showToast = (msg, color = "#00c853") => {
+    setToast({ msg, color });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   const fetchBroadcasts = async () => {
     setLoading(true);
@@ -276,6 +282,7 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols }) {
       })});
       setBName(""); setBMessage(""); setBIntervalMin(60); setBIntervalMax(120); setBScheduledAt(""); setBRecipients([]); setCsvText(""); setAiObjective("");
       setTab("queue"); fetchBroadcasts();
+      showToast(bScheduledAt ? "📅 Disparo agendado! Veja na aba Fila ✓" : "🚀 Disparo iniciado! Acompanhe na Fila ✓");
     } catch (e) {}
     setCreating(false);
   };
@@ -295,7 +302,9 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols }) {
         conversation_id: sConvId || null
       })});
       setSPhone(""); setSName(""); setSMessage(""); setSDate(""); setSRecurrence(""); setSConvId("");
-      fetchScheduled();
+      await fetchScheduled();
+      setTab("scheduled");
+      showToast("📅 Mensagem agendada! Veja em Agendamentos ✓");
     } catch (e) {}
     setCreatingSched(false);
   };
@@ -313,19 +322,24 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols }) {
   const labelStyle = { fontSize: 11, fontWeight: 700, color: "#555", marginBottom: 6, display: "block" };
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
+      {/* Toast */}
+      {toast && (
+        <div style={{ position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", zIndex: 999, background: toast.color, color: "#000", padding: "12px 24px", borderRadius: 12, fontSize: 13, fontWeight: 700, boxShadow: "0 8px 32px #00000060", display: "flex", alignItems: "center", gap: 10, whiteSpace: "nowrap" }}>
+          {toast.msg}
+          <span onClick={() => setToast(null)} style={{ cursor: "pointer", opacity: 0.6, fontSize: 16 }}>×</span>
+        </div>
+      )}
       {/* Header tabs */}
-      <div style={{ padding: "12px 24px", borderBottom: "1px solid #1a1a2e", display: "flex", alignItems: "center", gap: 10 }}>
+      <div style={{ padding: "10px 24px", borderBottom: "1px solid #1a1a2e", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         <div style={{ display: "flex", gap: 3, background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 9, padding: 3 }}>
           {[["new","✏️ Novo disparo"],["queue","📋 Fila"],["scheduled","📅 Agendamentos"]].map(([id, label]) => (
             <button key={id} onClick={() => setTab(id)} style={{ padding: "6px 16px", borderRadius: 7, border: "none", background: tab === id ? "#1a1a2e" : "transparent", color: tab === id ? "#e8e8f0" : "#555", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{label}</button>
           ))}
         </div>
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <div style={{ background: "#f4433322", border: "1px solid #f4433344", borderRadius: 8, padding: "6px 12px", fontSize: 11, color: "#f44336", fontWeight: 600 }}>⚠️ Intervalo mínimo 60s entre mensagens — abaixo disso risco de ban</div>
-                <div style={{ background: "#ff6d0022", border: "1px solid #ff6d0044", borderRadius: 8, padding: "6px 12px", fontSize: 11, color: "#ff6d00", fontWeight: 600 }}>⚠️ Enviar para quem nunca te mandou mensagem também tem risco de ban</div>
-              </div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginLeft: "auto" }}>
+          <span style={{ background: "#f4433322", border: "1px solid #f4433344", borderRadius: 20, padding: "4px 10px", fontSize: 11, color: "#f44336", fontWeight: 600 }}>⚠️ Intervalo mín. 60s</span>
+          <span style={{ background: "#ff6d0022", border: "1px solid #ff6d0044", borderRadius: 20, padding: "4px 10px", fontSize: 11, color: "#ff6d00", fontWeight: 600 }}>⚠️ Contatos sem histórico = risco de ban</span>
         </div>
       </div>
 
