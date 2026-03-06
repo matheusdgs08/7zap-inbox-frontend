@@ -506,19 +506,20 @@ function LoginScreen({ onLogin }) {
 function LicensesPanel({ aHeaders, showToast }) {
   const [tenants, setTenants] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [totalMrr, setTotalMrr] = useState(0);
   const [showCreate, setShowCreate] = useState(false);
-  const [cName, setCName] = useState("");
-  const [cEmail, setCEmail] = useState("");
-  const [cPlan, setCPlan] = useState("starter");
-  const [creating, setCreating] = useState(false);
+  const [cName, setCName] = useState(""); const [cEmail, setCEmail] = useState("");
+  const [cPhone, setCPhone] = useState(""); const [cPlan, setCPlan] = useState("starter");
+  const [creating, setCreating] = useState(false); const [createResult, setCreateResult] = useState(null);
+  const [resendPhone, setResendPhone] = useState({}); const [sendingInvite, setSendingInvite] = useState({});
 
   const PLANS = [
-    { id: "trial", label: "Trial", color: "#ff6d00", price: "Grátis 7 dias" },
-    { id: "starter", label: "Starter", color: "#00bcd4", price: "R$ 149/mês" },
-    { id: "pro", label: "Pro", color: "#00c853", price: "R$ 299/mês" },
-    { id: "business", label: "Business", color: "#7c4dff", price: "R$ 599/mês" },
+    { id: "trial",    label: "Trial",    color: "#ff9800", price: "Grátis 7d",  features: ["3 atendentes","1 número","Sem IA"] },
+    { id: "starter",  label: "Starter",  color: "#00bcd4", price: "R$ 149/mês", features: ["3 atendentes","1 número","Sem IA"] },
+    { id: "pro",      label: "Pro",      color: "#00c853", price: "R$ 299/mês", features: ["8 atendentes","2 números","Co-pilot IA","Checkout PIX"] },
+    { id: "business", label: "Business", color: "#7c4dff", price: "R$ 599/mês", features: ["Ilimitado","White-label","API própria"] },
   ];
-  const planInfo = (id) => PLANS.find(p => p.id === id) || PLANS[0];
+  const planInfo = (id) => PLANS.find(p => p.id === id) || PLANS[1];
 
   const fetchTenants = async () => {
     setLoading(true);
@@ -526,123 +527,195 @@ function LicensesPanel({ aHeaders, showToast }) {
       const r = await fetch(`${API_URL}/admin/tenants`, { headers: aHeaders });
       const d = await r.json();
       setTenants(d.tenants || []);
+      setTotalMrr(d.total_mrr || 0);
     } catch (e) {}
     setLoading(false);
   };
-
   useEffect(() => { fetchTenants(); }, []);
 
   const changePlan = async (tenantId, plan) => {
-    try {
-      await fetch(`${API_URL}/admin/tenants/${tenantId}/plan`, { method: "PUT", headers: aHeaders, body: JSON.stringify({ plan }) });
-      setTenants(prev => prev.map(t => t.id === tenantId ? { ...t, plan } : t));
-      showToast(`✓ Plano atualizado para ${plan}`);
-    } catch (e) { showToast("Erro ao atualizar plano", "#f44336"); }
+    await fetch(`${API_URL}/admin/tenants/${tenantId}/plan`, { method: "PUT", headers: aHeaders, body: JSON.stringify({ plan }) });
+    setTenants(prev => prev.map(t => t.id === tenantId ? { ...t, plan } : t));
+    showToast(`✓ Plano → ${plan}`);
   };
 
-  const toggleActive = async (tenant) => {
-    try {
-      await fetch(`${API_URL}/admin/tenants/${tenant.id}`, { method: "PUT", headers: aHeaders, body: JSON.stringify({ is_active: !tenant.is_active }) });
-      setTenants(prev => prev.map(t => t.id === tenant.id ? { ...t, is_active: !t.is_active } : t));
-      showToast(tenant.is_active ? "Licença suspensa" : "Licença reativada", tenant.is_active ? "#f44336" : "#00c853");
-    } catch (e) {}
+  const toggleBlock = async (tenant) => {
+    const block = !tenant.is_blocked;
+    await fetch(`${API_URL}/admin/tenants/${tenant.id}/block`, { method: "PUT", headers: aHeaders, body: JSON.stringify({ blocked: block }) });
+    setTenants(prev => prev.map(t => t.id === tenant.id ? { ...t, is_blocked: block } : t));
+    showToast(block ? "🔴 Cliente suspenso" : "✅ Cliente reativado", block ? "#f44336" : "#00c853");
+  };
+
+  const resendInvite = async (tenantId) => {
+    const phone = (resendPhone[tenantId] || "").replace(/\D/g, "");
+    if (!phone) return showToast("Informe o telefone", "#f44336");
+    setSendingInvite(p => ({ ...p, [tenantId]: true }));
+    const r = await fetch(`${API_URL}/admin/tenants/${tenantId}/resend-invite`, { method: "POST", headers: aHeaders, body: JSON.stringify({ phone }) });
+    const d = await r.json();
+    setSendingInvite(p => ({ ...p, [tenantId]: false }));
+    if (d.invite_url) { navigator.clipboard.writeText(d.invite_url).catch(() => {}); showToast(d.whatsapp_sent ? "📱 WhatsApp enviado + link copiado!" : "📋 Link copiado!"); }
   };
 
   const createTenant = async () => {
     if (!cName.trim() || !cEmail.trim() || creating) return;
-    setCreating(true);
-    try {
-      const r = await fetch(`${API_URL}/admin/tenants`, { method: "POST", headers: aHeaders, body: JSON.stringify({ name: cName.trim(), email: cEmail.trim(), plan: cPlan }) });
-      const d = await r.json();
-      showToast("🎉 Cliente criado! Convite: " + (d.invite_url || "gerado"));
-      if (d.invite_url) navigator.clipboard.writeText(d.invite_url).catch(() => {});
-      setCName(""); setCEmail(""); setCPlan("starter"); setShowCreate(false);
-      fetchTenants();
-    } catch (e) { showToast("Erro ao criar cliente", "#f44336"); }
+    setCreating(true); setCreateResult(null);
+    const r = await fetch(`${API_URL}/admin/tenants`, { method: "POST", headers: aHeaders,
+      body: JSON.stringify({ name: cName.trim(), email: cEmail.trim(), plan: cPlan, phone: cPhone.replace(/\D/g,"") }) });
+    const d = await r.json();
     setCreating(false);
+    if (!d.ok) { showToast(d.detail || "Erro ao criar", "#f44336"); return; }
+    setCreateResult(d);
+    if (d.invite_url) navigator.clipboard.writeText(d.invite_url).catch(() => {});
+    fetchTenants();
   };
 
   const inp = { width: "100%", padding: "9px 12px", background: "#13131f", border: "1px solid #252540", borderRadius: 8, color: "#e8e8f0", fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box" };
+  const active = tenants.filter(t => !t.is_blocked);
+  const blocked = tenants.filter(t => t.is_blocked);
 
   return (
-    <div style={{ maxWidth: 900 }}>
-      <div style={{ display: "flex", alignItems: "center", marginBottom: 20 }}>
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>🏢 Licenças de Clientes</div>
-          <div style={{ fontSize: 12, color: "#555", marginTop: 2 }}>Gerencie os planos e acessos de cada empresa</div>
-        </div>
-        <button onClick={() => setShowCreate(s => !s)} style={{ marginLeft: "auto", padding: "9px 20px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#00c853,#00796b)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>+ Novo cliente</button>
+    <div style={{ maxWidth: 940 }}>
+      {/* MRR Header */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 24 }}>
+        {[
+          { label: "MRR Total", value: `R$ ${totalMrr.toLocaleString("pt-BR")}`, color: "#00c853", icon: "💰" },
+          { label: "Clientes ativos", value: active.length, color: "#00bcd4", icon: "✅" },
+          { label: "Suspensos", value: blocked.length, color: "#f44336", icon: "🔴" },
+          { label: "Total clientes", value: tenants.length, color: "#7c4dff", icon: "🏢" },
+        ].map(c => (
+          <div key={c.label} style={{ background: "#0d0d18", border: `1px solid ${c.color}22`, borderRadius: 12, padding: "16px 18px" }}>
+            <div style={{ fontSize: 20, marginBottom: 4 }}>{c.icon}</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: c.color }}>{c.value}</div>
+            <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>{c.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Plan cards info */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 24 }}>
+        {PLANS.map(p => (
+          <div key={p.id} style={{ background: "#0d0d18", border: `1px solid ${p.color}33`, borderRadius: 12, padding: "14px 16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: p.color }}>{p.label}</span>
+              <span style={{ fontSize: 11, color: "#555" }}>{p.price}</span>
+            </div>
+            {p.features.map(f => <div key={f} style={{ fontSize: 11, color: "#666", marginBottom: 2 }}>· {f}</div>)}
+            <div style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: "#444" }}>
+              {tenants.filter(t => t.plan === p.id && !t.is_blocked).length} cliente(s)
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", marginBottom: 16 }}>
+        <div style={{ fontSize: 16, fontWeight: 700 }}>🏢 Clientes</div>
+        <button onClick={() => { setShowCreate(s => !s); setCreateResult(null); }}
+          style={{ marginLeft: "auto", padding: "9px 20px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#00c853,#00796b)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+          + Novo cliente
+        </button>
       </div>
 
       {/* Create form */}
       {showCreate && (
         <div style={{ background: "#0d0d18", border: "1px solid #00c85333", borderRadius: 14, padding: 24, marginBottom: 20 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>🎉 Cadastrar novo cliente</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-            <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 5 }}>NOME DA EMPRESA</label>
-              <input value={cName} onChange={e => setCName(e.target.value)} placeholder="Academia Fitness XYZ" style={inp} /></div>
-            <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 5 }}>EMAIL DO ADMIN</label>
-              <input type="email" value={cEmail} onChange={e => setCEmail(e.target.value)} placeholder="dono@academia.com" style={inp} /></div>
-          </div>
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 8 }}>PLANO</label>
-            <div style={{ display: "flex", gap: 8 }}>
-              {[["starter","Starter","R$ 149"],["pro","Pro","R$ 299"],["business","Business","R$ 599"],["trial","Trial","7 dias grátis"]].map(([id, label, price]) => (
-                <div key={id} onClick={() => setCPlan(id)}
-                  style={{ flex: 1, padding: "10px", borderRadius: 8, border: `2px solid ${cPlan === id ? planInfo(id).color : "#252540"}`, background: cPlan === id ? planInfo(id).color + "18" : "#13131f", cursor: "pointer", textAlign: "center" }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: cPlan === id ? planInfo(id).color : "#888" }}>{label}</div>
-                  <div style={{ fontSize: 11, color: "#555" }}>{price}</div>
-                </div>
-              ))}
+          {createResult ? (
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>🎉</div>
+              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Cliente criado com sucesso!</div>
+              <div style={{ fontSize: 12, color: "#555", marginBottom: 16 }}>{createResult.whatsapp_sent ? "✅ Link enviado via WhatsApp!" : "📋 Link copiado para área de transferência"}</div>
+              <div style={{ background: "#13131f", border: "1px solid #252540", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#a78bfa", marginBottom: 16, wordBreak: "break-all" }}>{createResult.invite_url}</div>
+              <div style={{ fontSize: 12, color: "#555", marginBottom: 16 }}>Senha temporária: <strong style={{ color: "#e8e8f0" }}>{createResult.temp_password}</strong></div>
+              <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                <button onClick={() => navigator.clipboard.writeText(createResult.invite_url).then(() => showToast("Copiado!"))}
+                  style={{ padding: "8px 20px", borderRadius: 8, border: "1px solid #7c4dff44", background: "#7c4dff18", color: "#a78bfa", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>📋 Copiar link</button>
+                <button onClick={() => { setShowCreate(false); setCreateResult(null); setCName(""); setCEmail(""); setCPhone(""); setCPlan("starter"); }}
+                  style={{ padding: "8px 20px", borderRadius: 8, border: "none", background: "#252540", color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Fechar</button>
+              </div>
             </div>
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={() => setShowCreate(false)} style={{ padding: "9px 20px", borderRadius: 8, border: "1px solid #252540", background: "transparent", color: "#666", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
-            <button onClick={createTenant} disabled={creating || !cName.trim() || !cEmail.trim()} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: "none", background: (!creating && cName.trim() && cEmail.trim()) ? "linear-gradient(135deg,#00c853,#00796b)" : "#1a1a2e", color: (!creating && cName.trim() && cEmail.trim()) ? "#000" : "#444", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
-              {creating ? "Criando..." : "🚀 Criar cliente + copiar link de acesso"}
-            </button>
-          </div>
+          ) : (
+            <>
+              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Cadastrar novo cliente</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
+                <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 5 }}>NOME DA EMPRESA *</label>
+                  <input value={cName} onChange={e => setCName(e.target.value)} placeholder="Academia Fitness XYZ" style={inp} /></div>
+                <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 5 }}>EMAIL DO ADMIN *</label>
+                  <input type="email" value={cEmail} onChange={e => setCEmail(e.target.value)} placeholder="dono@empresa.com" style={inp} /></div>
+                <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 5 }}>WHATSAPP (com DDD)</label>
+                  <input value={cPhone} onChange={e => setCPhone(e.target.value)} placeholder="11999998888" style={inp} /></div>
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 8 }}>PLANO</label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {PLANS.map(p => (
+                    <div key={p.id} onClick={() => setCPlan(p.id)}
+                      style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: `2px solid ${cPlan === p.id ? p.color : "#252540"}`, background: cPlan === p.id ? p.color + "18" : "#13131f", cursor: "pointer" }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: cPlan === p.id ? p.color : "#888" }}>{p.label}</div>
+                      <div style={{ fontSize: 11, color: "#555" }}>{p.price}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => setShowCreate(false)} style={{ padding: "9px 20px", borderRadius: 8, border: "1px solid #252540", background: "transparent", color: "#666", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
+                <button onClick={createTenant} disabled={creating || !cName.trim() || !cEmail.trim()}
+                  style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: "none", background: (!creating && cName && cEmail) ? "linear-gradient(135deg,#00c853,#00796b)" : "#1a1a2e", color: (!creating && cName && cEmail) ? "#000" : "#444", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                  {creating ? "Criando..." : "🚀 Criar cliente" + (cPhone ? " + enviar WhatsApp" : " + copiar link")}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
 
       {/* Tenant list */}
       {loading ? <div style={{ color: "#555", padding: 40, textAlign: "center" }}>Carregando...</div>
         : tenants.length === 0 ? (
-          <div style={{ textAlign: "center", padding: 60 }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>🏢</div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#444" }}>Nenhum cliente ainda</div>
-            <div style={{ fontSize: 12, color: "#333", marginTop: 4 }}>Crie o primeiro cliente acima</div>
-          </div>
+          <div style={{ textAlign: "center", padding: 60, color: "#444" }}>Nenhum cliente ainda. Crie o primeiro acima.</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {tenants.map(t => {
               const pi = planInfo(t.plan);
+              const [showResend, setShowResend] = useState(false);
               return (
-                <div key={t.id} style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 12, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, opacity: t.is_active === false ? 0.5 : 1 }}>
-                  <div style={{ width: 40, height: 40, borderRadius: 10, background: pi.color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>🏢</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-                      <span style={{ fontSize: 14, fontWeight: 700 }}>{t.name}</span>
-                      <span style={{ fontSize: 11, background: pi.color + "22", color: pi.color, padding: "1px 8px", borderRadius: 20, fontWeight: 700 }}>{pi.label}</span>
-                      <span style={{ fontSize: 11, color: "#555" }}>{pi.price}</span>
-                      {t.is_active === false && <span style={{ fontSize: 11, background: "#f4433322", color: "#f44336", padding: "1px 8px", borderRadius: 20 }}>Suspenso</span>}
+                <div key={t.id} style={{ background: "#0d0d18", border: `1px solid ${t.is_blocked ? "#f4433322" : "#1a1a2e"}`, borderRadius: 12, padding: "14px 18px", opacity: t.is_blocked ? 0.7 : 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ width: 38, height: 38, borderRadius: 10, background: pi.color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>🏢</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 14, fontWeight: 700 }}>{t.name}</span>
+                        <span style={{ fontSize: 11, background: pi.color + "22", color: pi.color, padding: "1px 8px", borderRadius: 20, fontWeight: 700 }}>{pi.label}</span>
+                        <span style={{ fontSize: 12, color: "#00c853", fontWeight: 700 }}>R$ {pi.price.replace("R$ ","").replace("/mês","")}<span style={{ color: "#555", fontWeight: 400 }}>/mês</span></span>
+                        {t.is_blocked && <span style={{ fontSize: 11, background: "#f4433322", color: "#f44336", padding: "1px 8px", borderRadius: 20 }}>🔴 Suspenso</span>}
+                        <span style={{ fontSize: 11, color: "#555" }}>{t.user_count || 0} usuário(s)</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: "#444", marginTop: 3 }}>Desde {new Date(t.created_at).toLocaleDateString("pt-BR")}</div>
                     </div>
-                    <div style={{ fontSize: 12, color: "#555" }}>{t.email || t.id}</div>
-                    {t.created_at && <div style={{ fontSize: 11, color: "#333", marginTop: 2 }}>Desde: {new Date(t.created_at).toLocaleDateString("pt-BR")}</div>}
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <select value={t.plan || "starter"} onChange={e => changePlan(t.id, e.target.value)}
+                        style={{ padding: "5px 8px", background: "#13131f", border: "1px solid #252540", borderRadius: 7, color: "#e8e8f0", fontSize: 12, outline: "none", fontFamily: "inherit", cursor: "pointer" }}>
+                        {PLANS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+                      </select>
+                      <button onClick={() => setShowResend(s => !s)}
+                        style={{ padding: "5px 10px", borderRadius: 7, border: "1px solid #7c4dff44", background: "transparent", color: "#a78bfa", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                        📱 Convite
+                      </button>
+                      <button onClick={() => toggleBlock(t)}
+                        style={{ padding: "5px 10px", borderRadius: 7, border: `1px solid ${t.is_blocked ? "#00c85333" : "#f4433333"}`, background: "transparent", color: t.is_blocked ? "#00c853" : "#f44336", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                        {t.is_blocked ? "Reativar" : "Suspender"}
+                      </button>
+                    </div>
                   </div>
-                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                    <select value={t.plan || "starter"} onChange={e => changePlan(t.id, e.target.value)}
-                      style={{ padding: "5px 10px", background: "#13131f", border: "1px solid #252540", borderRadius: 7, color: "#e8e8f0", fontSize: 12, outline: "none", fontFamily: "inherit", cursor: "pointer" }}>
-                      <option value="trial">Trial</option>
-                      <option value="starter">Starter</option>
-                      <option value="pro">Pro</option>
-                      <option value="business">Business</option>
-                    </select>
-                    <button onClick={() => toggleActive(t)}
-                      style={{ padding: "6px 12px", borderRadius: 7, border: `1px solid ${t.is_active === false ? "#00c85333" : "#f4433333"}`, background: "transparent", color: t.is_active === false ? "#00c853" : "#f44336", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
-                      {t.is_active === false ? "Reativar" : "Suspender"}
-                    </button>
-                  </div>
+                  {showResend && (
+                    <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}>
+                      <input value={resendPhone[t.id] || ""} onChange={e => setResendPhone(p => ({ ...p, [t.id]: e.target.value }))}
+                        placeholder="WhatsApp do cliente (com DDD)"
+                        style={{ flex: 1, padding: "7px 12px", background: "#13131f", border: "1px solid #252540", borderRadius: 7, color: "#e8e8f0", fontSize: 12, outline: "none", fontFamily: "inherit" }} />
+                      <button onClick={() => resendInvite(t.id)} disabled={sendingInvite[t.id]}
+                        style={{ padding: "7px 16px", borderRadius: 7, border: "none", background: "linear-gradient(135deg,#7c4dff,#5b21b6)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                        {sendingInvite[t.id] ? "Enviando..." : "📱 Enviar"}
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -2421,6 +2494,16 @@ export default function App() {
   return <AppInner auth={auth} onLogout={handleLogout} />;
 }
 
+// Permission helpers
+const PERMS_ORDER = ["read", "read_write", "read_write_manage", "full"];
+function hasPerm(user, required) {
+  const userLevel = PERMS_ORDER.indexOf(user?.permissions || "read_write");
+  const reqLevel  = PERMS_ORDER.indexOf(required);
+  // admins always have full permissions
+  if (user?.role === "admin") return true;
+  return userLevel >= reqLevel;
+}
+
 function AppInner({ auth, onLogout }) {
   const [view, setView] = useState("inbox");
   const [trialInfo, setTrialInfo] = useState(null); // {status, days_left, is_blocked, plan}
@@ -2763,6 +2846,11 @@ function AppInner({ auth, onLogout }) {
     tick(); // run immediately on activation
     return () => { clearInterval(t); console.log("🤖 Auto-pilot engine stopped"); };
   }, [copilotAutoMode, isAutoActive, autoReply]);
+
+  // Permission flags
+  const canWrite  = auth.user?.role === "admin" || PERMS_ORDER.indexOf(auth.user?.permissions || "read_write") >= PERMS_ORDER.indexOf("read_write");
+  const canManage = auth.user?.role === "admin" || PERMS_ORDER.indexOf(auth.user?.permissions || "read_write") >= PERMS_ORDER.indexOf("read_write_manage");
+  const canDelete = auth.user?.role === "admin" || PERMS_ORDER.indexOf(auth.user?.permissions || "read_write") >= PERMS_ORDER.indexOf("full");
 
   const unreadCount = conversations.filter(c => c.unread_count > 0).length;
   const filtered = conversations.filter(c => {
