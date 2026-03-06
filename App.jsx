@@ -124,7 +124,7 @@ function StatusDropdown({ status, onChange }) {
 }
 
 // ─── Label Manager Modal ──────────────────────────────────────────────────────
-function LabelManagerModal({ labels, onChange, onClose, tenantId, authHeaders }) {
+function LabelManagerModal({ labels, onChange, onClose, tenantId, authHeaders, labelsApiError }) {
   const [items, setItems] = useState(labels.map(l => ({ ...l })));
   const [editingId, setEditingId] = useState(null);
   const [pickingColorFor, setPickingColorFor] = useState(null);
@@ -143,34 +143,43 @@ function LabelManagerModal({ labels, onChange, onClose, tenantId, authHeaders })
 
   const save = async () => {
     setSaving(true); setError("");
+    // If backend not deployed, save to localStorage only
+    if (labelsApiError === "backend_not_deployed") {
+      const finalized = items.map(i => i.id.startsWith("NEW_") ? { ...i, id: uid() } : i);
+      onChange(finalized);
+      onClose();
+      setSaving(false);
+      return;
+    }
     try {
-      const original = labels; // labels from DB
+      const original = labels;
       const results = [];
       for (const item of items) {
         if (item.id.startsWith("NEW_")) {
-          // Create new label in DB
           const r = await fetch(`${API_URL}/labels`, { method: "POST", headers: authHeaders,
             body: JSON.stringify({ tenant_id: tenantId, name: item.name, color: item.color }) });
-          if (!r.ok) throw new Error("Erro ao criar etiqueta");
-          const d = await r.json();
-          results.push(d.label);
+          if (!r.ok) {
+            // Fallback: save locally with real uuid
+            results.push({ ...item, id: uid() });
+          } else {
+            const d = await r.json();
+            results.push(d.label);
+          }
         } else {
-          // Update existing if changed
           const orig = original.find(o => o.id === item.id);
           if (orig && (orig.name !== item.name || orig.color !== item.color)) {
             const r = await fetch(`${API_URL}/labels/${item.id}`, { method: "PUT", headers: authHeaders,
               body: JSON.stringify({ name: item.name, color: item.color }) });
-            const d = await r.json();
-            results.push(d.label);
+            if (r.ok) { const d = await r.json(); results.push(d.label); }
+            else results.push(item);
           } else {
             results.push(item);
           }
         }
       }
-      // Delete removed labels
       for (const orig of original) {
         if (!items.find(i => i.id === orig.id)) {
-          await fetch(`${API_URL}/labels/${orig.id}`, { method: "DELETE", headers: authHeaders });
+          await fetch(`${API_URL}/labels/${orig.id}`, { method: "DELETE", headers: authHeaders }).catch(() => {});
         }
       }
       onChange(results);
@@ -185,7 +194,12 @@ function LabelManagerModal({ labels, onChange, onClose, tenantId, authHeaders })
     <div style={{ position: "fixed", inset: 0, background: "#00000090", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200 }} onClick={onClose}>
       <div onClick={e => e.stopPropagation()} onMouseDown={e => e.preventDefault()} style={{ background: "#13131f", border: "1px solid #252540", borderRadius: 14, padding: 24, width: 420, maxHeight: "85vh", overflowY: "auto", boxShadow: "0 24px 64px #00000080" }}>
         <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>🏷 Gerenciar Etiquetas</div>
-        <div style={{ fontSize: 12, color: "#555", marginBottom: 20 }}>Crie, renomeie, recolora ou remova etiquetas</div>
+        <div style={{ fontSize: 12, color: "#555", marginBottom: 12 }}>Crie, renomeie, recolora ou remova etiquetas</div>
+        {labelsApiError === "backend_not_deployed" && (
+          <div style={{ background: "#ff6d0015", border: "1px solid #ff6d0033", borderRadius: 8, padding: "8px 12px", marginBottom: 12, fontSize: 11, color: "#ff6d00" }}>
+            ⚠️ Endpoint <code>/labels</code> não encontrado no backend. Suba o <strong>main.py</strong> atualizado no Railway. Usando etiquetas locais por enquanto.
+          </div>
+        )}
 
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
           {items.map(label => (
@@ -2432,12 +2446,30 @@ function AppInner({ auth, onLogout }) {
   const [agents, setAgents] = useState([]);
   const [pendingTasksMap, setPendingTasksMap] = useState({}); // convId → count
   const [labels, setLabels] = useState([]);
+  const [labelsError, setLabelsError] = useState("");
   const fetchLabels = useCallback(async () => {
+    setLabelsError("");
     try {
       const r = await fetch(`${API_URL}/labels?tenant_id=${TENANT_ID}`, { headers });
+      if (!r.ok) {
+        // Backend not deployed yet — fallback to localStorage
+        const fallback = loadLabels();
+        setLabels(fallback);
+        if (r.status === 404) setLabelsError("backend_not_deployed");
+        return;
+      }
       const d = await r.json();
-      setLabels(d.labels || []);
-    } catch (e) {}
+      const fromApi = d.labels || [];
+      // If API returns empty but localStorage has data, keep localStorage until backend is ready
+      if (fromApi.length === 0) {
+        const fallback = loadLabels();
+        if (fallback.length > 0) { setLabels(fallback); return; }
+      }
+      setLabels(fromApi);
+    } catch (e) {
+      // Network error — use localStorage
+      setLabels(loadLabels());
+    }
   }, []);
   const [showAssign, setShowAssign] = useState(false);
   const [showLabelPicker, setShowLabelPicker] = useState(false);
@@ -3134,10 +3166,11 @@ function AppInner({ auth, onLogout }) {
       {showLabelManager && (
         <LabelManagerModal
           labels={labels}
-          onChange={(newLabels) => { setLabels(newLabels); }}
+          onChange={(newLabels) => { setLabels(newLabels); saveLabels(newLabels); }}
           onClose={() => setShowLabelManager(false)}
           tenantId={TENANT_ID}
           authHeaders={headers}
+          labelsApiError={labelsError}
         />
       )}
       {showColManager && <ColumnManagerModal columns={kanbanCols} onChange={setKanbanCols} onClose={() => setShowColManager(false)} />}
