@@ -2039,12 +2039,12 @@ function AppInner({ auth, onLogout }) {
     { id: "kanban", label: "🗂 Kanban" },
     { id: "tasks_global", label: "✅ Tarefas" },
     { id: "disparos", label: "📢 Disparos" },
+    { id: "config", label: "⚙️ Config" },
+    ...(auth.user.role === "admin" && trialInfo?.plan !== "trial" ? [{ id: "onboarding", label: "🧠 Onboarding IA" }] : []),
+    ...(trialInfo?.status === "trial" ? [{ id: "upgrade", label: "⭐ Assinar" }] : []),
   ];
 
   const ADMIN_TABS = [
-    ...(trialInfo?.status === "trial" ? [{ id: "upgrade", label: "⭐ Assinar" }] : []),
-    { id: "config", label: "⚙️ Config" },
-    ...(auth.user.role === "admin" && trialInfo?.plan !== "trial" ? [{ id: "onboarding", label: "🧠 Onboarding IA" }] : []),
     ...(auth.user.role === "admin" ? [{ id: "whatsapp", label: "📱 WhatsApp" }] : []),
     ...(auth.user.role === "admin" ? [{ id: "admin", label: "🔐 Admin" }] : []),
   ];
