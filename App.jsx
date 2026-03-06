@@ -2039,7 +2039,7 @@ function AppInner({ auth, onLogout }) {
     { id: "kanban", label: "🗂 Kanban" },
     { id: "tasks_global", label: "✅ Tarefas" },
     { id: "disparos", label: "📢 Disparos" },
-    { id: "config", label: "⚙️ Config" },
+    { id: "config", label: "⚙️ Config IA" },
     ...(auth.user.role === "admin" && trialInfo?.plan !== "trial" ? [{ id: "onboarding", label: "🧠 Onboarding IA" }] : []),
     ...(trialInfo?.status === "trial" ? [{ id: "upgrade", label: "⭐ Assinar" }] : []),
   ];
