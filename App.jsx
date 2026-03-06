@@ -124,19 +124,62 @@ function StatusDropdown({ status, onChange }) {
 }
 
 // ─── Label Manager Modal ──────────────────────────────────────────────────────
-function LabelManagerModal({ labels, onChange, onClose }) {
+function LabelManagerModal({ labels, onChange, onClose, tenantId, authHeaders }) {
   const [items, setItems] = useState(labels.map(l => ({ ...l })));
   const [editingId, setEditingId] = useState(null);
   const [pickingColorFor, setPickingColorFor] = useState(null);
   const [newName, setNewName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
   const update = (id, patch) => setItems(prev => prev.map(l => l.id === id ? { ...l, ...patch } : l));
   const remove = (id) => setItems(prev => prev.filter(l => l.id !== id));
   const addLabel = () => {
     if (!newName.trim()) return;
-    setItems(prev => [...prev, { id: uid(), name: newName.trim(), color: PALETTE[prev.length % PALETTE.length] }]);
+    // Temporary ID with prefix so we know it's new
+    setItems(prev => [...prev, { id: "NEW_" + uid(), name: newName.trim(), color: PALETTE[prev.length % PALETTE.length] }]);
     setNewName("");
   };
-  const save = () => { onChange(items); saveLabels(items); onClose(); };
+
+  const save = async () => {
+    setSaving(true); setError("");
+    try {
+      const original = labels; // labels from DB
+      const results = [];
+      for (const item of items) {
+        if (item.id.startsWith("NEW_")) {
+          // Create new label in DB
+          const r = await fetch(`${API_URL}/labels`, { method: "POST", headers: authHeaders,
+            body: JSON.stringify({ tenant_id: tenantId, name: item.name, color: item.color }) });
+          if (!r.ok) throw new Error("Erro ao criar etiqueta");
+          const d = await r.json();
+          results.push(d.label);
+        } else {
+          // Update existing if changed
+          const orig = original.find(o => o.id === item.id);
+          if (orig && (orig.name !== item.name || orig.color !== item.color)) {
+            const r = await fetch(`${API_URL}/labels/${item.id}`, { method: "PUT", headers: authHeaders,
+              body: JSON.stringify({ name: item.name, color: item.color }) });
+            const d = await r.json();
+            results.push(d.label);
+          } else {
+            results.push(item);
+          }
+        }
+      }
+      // Delete removed labels
+      for (const orig of original) {
+        if (!items.find(i => i.id === orig.id)) {
+          await fetch(`${API_URL}/labels/${orig.id}`, { method: "DELETE", headers: authHeaders });
+        }
+      }
+      onChange(results);
+      onClose();
+    } catch (e) {
+      setError(e.message || "Erro ao salvar");
+    }
+    setSaving(false);
+  };
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "#00000090", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200 }} onClick={onClose}>
@@ -178,9 +221,10 @@ function LabelManagerModal({ labels, onChange, onClose }) {
           </div>
         </div>
 
+        {error && <div style={{ background: "#f4433315", border: "1px solid #f4433333", borderRadius: 8, padding: "8px 12px", marginBottom: 12, fontSize: 12, color: "#f44336" }}>❌ {error}</div>}
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={onClose} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: "1px solid #252540", background: "transparent", color: "#666", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
-          <button onClick={save} style={{ flex: 2, padding: "9px 0", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #00c853, #00796b)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>💾 Salvar etiquetas</button>
+          <button onClick={save} disabled={saving} style={{ flex: 2, padding: "9px 0", borderRadius: 8, border: "none", background: saving ? "#1a1a2e" : "linear-gradient(135deg, #00c853, #00796b)", color: saving ? "#444" : "#000", fontSize: 13, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit" }}>{saving ? "Salvando..." : "💾 Salvar etiquetas"}</button>
         </div>
       </div>
     </div>
@@ -2387,7 +2431,14 @@ function AppInner({ auth, onLogout }) {
   const [unreadFilter, setUnreadFilter] = useState("all"); // all | unread
   const [agents, setAgents] = useState([]);
   const [pendingTasksMap, setPendingTasksMap] = useState({}); // convId → count
-  const [labels, setLabels] = useState(loadLabels);
+  const [labels, setLabels] = useState([]);
+  const fetchLabels = useCallback(async () => {
+    try {
+      const r = await fetch(`${API_URL}/labels?tenant_id=${TENANT_ID}`, { headers });
+      const d = await r.json();
+      setLabels(d.labels || []);
+    } catch (e) {}
+  }, []);
   const [showAssign, setShowAssign] = useState(false);
   const [showLabelPicker, setShowLabelPicker] = useState(false);
   const [showLabelManager, setShowLabelManager] = useState(false);
@@ -2517,7 +2568,7 @@ function AppInner({ auth, onLogout }) {
     return () => clearInterval(t);
   }, [selected, fetchMessages]);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
-  useEffect(() => { fetchAgents(); fetchTenant(); fetchPendingTasks(); const t = setInterval(fetchPendingTasks, 30000); return () => clearInterval(t); }, [fetchAgents, fetchTenant, fetchPendingTasks]);
+  useEffect(() => { fetchAgents(); fetchTenant(); fetchPendingTasks(); fetchLabels(); const t = setInterval(fetchPendingTasks, 30000); return () => clearInterval(t); }, [fetchAgents, fetchTenant, fetchPendingTasks, fetchLabels]);
 
   const sendMessage = async () => {
     if (!input.trim() || !selected || sending) return;
@@ -3083,8 +3134,10 @@ function AppInner({ auth, onLogout }) {
       {showLabelManager && (
         <LabelManagerModal
           labels={labels}
-          onChange={(newLabels) => setLabels(newLabels)}
+          onChange={(newLabels) => { setLabels(newLabels); }}
           onClose={() => setShowLabelManager(false)}
+          tenantId={TENANT_ID}
+          authHeaders={headers}
         />
       )}
       {showColManager && <ColumnManagerModal columns={kanbanCols} onChange={setKanbanCols} onClose={() => setShowColManager(false)} />}
