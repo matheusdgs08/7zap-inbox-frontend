@@ -966,7 +966,7 @@ function WhatsAppScreen({ auth }) {
           <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 16, padding: 28, marginBottom: 20 }}>
             <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>📷 Conectar via QR Code</div>
             <div style={{ fontSize: 13, color: "#555", marginBottom: 24 }}>
-              Abra o WhatsApp no celular → <strong style={{ color: "#e8e8f0" }}>Menu (3 pontos)</strong> → <strong style={{ color: "#e8e8f0" }}>Dispositivos conectados</strong> → <strong style={{ color: "#e8e8f0" }}>Adicionar dispositivo</strong>
+              Abra o WhatsApp no celular, va em <strong style={{ color: "#e8e8f0" }}>Menu (3 pontos)</strong>, depois <strong style={{ color: "#e8e8f0" }}>Dispositivos conectados</strong> e <strong style={{ color: "#e8e8f0" }}>Adicionar dispositivo</strong>
             </div>
 
             {/* QR grande e centralizado */}
@@ -996,16 +996,15 @@ function WhatsAppScreen({ auth }) {
                 <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 10, color: "#666" }}>Como escanear:</div>
                 {[
                   "Abra o WhatsApp no celular",
-                  "Menu (3 pontos) → Dispositivos conectados",
+                  "Menu (3 pontos) > Dispositivos conectados",
                   "Adicionar dispositivo",
-                  "Aponte a câmera para o QR acima ✅",
+                  "Aponte a camera para o QR acima",
                 ].map((step, i) => (
                   <div key={i} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
                     <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#00c85320", border: "1px solid #00c85340", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#00c853", flexShrink: 0 }}>{i + 1}</div>
                     <span style={{ fontSize: 12, color: "#555" }}>{step}</span>
                   </div>
                 ))}
-              </div>
               </div>
             </div>
           </div>
