@@ -882,8 +882,12 @@ function WhatsAppScreen({ auth }) {
     try {
       const r = await fetch(`${API_URL}/whatsapp/qrcode?instance=${instance}`, { headers });
       const d = await r.json();
-      if (d.qr_code) setQrCode(d.qr_code);
-      else if (d.state === "open") { setStatus("connected"); }
+      if (d.connected === true || d.state === "open") {
+        setStatus("connected");
+        setPhone(d.phone || "");
+      } else if (d.qr_code) {
+        setQrCode(d.qr_code);
+      }
     } catch (e) {}
     setLoadingQr(false);
   };
@@ -900,7 +904,7 @@ function WhatsAppScreen({ auth }) {
 
   useEffect(() => {
     checkStatus();
-    pollRef.current = setInterval(checkStatus, 8000);
+    pollRef.current = setInterval(checkStatus, 15000);
     return () => clearInterval(pollRef.current);
   }, [instance]);
 
