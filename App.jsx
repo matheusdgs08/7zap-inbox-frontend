@@ -1019,22 +1019,47 @@ function WhatsAppScreen({ auth }) {
   const [syncProgress, setSyncProgress] = useState(0);
   const pollRef = useRef(null);
 
+  const syncJobRef = useRef(null);
+
   const syncHistory = async (auto = false) => {
-    setSyncing(true); setSyncResult(null); setSyncProgress(0);
-    const interval = setInterval(() => setSyncProgress(p => Math.min(p + Math.random() * 5, 90)), 1200);
+    setSyncing(true); setSyncResult(null); setSyncProgress(5);
+    // Fire-and-forget: POST returns immediately with job_id
+    // Frontend polls /whatsapp/sync/status?job_id=xxx until done
     try {
       const r = await fetch(`${API_URL}/whatsapp/sync`, {
         method: "POST", headers,
-        body: JSON.stringify({ tenant_id: TENANT_ID, instance })
+        body: JSON.stringify({ tenant_id: TENANT_ID, instance, async: true })
       });
       const d = await r.json();
-      clearInterval(interval); setSyncProgress(100);
-      setSyncResult({ ok: r.ok, auto, ...d });
+      // If backend returned a job_id → poll for status
+      if (d.job_id) {
+        syncJobRef.current = d.job_id;
+        setSyncProgress(10);
+        const poll = setInterval(async () => {
+          try {
+            const sr = await fetch(`${API_URL}/whatsapp/sync/status?job_id=${d.job_id}`, { headers });
+            const sd = await sr.json();
+            if (sd.progress) setSyncProgress(Math.min(sd.progress, 95));
+            if (sd.status === "done" || sd.status === "error" || sr.ok && sd.stats) {
+              clearInterval(poll);
+              setSyncProgress(100);
+              setSyncResult({ ok: sd.status !== "error", auto, ...sd });
+              setSyncing(false);
+            }
+          } catch (e) { clearInterval(poll); setSyncing(false); }
+        }, 2000);
+        // Timeout safety: stop polling after 5 minutes
+        setTimeout(() => { clearInterval(poll); setSyncing(false); }, 300000);
+      } else {
+        // Backend is synchronous (old behavior) — still works
+        setSyncProgress(100);
+        setSyncResult({ ok: r.ok, auto, ...d });
+        setSyncing(false);
+      }
     } catch (e) {
-      clearInterval(interval);
       if (!auto) setSyncResult({ ok: false, message: "Erro de conexão. Tente novamente." });
+      setSyncing(false);
     }
-    setSyncing(false);
   };
 
   const prevStatusRef = useRef(null);
