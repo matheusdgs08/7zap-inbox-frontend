@@ -2033,17 +2033,20 @@ function AppInner({ auth, onLogout }) {
   const filtered = conversations.filter(c => (c.contacts?.name || c.contacts?.phone || "").toLowerCase().includes(search.toLowerCase()));
 
   const totalPendingTasks = Object.values(pendingTasksMap).reduce((a, b) => a + b, 0);
-  const TABS = [
+  const WORK_TABS = [
     { id: "inbox", label: "📥 Inbox" },
     { id: "leads", label: "🏷 Leads" },
     { id: "kanban", label: "🗂 Kanban" },
     { id: "tasks_global", label: "✅ Tarefas" },
     { id: "disparos", label: "📢 Disparos" },
-    { id: "config", label: "⚙️ Config" },
-    ...(auth.user.role === "admin" ? [{ id: "admin", label: "🔐 Admin" }] : []),
-    ...(auth.user.role === "admin" ? [{ id: "whatsapp", label: "📱 WhatsApp" }] : []),
+  ];
+
+  const ADMIN_TABS = [
     ...(trialInfo?.status === "trial" ? [{ id: "upgrade", label: "⭐ Assinar" }] : []),
+    { id: "config", label: "⚙️ Config" },
     ...(auth.user.role === "admin" && trialInfo?.plan !== "trial" ? [{ id: "onboarding", label: "🧠 Onboarding IA" }] : []),
+    ...(auth.user.role === "admin" ? [{ id: "whatsapp", label: "📱 WhatsApp" }] : []),
+    ...(auth.user.role === "admin" ? [{ id: "admin", label: "🔐 Admin" }] : []),
   ];
 
   // Blocked screen — trial expired
@@ -2095,22 +2098,32 @@ function AppInner({ auth, onLogout }) {
           <div style={{ width: 26, height: 26, borderRadius: 7, background: "linear-gradient(135deg, #00c853, #00796b)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>⚡</div>
           <span style={{ fontWeight: 700, fontSize: 15 }}>7CRM</span>
         </div>
-        <div style={{ display: "flex", gap: 4 }}>
-          {TABS.map(tab => (
-            <button key={tab.id} onClick={() => setView(tab.id)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 14px", borderRadius: 6, border: "none", background: view === tab.id ? "#00c85320" : "transparent", color: view === tab.id ? "#00c853" : "#666", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+        {/* Work tabs — esquerda */}
+        <div style={{ display: "flex", gap: 2 }}>
+          {WORK_TABS.map(tab => (
+            <button key={tab.id} onClick={() => setView(tab.id)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 6, border: "none", background: view === tab.id ? "#00c85320" : "transparent", color: view === tab.id ? "#00c853" : "#555", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
               {tab.label}
               {tab.id === "tasks_global" && totalPendingTasks > 0 && <span style={{ background: "#ff6d00", color: "#000", fontSize: 10, fontWeight: 800, padding: "1px 6px", borderRadius: 10, lineHeight: 1.4 }}>{totalPendingTasks}</span>}
             </button>
           ))}
         </div>
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
-          {/* Trial banner */}
+
+        {/* Spacer */}
+        <div style={{ flex: 1 }} />
+
+        {/* Admin tabs — direita */}
+        <div style={{ display: "flex", alignItems: "center", gap: 2, paddingLeft: 10, borderLeft: "1px solid #1a1a2e" }}>
+          {ADMIN_TABS.map(tab => (
+            <button key={tab.id} onClick={() => setView(tab.id)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 6, border: tab.id === "upgrade" ? "1px solid #ff6d0044" : "none", background: view === tab.id ? "#00c85320" : tab.id === "upgrade" ? "#ff6d0012" : "transparent", color: view === tab.id ? "#00c853" : tab.id === "upgrade" ? "#ff6d00" : "#444", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, paddingLeft: 12, borderLeft: "1px solid #1a1a2e" }}>
+          {/* Trial days badge */}
           {trialInfo?.status === "trial" && trialInfo?.days_left !== null && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 12px", borderRadius: 20, background: trialInfo.days_left <= 2 ? "#f4433322" : "#ff6d0022", border: `1px solid ${trialInfo.days_left <= 2 ? "#f4433344" : "#ff6d0044"}` }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: trialInfo.days_left <= 2 ? "#f44336" : "#ff6d00" }}>
-                ⏰ Trial: {trialInfo.days_left === 0 ? "último dia!" : `${trialInfo.days_left} dia${trialInfo.days_left !== 1 ? "s" : ""} restante${trialInfo.days_left !== 1 ? "s" : ""}`}
-              </span>
-              <button onClick={() => setView("upgrade")} style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 10, border: "none", background: trialInfo.days_left <= 2 ? "#f44336" : "#ff6d00", color: "#fff", cursor: "pointer", fontFamily: "inherit" }}>Assinar</button>
+            <div style={{ fontSize: 11, fontWeight: 700, color: trialInfo.days_left <= 2 ? "#f44336" : "#ff6d00" }}>
+              ⏰ {trialInfo.days_left === 0 ? "último dia!" : `${trialInfo.days_left}d restantes`}
             </div>
           )}
           <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#444" }}>
