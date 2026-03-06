@@ -2381,6 +2381,8 @@ function AppInner({ auth, onLogout }) {
   const bottomRef = useRef(null);
   const pollRef = useRef(null);
   const labelOverrideRef = useRef({}); // { convId: { labels, until } }
+  const autoProcessedRef = useRef(new Set()); // msgIds already auto-replied
+  const autoProcessingRef = useRef(false); // prevent concurrent auto-reply runs
 
   const fetchConversations = useCallback(async () => {
     try { const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}`, { headers }); const d = await r.json();
@@ -2562,6 +2564,68 @@ function AppInner({ auth, onLogout }) {
     try { const r = await fetch(`${API_URL}/conversations/${selected.id}/suggest`, { headers }); const d = await r.json(); setSuggestion(d.suggestion || ""); } catch (e) { setSuggestion("Erro ao buscar sugestão."); }
     setLoadingSuggest(false);
   };
+
+  // ─── Auto-pilot helpers ────────────────────────────────────────────────
+  const isAutoActive = useCallback((conv) => {
+    if (copilotAutoMode === "always") return true;
+    if (copilotAutoMode === "per_conv") return !!conv?.auto_mode;
+    if (copilotAutoMode === "schedule") {
+      const now = new Date();
+      const [sh, sm] = (copilotScheduleStart || "18:00").split(":").map(Number);
+      const [eh, em] = (copilotScheduleEnd || "09:00").split(":").map(Number);
+      const nowMins = now.getHours() * 60 + now.getMinutes();
+      const startMins = sh * 60 + sm;
+      const endMins = eh * 60 + em;
+      // Handles overnight ranges (e.g. 18:00 → 09:00)
+      if (startMins > endMins) return nowMins >= startMins || nowMins < endMins;
+      return nowMins >= startMins && nowMins < endMins;
+    }
+    return false;
+  }, [copilotAutoMode, copilotScheduleStart, copilotScheduleEnd]);
+
+  const autoReply = useCallback(async (conv) => {
+    if (!isAutoActive(conv)) return;
+    if (autoProcessingRef.current) return;
+    autoProcessingRef.current = true;
+    try {
+      // Fetch latest messages for this conversation
+      const r = await fetch(`${API_URL}/conversations/${conv.id}/messages`, { headers });
+      const d = await r.json();
+      const msgs = d.messages || [];
+      // Find the latest inbound message not yet processed
+      const lastInbound = [...msgs].reverse().find(m => m.direction === "inbound");
+      if (!lastInbound) { autoProcessingRef.current = false; return; }
+      if (autoProcessedRef.current.has(lastInbound.id)) { autoProcessingRef.current = false; return; }
+      // Mark as processing immediately to prevent duplicate replies
+      autoProcessedRef.current.add(lastInbound.id);
+      // Get AI suggestion
+      const sr = await fetch(`${API_URL}/conversations/${conv.id}/suggest`, { headers });
+      const sd = await sr.json();
+      const suggestion = sd.suggestion || "";
+      if (!suggestion.trim()) { autoProcessingRef.current = false; return; }
+      // Send the reply automatically
+      await fetch(`${API_URL}/conversations/${conv.id}/messages`, {
+        method: "POST", headers,
+        body: JSON.stringify({ conversation_id: conv.id, text: suggestion.trim(), is_internal_note: false })
+      });
+    } catch (e) {
+      console.error("Auto-reply error:", e);
+    }
+    autoProcessingRef.current = false;
+  }, [isAutoActive, headers]);
+
+  // Engine: scan all conversations every 6s for new inbound messages when auto active
+  useEffect(() => {
+    if (copilotAutoMode === "off") return;
+    const tick = async () => {
+      const convs = conversations.filter(c => isAutoActive(c) && c.unread_count > 0);
+      for (const conv of convs) {
+        await autoReply(conv);
+      }
+    };
+    const t = setInterval(tick, 6000);
+    return () => clearInterval(t);
+  }, [copilotAutoMode, conversations, isAutoActive, autoReply]);
 
   const unreadCount = conversations.filter(c => c.unread_count > 0).length;
   const filtered = conversations.filter(c => {
@@ -2860,6 +2924,7 @@ function AppInner({ auth, onLogout }) {
                           <span style={{ fontSize: 11, color: "#555", flex: 1 }}>{conv.assigned_agent ? `👤 ${conv.assigned_agent}` : conv.contacts?.phone}</span>
                           {conv.unread_count > 0 && <span style={{ background: "#00c853", color: "#000", fontSize: 10, fontWeight: 800, minWidth: 18, height: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", padding: "0 4px", flexShrink: 0 }}>{conv.unread_count}</span>}
                           {pendingTasksMap[conv.id] > 0 && <span title={`${pendingTasksMap[conv.id]} tarefa(s) pendente(s)`} style={{ background: "#ff6d0022", border: "1px solid #ff6d0066", color: "#ff6d00", fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 10, flexShrink: 0 }}>✅ {pendingTasksMap[conv.id]}</span>}
+                          {isAutoActive(conv) && <span title="Co-pilot automático ativo" style={{ fontSize: 12 }}>🤖</span>}
                         </div>
                       </div>
                     </div>
@@ -2886,6 +2951,19 @@ function AppInner({ auth, onLogout }) {
                         <KanbanBadge stage={selected.kanban_stage} columns={kanbanCols} />
                       </div>
                     </div>
+                    {isAutoActive(selected) && (
+                      <div style={{ width: "100%", padding: "5px 14px", background: "#7c4dff18", borderTop: "1px solid #7c4dff33", display: "flex", alignItems: "center", gap: 8, fontSize: 11 }}>
+                        <span style={{ animation: "pulse 2s infinite", display: "inline-block" }}>🤖</span>
+                        <span style={{ color: "#a78bfa", fontWeight: 700 }}>Co-pilot automático ativo</span>
+                        <span style={{ color: "#555" }}>— respondendo automaticamente mensagens recebidas</span>
+                        {copilotAutoMode === "per_conv" && <button onClick={async () => {
+                          const newVal = false;
+                          await fetch(`${API_URL}/conversations/${selected.id}/auto-mode`, { method: "PUT", headers, body: JSON.stringify({ enabled: newVal }) }).catch(() => {});
+                          setSelected(prev => ({ ...prev, auto_mode: newVal }));
+                          setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, auto_mode: newVal } : c));
+                        }} style={{ marginLeft: "auto", padding: "2px 10px", borderRadius: 5, border: "1px solid #f4433333", background: "transparent", color: "#f44336", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Pausar</button>}
+                      </div>
+                    )}
                     <div style={{ display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center" }}>
                       <button onClick={() => setShowLabelPicker(true)} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #252540", background: "transparent", color: "#888", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>🏷 Etiqueta</button>
                       <button onClick={() => setShowAssign(true)} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #252540", background: "transparent", color: "#888", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>👤 Atribuir</button>
