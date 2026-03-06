@@ -838,10 +838,7 @@ function WhatsAppScreen({ auth }) {
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
   const [syncProgress, setSyncProgress] = useState(0);
-  const [qrExpiry, setQrExpiry] = useState(null); // timestamp quando QR expira
-  const [qrSecondsLeft, setQrSecondsLeft] = useState(0);
   const pollRef = useRef(null);
-  const qrTimerRef = useRef(null);
 
   const syncHistory = async (auto = false) => {
     setSyncing(true); setSyncResult(null); setSyncProgress(0);
@@ -882,30 +879,14 @@ function WhatsAppScreen({ auth }) {
 
   const fetchQrCode = async () => {
     setLoadingQr(true); setQrCode("");
-    // Limpa timer anterior
-    if (qrTimerRef.current) clearInterval(qrTimerRef.current);
     try {
       const r = await fetch(`${API_URL}/whatsapp/qrcode?instance=${instance}`, { headers });
       const d = await r.json();
       if (d.connected === true || d.state === "open") {
         setStatus("connected");
         setPhone(d.phone || "");
-        setQrCode("");
       } else if (d.qr_code) {
         setQrCode(d.qr_code);
-        // QR expira em ~55s — inicia contador regressivo e auto-refresh
-        const expiry = Date.now() + 55000;
-        setQrExpiry(expiry);
-        setQrSecondsLeft(55);
-        qrTimerRef.current = setInterval(() => {
-          const left = Math.max(0, Math.round((expiry - Date.now()) / 1000));
-          setQrSecondsLeft(left);
-          if (left === 0) {
-            clearInterval(qrTimerRef.current);
-            // Auto-renova QR quando expira (se ainda desconectado)
-            setQrCode("");
-          }
-        }, 1000);
       }
     } catch (e) {}
     setLoadingQr(false);
@@ -924,10 +905,7 @@ function WhatsAppScreen({ auth }) {
   useEffect(() => {
     checkStatus();
     pollRef.current = setInterval(checkStatus, 15000);
-    return () => {
-      clearInterval(pollRef.current);
-      if (qrTimerRef.current) clearInterval(qrTimerRef.current);
-    };
+    return () => clearInterval(pollRef.current);
   }, [instance]);
 
   useEffect(() => {
@@ -983,14 +961,6 @@ function WhatsAppScreen({ auth }) {
           </div>
         </div>
 
-        {/* Loading inicial */}
-        {status === null && (
-          <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 16, padding: 32, marginBottom: 20, display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 36, height: 36, border: "3px solid #1a1a2e", borderTop: "3px solid #00c853", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
-            <div style={{ fontSize: 14, color: "#555" }}>Verificando status do WhatsApp...</div>
-          </div>
-        )}
-
         {/* QR Code Card — só quando desconectado */}
         {(status === "disconnected" || status === "error") && (
           <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 16, padding: 28, marginBottom: 20 }}>
@@ -999,56 +969,43 @@ function WhatsAppScreen({ auth }) {
               Abra o WhatsApp no celular → <strong style={{ color: "#e8e8f0" }}>Menu (⋮)</strong> → <strong style={{ color: "#e8e8f0" }}>Dispositivos conectados</strong> → <strong style={{ color: "#e8e8f0" }}>Adicionar dispositivo</strong>
             </div>
 
-            <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
-              {/* QR */}
-              <div style={{ flexShrink: 0 }}>
-                {loadingQr ? (
-                  <div style={{ width: 180, height: 180, background: "#13131f", borderRadius: 12, border: "2px solid #1a1a2e", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
-                    <div style={{ width: 28, height: 28, border: "3px solid #1a1a2e", borderTop: "3px solid #00c853", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
-                    <span style={{ fontSize: 11, color: "#555" }}>Gerando...</span>
-                  </div>
-                ) : qrCode ? (
-                  <div>
-                    <img src={qrCode} alt="QR Code" style={{ width: 180, height: 180, borderRadius: 12, border: "3px solid #00c85344", display: "block" }} />
-                    <div style={{ marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                      {qrSecondsLeft > 0 ? (
-                        <>
-                          <div style={{ width: 6, height: 6, borderRadius: "50%", background: qrSecondsLeft > 15 ? "#00c853" : "#ff6d00", flexShrink: 0 }} />
-                          <span style={{ fontSize: 11, color: qrSecondsLeft > 15 ? "#555" : "#ff6d00", fontWeight: qrSecondsLeft <= 15 ? 700 : 400 }}>
-                            {qrSecondsLeft > 15 ? `Válido por ${qrSecondsLeft}s` : `⚠ Expira em ${qrSecondsLeft}s`}
-                          </span>
-                        </>
-                      ) : (
-                        <span style={{ fontSize: 11, color: "#f44336", fontWeight: 700 }}>QR expirado — gere um novo</span>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ width: 180, height: 180, background: "#13131f", border: "2px dashed #252540", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <span style={{ fontSize: 12, color: "#333" }}>Sem QR Code</span>
-                  </div>
-                )}
-              </div>
+            {/* QR grande e centralizado */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+              {loadingQr ? (
+                <div style={{ width: 320, height: 320, background: "#13131f", borderRadius: 16, border: "2px solid #1a1a2e", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14 }}>
+                  <div style={{ width: 40, height: 40, border: "4px solid #1a1a2e", borderTop: "4px solid #00c853", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+                  <span style={{ fontSize: 13, color: "#555" }}>Gerando QR Code...</span>
+                </div>
+              ) : qrCode ? (
+                <div style={{ background: "#fff", borderRadius: 16, padding: 16, boxShadow: "0 0 40px #00c85330" }}>
+                  <img src={qrCode} alt="QR Code" style={{ width: 300, height: 300, display: "block" }} />
+                </div>
+              ) : (
+                <div style={{ width: 320, height: 320, background: "#13131f", border: "2px dashed #252540", borderRadius: 16, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                  <span style={{ fontSize: 40 }}>📷</span>
+                  <span style={{ fontSize: 13, color: "#555" }}>Clique em Gerar QR Code</span>
+                </div>
+              )}
 
-              {/* Steps */}
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: "#888" }}>Passo a passo:</div>
+              <button onClick={fetchQrCode} disabled={loadingQr} style={{ width: 320, padding: "14px 0", borderRadius: 12, border: "none", background: loadingQr ? "#1a1a2e" : "linear-gradient(135deg,#00c853,#00796b)", color: loadingQr ? "#444" : "#000", fontSize: 15, fontWeight: 700, cursor: loadingQr ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+                {loadingQr ? "Gerando..." : qrCode ? "🔄 Novo QR Code" : "📷 Gerar QR Code"}
+              </button>
+
+              {/* Steps compactos abaixo */}
+              <div style={{ width: 320, marginTop: 4 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 10, color: "#666" }}>Como escanear:</div>
                 {[
                   "Abra o WhatsApp no celular",
-                  "Toque nos 3 pontos (⋮) no canto superior",
-                  "Selecione 'Dispositivos conectados'",
-                  "Toque em 'Adicionar dispositivo'",
-                  "Aponte a câmera para o QR Code ao lado",
-                  "Aguarde 5 segundos — pronto! ✅",
+                  "Menu (⋮) → Dispositivos conectados",
+                  "Adicionar dispositivo",
+                  "Aponte a câmera para o QR acima ✅",
                 ].map((step, i) => (
-                  <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 8 }}>
-                    <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#00c85320", border: "1px solid #00c85340", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#00c853", flexShrink: 0 }}>{i + 1}</div>
-                    <span style={{ fontSize: 12, color: "#666", paddingTop: 2 }}>{step}</span>
+                  <div key={i} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
+                    <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#00c85320", border: "1px solid #00c85340", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#00c853", flexShrink: 0 }}>{i + 1}</div>
+                    <span style={{ fontSize: 12, color: "#555" }}>{step}</span>
                   </div>
                 ))}
-                <button onClick={fetchQrCode} disabled={loadingQr} style={{ marginTop: 12, width: "100%", padding: "10px 0", borderRadius: 10, border: "none", background: loadingQr ? "#1a1a2e" : qrSecondsLeft === 0 && qrCode === "" ? "linear-gradient(135deg,#f44336,#c62828)" : "linear-gradient(135deg,#00c853,#00796b)", color: loadingQr ? "#444" : "#000", fontSize: 13, fontWeight: 700, cursor: loadingQr ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
-                  {loadingQr ? "Gerando QR Code..." : qrCode && qrSecondsLeft > 0 ? "🔄 Novo QR Code" : qrCode === "" && qrSecondsLeft === 0 && status !== "connected" ? "⚠ QR expirou — gerar novo" : "📷 Gerar QR Code"}
-                </button>
+              </div>
               </div>
             </div>
           </div>
