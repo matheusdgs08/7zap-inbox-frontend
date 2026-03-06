@@ -642,15 +642,27 @@ async def whatsapp_sync(body: dict):
     stats = {"chats": 0, "contacts_created": 0, "conversations_created": 0, "messages_saved": 0, "skipped": 0}
 
     async with httpx.AsyncClient(timeout=60) as client:
-        # 1. Busca lista de chats
-        try:
-            r = await client.get(f"{WAHA_URL}/api/{instance}/chats", headers=waha_headers())
-            chats = r.json() if r.status_code == 200 else []
-        except:
-            raise HTTPException(status_code=502, detail="Não foi possível conectar à WAHA. Verifique se o número está conectado.")
+        # 1. Busca lista de chats — tenta as duas rotas possíveis da WAHA
+        chats = []
+        error_detail = ""
+        for route in [
+            f"{WAHA_URL}/api/chats?session={instance}",         # WAHA Core / Plus
+            f"{WAHA_URL}/api/{instance}/chats",                  # WAHA Legacy
+        ]:
+            try:
+                r = await client.get(route, headers=waha_headers(), timeout=15)
+                if r.status_code == 200:
+                    data = r.json()
+                    chats = data if isinstance(data, list) else data.get("chats", data.get("data", []))
+                    break
+                else:
+                    error_detail = f"Rota {route} retornou {r.status_code}: {r.text[:200]}"
+            except Exception as e:
+                error_detail = str(e)
+                continue
 
         if not chats:
-            return {"ok": True, "stats": stats, "message": "Nenhum chat encontrado na WAHA."}
+            raise HTTPException(status_code=502, detail=f"Não foi possível buscar os chats da WAHA. Detalhes: {error_detail}")
 
         stats["chats"] = len(chats)
 
@@ -660,14 +672,15 @@ async def whatsapp_sync(body: dict):
                 if not chat_id or "@g.us" in chat_id:  # Pula grupos
                     continue
 
-                # Extrai telefone
+                # Extrai telefone — remove sufixos do WhatsApp
                 phone = chat_id.replace("@s.whatsapp.net", "").replace("@c.us", "")
-                if not phone.isdigit():
+                if not phone.replace("+", "").isdigit():
                     continue
+                phone = phone.replace("+", "")
 
                 name = chat.get("name") or chat.get("displayName") or phone
 
-                # Upsert contato
+                # Upsert contato — cria se não existir, atualiza nome se existir
                 existing = supabase.table("contacts").select("id").eq("tenant_id", tenant_id).eq("phone", phone).execute().data
                 if existing:
                     contact_id = existing[0]["id"]
@@ -685,47 +698,51 @@ async def whatsapp_sync(body: dict):
                     conv_id = conv[0]["id"]
                     stats["conversations_created"] += 1
 
-                # Busca mensagens do chat
-                msgs_r = await client.get(
-                    f"{WAHA_URL}/api/{instance}/chats/{chat_id}/messages",
-                    headers=waha_headers(),
-                    params={"limit": 100, "downloadMedia": False}
-                )
-                if msgs_r.status_code != 200:
-                    continue
-
-                messages = msgs_r.json()
-                if isinstance(messages, dict):
-                    messages = messages.get("messages", [])
+                # Busca mensagens — tenta as duas rotas
+                messages = []
+                for msg_route in [
+                    f"{WAHA_URL}/api/messages?session={instance}&chatId={chat_id}&limit=100",
+                    f"{WAHA_URL}/api/{instance}/chats/{chat_id}/messages?limit=100&downloadMedia=false",
+                ]:
+                    try:
+                        msgs_r = await client.get(msg_route, headers=waha_headers(), timeout=15)
+                        if msgs_r.status_code == 200:
+                            data = msgs_r.json()
+                            messages = data if isinstance(data, list) else data.get("messages", [])
+                            break
+                    except:
+                        continue
 
                 for msg in messages:
-                    # Filtra por data
+                    # Filtra por data — só importa mensagens dentro do período do plano
                     msg_ts = msg.get("timestamp", 0)
                     if isinstance(msg_ts, float):
                         msg_ts = int(msg_ts * 1000)
-                    if msg_ts < since_ts:
+                    elif isinstance(msg_ts, int) and msg_ts < 10000000000:
+                        msg_ts = msg_ts * 1000  # converte segundos para ms
+                    if msg_ts and msg_ts < since_ts:
                         continue
 
-                    # Extrai conteúdo
-                    content = ""
+                    # Extrai conteúdo da mensagem
                     msg_type = "text"
-                    body_field = msg.get("body") or msg.get("text") or ""
+                    body_field = msg.get("body") or msg.get("text") or msg.get("content") or ""
                     caption = msg.get("caption", "")
-                    content = body_field or caption or ""
+                    msg_content = body_field or caption or ""
 
-                    if not content:
-                        media_type = msg.get("type", "")
-                        if "image" in media_type:   content = "[Imagem]";   msg_type = "image"
-                        elif "audio" in media_type: content = "[Áudio]";    msg_type = "audio"
-                        elif "video" in media_type: content = "[Vídeo]";    msg_type = "video"
-                        elif "doc" in media_type:   content = "[Documento]"; msg_type = "document"
-                        else: content = "[Mensagem]"
+                    if not msg_content:
+                        media_type = msg.get("type", msg.get("mediaType", ""))
+                        if "image" in media_type:    msg_content = "[Imagem]";    msg_type = "image"
+                        elif "audio" in media_type:  msg_content = "[Áudio]";     msg_type = "audio"
+                        elif "video" in media_type:  msg_content = "[Vídeo]";     msg_type = "video"
+                        elif "doc" in media_type or "pdf" in media_type: msg_content = "[Documento]"; msg_type = "document"
+                        elif "sticker" in media_type: msg_content = "[Sticker]"
+                        else: msg_content = "[Mensagem]"
 
-                    direction = "inbound" if msg.get("fromMe") == False else "outbound"
-                    waha_id   = msg.get("id", "")
+                    direction  = "outbound" if msg.get("fromMe") else "inbound"
+                    waha_id    = str(msg.get("id", ""))
                     created_at = datetime.utcfromtimestamp(msg_ts / 1000).isoformat() if msg_ts else datetime.utcnow().isoformat()
 
-                    # Verifica duplicata por waha_id
+                    # Evita duplicatas pelo waha_id
                     if waha_id:
                         dup = supabase.table("messages").select("id").eq("waha_id", waha_id).execute().data
                         if dup:
@@ -734,7 +751,7 @@ async def whatsapp_sync(body: dict):
                     supabase.table("messages").insert({
                         "conversation_id": conv_id,
                         "direction": direction,
-                        "content": content,
+                        "content": msg_content,
                         "type": msg_type,
                         "is_internal_note": False,
                         "waha_id": waha_id,
@@ -742,7 +759,7 @@ async def whatsapp_sync(body: dict):
                     }).execute()
                     stats["messages_saved"] += 1
 
-                # Atualiza last_message_at da conversa
+                # Atualiza timestamp da última mensagem na conversa
                 supabase.table("conversations").update({"last_message_at": datetime.utcnow().isoformat()}).eq("id", conv_id).execute()
 
             except Exception as e:
