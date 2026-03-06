@@ -2452,7 +2452,6 @@ function AppInner({ auth, onLogout }) {
     try {
       const r = await fetch(`${API_URL}/labels?tenant_id=${TENANT_ID}`, { headers });
       if (!r.ok) {
-        // Backend not deployed yet — fallback to localStorage
         const fallback = loadLabels();
         setLabels(fallback);
         if (r.status === 404) setLabelsError("backend_not_deployed");
@@ -2460,14 +2459,27 @@ function AppInner({ auth, onLogout }) {
       }
       const d = await r.json();
       const fromApi = d.labels || [];
-      // If API returns empty but localStorage has data, keep localStorage until backend is ready
-      if (fromApi.length === 0) {
-        const fallback = loadLabels();
-        if (fallback.length > 0) { setLabels(fallback); return; }
+
+      // AUTO-MIGRATE: localStorage has labels with local IDs → create them in DB
+      const local = loadLabels();
+      const localUnsynced = local.filter(l => !l._synced && !fromApi.find(a => a.name === l.name));
+      if (localUnsynced.length > 0) {
+        const migrated = [...fromApi];
+        for (const lbl of localUnsynced) {
+          try {
+            const cr = await fetch(`${API_URL}/labels`, { method: "POST", headers,
+              body: JSON.stringify({ tenant_id: TENANT_ID, name: lbl.name, color: lbl.color }) });
+            if (cr.ok) { const cd = await cr.json(); migrated.push(cd.label); }
+          } catch (_) {}
+        }
+        // Clear localStorage now that labels are in DB
+        saveLabels([]);
+        setLabels(migrated);
+        return;
       }
-      setLabels(fromApi);
+
+      setLabels(fromApi.length > 0 ? fromApi : local);
     } catch (e) {
-      // Network error — use localStorage
       setLabels(loadLabels());
     }
   }, []);
@@ -2626,21 +2638,26 @@ function AppInner({ auth, onLogout }) {
     const previous = selected.labels || [];
     const exists = previous.some(l => l.id === label.id);
     const updated = exists ? previous.filter(l => l.id !== label.id) : [...previous, label];
-    // Optimistic update
+    // Optimistic update — show immediately, protect from polls
     setSelected(prev => ({ ...prev, labels: updated }));
     setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, labels: updated } : c));
-    labelOverrideRef.current[selected.id] = { labels: updated, until: Date.now() + 60000 };
+    labelOverrideRef.current[selected.id] = { labels: updated, until: Date.now() + 120000 };
     try {
       const resp = await fetch(`${API_URL}/conversations/${selected.id}/labels`, { method: "PUT", headers, body: JSON.stringify({ label_ids: updated.map(l => l.id) }) });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      // Confirmed — extend the override so next poll doesn't overwrite
-      labelOverrideRef.current[selected.id] = { labels: updated, until: Date.now() + 60000 };
+      if (resp.ok) {
+        // Success — keep override for 2 min so next polls don't overwrite
+        labelOverrideRef.current[selected.id] = { labels: updated, until: Date.now() + 120000 };
+      } else {
+        const errBody = await resp.json().catch(() => ({}));
+        console.error("Label PUT failed:", resp.status, errBody);
+        showToast(`Erro ao salvar etiqueta: ${errBody.detail || resp.status}`, "#f44336");
+        // Still keep optimistic state — don't revert, user already saw it
+        labelOverrideRef.current[selected.id] = { labels: updated, until: Date.now() + 120000 };
+      }
     } catch (e) {
-      // Revert on failure
-      console.error("Label update failed:", e);
-      setSelected(prev => ({ ...prev, labels: previous }));
-      setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, labels: previous } : c));
-      labelOverrideRef.current[selected.id] = { labels: previous, until: Date.now() + 60000 };
+      console.error("Label update exception:", e);
+      // Network error — keep state, will retry on next interaction
+      labelOverrideRef.current[selected.id] = { labels: updated, until: Date.now() + 120000 };
     }
   };
   const moveKanbanCard = async (conv, newStage) => {
