@@ -206,6 +206,47 @@ function LoginScreen({ onLogin }) {
     setLoading(false);
   };
 
+  // Blocked screen — trial expired
+  if (trialInfo?.is_blocked) {
+    return (
+      <div style={{ display: "flex", height: "100vh", width: "100vw", background: "#0a0a0f", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans','Segoe UI',sans-serif", flexDirection: "column", gap: 0 }}>
+        <div style={{ width: 480, padding: "40px 36px", background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 20, boxShadow: "0 32px 80px #00000080", textAlign: "center" }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>⏰</div>
+          <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 8, color: "#e8e8f0" }}>Seu trial de 7 dias encerrou</div>
+          <div style={{ fontSize: 14, color: "#555", marginBottom: 32 }}>Escolha um plano para continuar usando o 7CRM. Seus dados estão seguros e serão mantidos.</div>
+          
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
+            {[
+              { plan: "starter", label: "Starter", price: "R$ 149/mês", desc: "1 número · 3 atendentes · Sem IA", color: "#00bcd4" },
+              { plan: "pro", label: "Pro ⭐", price: "R$ 299/mês", desc: "2 números · 8 atendentes · Co-pilot IA + Disparos", color: "#00c853", highlight: true },
+              { plan: "business", label: "Business", price: "R$ 599/mês", desc: "Ilimitado · IA · White-label · Suporte prioritário", color: "#7c4dff" },
+            ].map(p => (
+              <div key={p.plan} onClick={async () => {
+                await fetch(`${API_URL}/tenant/activate-plan`, { method: "POST", headers, body: JSON.stringify({ tenant_id: TENANT_ID, plan: p.plan }) });
+                fetchTrialStatus();
+              }} style={{ padding: "14px 20px", borderRadius: 12, border: `2px solid ${p.highlight ? p.color : "#1a1a2e"}`, background: p.highlight ? `${p.color}15` : "#13131f", cursor: "pointer", display: "flex", alignItems: "center", gap: 14, textAlign: "left", transition: "all 0.2s" }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: p.color, marginBottom: 2 }}>{p.label}</div>
+                  <div style={{ fontSize: 12, color: "#555" }}>{p.desc}</div>
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: "#e8e8f0", whiteSpace: "nowrap" }}>{p.price}</div>
+                <span style={{ color: p.color, fontSize: 16 }}>→</span>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ fontSize: 11, color: "#333" }}>
+            Para pagamento via PIX ou boleto, fale via WhatsApp · <span style={{ color: "#00c853" }}>Estúdio Se7e</span>
+          </div>
+
+          <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid #1a1a2e" }}>
+            <button onClick={onLogout} style={{ background: "transparent", border: "none", color: "#333", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Sair da conta</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: "flex", height: "100vh", width: "100vw", background: "#0a0a0f", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
       <div style={{ width: 400, padding: "40px 36px", background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 20, boxShadow: "0 32px 80px #00000080" }}>
@@ -1438,6 +1479,17 @@ export default function App() {
 
 function AppInner({ auth, onLogout }) {
   const [view, setView] = useState("inbox");
+  const [trialInfo, setTrialInfo] = useState(null); // {status, days_left, is_blocked, plan}
+
+  const fetchTrialStatus = async () => {
+    try {
+      const r = await fetch(`${API_URL}/tenant/trial-status?tenant_id=${TENANT_ID}`, { headers });
+      const d = await r.json();
+      setTrialInfo(d);
+    } catch (e) {}
+  };
+
+  useEffect(() => { fetchTrialStatus(); }, []);
   const [conversations, setConversations] = useState([]);
   const [selected, setSelected] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -1580,7 +1632,49 @@ function AppInner({ auth, onLogout }) {
     { id: "disparos", label: "📢 Disparos" },
     { id: "config", label: "⚙️ Config" },
     ...(auth.user.role === "admin" ? [{ id: "admin", label: "🔐 Admin" }] : []),
+    ...(trialInfo?.status === "trial" ? [{ id: "upgrade", label: "⭐ Assinar" }] : []),
   ];
+
+  // Blocked screen — trial expired
+  if (trialInfo?.is_blocked) {
+    return (
+      <div style={{ display: "flex", height: "100vh", width: "100vw", background: "#0a0a0f", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans','Segoe UI',sans-serif", flexDirection: "column", gap: 0 }}>
+        <div style={{ width: 480, padding: "40px 36px", background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 20, boxShadow: "0 32px 80px #00000080", textAlign: "center" }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>⏰</div>
+          <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 8, color: "#e8e8f0" }}>Seu trial de 7 dias encerrou</div>
+          <div style={{ fontSize: 14, color: "#555", marginBottom: 32 }}>Escolha um plano para continuar usando o 7CRM. Seus dados estão seguros e serão mantidos.</div>
+          
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
+            {[
+              { plan: "starter", label: "Starter", price: "R$ 149/mês", desc: "1 número · 3 atendentes · Sem IA", color: "#00bcd4" },
+              { plan: "pro", label: "Pro ⭐", price: "R$ 299/mês", desc: "2 números · 8 atendentes · Co-pilot IA + Disparos", color: "#00c853", highlight: true },
+              { plan: "business", label: "Business", price: "R$ 599/mês", desc: "Ilimitado · IA · White-label · Suporte prioritário", color: "#7c4dff" },
+            ].map(p => (
+              <div key={p.plan} onClick={async () => {
+                await fetch(`${API_URL}/tenant/activate-plan`, { method: "POST", headers, body: JSON.stringify({ tenant_id: TENANT_ID, plan: p.plan }) });
+                fetchTrialStatus();
+              }} style={{ padding: "14px 20px", borderRadius: 12, border: `2px solid ${p.highlight ? p.color : "#1a1a2e"}`, background: p.highlight ? `${p.color}15` : "#13131f", cursor: "pointer", display: "flex", alignItems: "center", gap: 14, textAlign: "left", transition: "all 0.2s" }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: p.color, marginBottom: 2 }}>{p.label}</div>
+                  <div style={{ fontSize: 12, color: "#555" }}>{p.desc}</div>
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: "#e8e8f0", whiteSpace: "nowrap" }}>{p.price}</div>
+                <span style={{ color: p.color, fontSize: 16 }}>→</span>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ fontSize: 11, color: "#333" }}>
+            Para pagamento via PIX ou boleto, fale via WhatsApp · <span style={{ color: "#00c853" }}>Estúdio Se7e</span>
+          </div>
+
+          <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid #1a1a2e" }}>
+            <button onClick={onLogout} style={{ background: "transparent", border: "none", color: "#333", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Sair da conta</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: "flex", height: "100vh", width: "100vw", flexDirection: "column", background: "#0a0a0f", color: "#e8e8f0", fontFamily: "'DM Sans', 'Segoe UI', sans-serif", overflow: "hidden" }}>
@@ -1599,6 +1693,15 @@ function AppInner({ auth, onLogout }) {
           ))}
         </div>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
+          {/* Trial banner */}
+          {trialInfo?.status === "trial" && trialInfo?.days_left !== null && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 12px", borderRadius: 20, background: trialInfo.days_left <= 2 ? "#f4433322" : "#ff6d0022", border: `1px solid ${trialInfo.days_left <= 2 ? "#f4433344" : "#ff6d0044"}` }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: trialInfo.days_left <= 2 ? "#f44336" : "#ff6d00" }}>
+                ⏰ Trial: {trialInfo.days_left === 0 ? "último dia!" : `${trialInfo.days_left} dia${trialInfo.days_left !== 1 ? "s" : ""} restante${trialInfo.days_left !== 1 ? "s" : ""}`}
+              </span>
+              <button onClick={() => setView("upgrade")} style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 10, border: "none", background: trialInfo.days_left <= 2 ? "#f44336" : "#ff6d00", color: "#fff", cursor: "pointer", fontFamily: "inherit" }}>Assinar</button>
+            </div>
+          )}
           <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#444" }}>
             <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#00c853" }} />
             <span style={{ color: "#555" }}>{auth.user.name}</span>
@@ -1621,6 +1724,52 @@ function AppInner({ auth, onLogout }) {
         {/* Admin */}
         {view === "admin" && auth.user.role === "admin" && (
           <AdminPanel auth={auth} onLogout={onLogout} />
+        )}
+
+        {/* Upgrade */}
+        {view === "upgrade" && (
+          <div style={{ flex: 1, overflowY: "auto", padding: 40 }}>
+            <div style={{ maxWidth: 600, margin: "0 auto" }}>
+              <div style={{ marginBottom: 32 }}>
+                <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>🚀 Escolha seu plano</div>
+                <div style={{ fontSize: 13, color: "#555" }}>Todos os planos incluem 7 dias de trial grátis para novos clientes</div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {[
+                  { plan: "starter", label: "Starter", price: "R$ 149", desc: "Para recepções e pequenos negócios", color: "#00bcd4", features: ["1 número conectado", "Até 3 atendentes", "Inbox + Kanban + Etiquetas", "Disparos em massa", "Número extra: +R$49/mês"] },
+                  { plan: "pro", label: "Pro", price: "R$ 299", desc: "Para academias, clínicas e empresas em crescimento", color: "#00c853", highlight: true, features: ["2 números conectados", "Até 8 atendentes", "Tudo do Starter", "Co-pilot IA (1.000 créditos/mês)", "Onboarding Inteligente IA", "Número extra: +R$49/mês"] },
+                  { plan: "business", label: "Business", price: "R$ 599", desc: "Para redes, franquias e operações maiores", color: "#7c4dff", features: ["Números ilimitados", "Atendentes ilimitados", "Tudo do Pro", "3.000 créditos IA/mês", "White-label", "Suporte prioritário"] },
+                ].map(p => (
+                  <div key={p.plan} style={{ background: "#0d0d18", border: `2px solid ${p.highlight ? p.color : "#1a1a2e"}`, borderRadius: 14, padding: 24, position: "relative" }}>
+                    {p.highlight && <div style={{ position: "absolute", top: -10, right: 20, background: "#00c853", color: "#000", fontSize: 10, fontWeight: 800, padding: "2px 12px", borderRadius: 20 }}>MAIS POPULAR</div>}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: p.color }}>{p.label}</div>
+                        <div style={{ fontSize: 12, color: "#555", marginTop: 2 }}>{p.desc}</div>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ fontSize: 24, fontWeight: 800, color: "#e8e8f0" }}>{p.price}</div>
+                        <div style={{ fontSize: 11, color: "#555" }}>/mês</div>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
+                      {p.features.map(f => <div key={f} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, color: "#888" }}><span style={{ color: p.color }}>✓</span>{f}</div>)}
+                    </div>
+                    <button onClick={async () => {
+                      await fetch(`${API_URL}/tenant/activate-plan`, { method: "POST", headers, body: JSON.stringify({ tenant_id: TENANT_ID, plan: p.plan }) });
+                      await fetchTrialStatus();
+                      setView("inbox");
+                    }} style={{ width: "100%", padding: "11px 0", borderRadius: 10, border: "none", background: p.highlight ? `linear-gradient(135deg, ${p.color}, #00796b)` : `${p.color}22`, color: p.highlight ? "#000" : p.color, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                      Assinar {p.label} →
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginTop: 24, padding: 16, background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 12, fontSize: 12, color: "#555", textAlign: "center" }}>
+                💬 Pagamento via PIX, boleto ou cartão · Fale com a gente no WhatsApp para dúvidas
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Config */}
