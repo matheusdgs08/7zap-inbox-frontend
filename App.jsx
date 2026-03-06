@@ -4,6 +4,11 @@ const API_KEY = "7zap_inbox_secret";
 const TENANT_ID = "98c38c97-2796-471f-bfc9-f093ff3ae6e9";
 const headers = { "x-api-key": API_KEY, "Content-Type": "application/json" };
 
+// Auth helpers
+const authHeaders = (token) => ({ ...headers, "Authorization": `Bearer ${token}` });
+const getStoredAuth = () => { try { return JSON.parse(localStorage.getItem("7crm_auth") || "null"); } catch { return null; } };
+const setStoredAuth = (data) => { if (data) localStorage.setItem("7crm_auth", JSON.stringify(data)); else localStorage.removeItem("7crm_auth"); };
+
 function timeAgo(dateStr) {
   const now = new Date(); const date = new Date(dateStr);
   const diff = Math.floor((now - date) / 1000);
@@ -1199,6 +1204,17 @@ function KanbanBoard({ conversations, columns, onMoveCard, onSelectConv, onManag
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
+  const [auth, setAuth] = useState(getStoredAuth);
+
+  const handleLogin = (data) => { setStoredAuth(data); setAuth(data); };
+  const handleLogout = () => { setStoredAuth(null); setAuth(null); };
+
+  if (!auth) return <LoginScreen onLogin={handleLogin} />;
+
+  return <AppInner auth={auth} onLogout={handleLogout} />;
+}
+
+function AppInner({ auth, onLogout }) {
   const [view, setView] = useState("inbox");
   const [conversations, setConversations] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -1341,6 +1357,7 @@ export default function App() {
     { id: "tasks_global", label: "✅ Tarefas" },
     { id: "disparos", label: "📢 Disparos" },
     { id: "config", label: "⚙️ Config" },
+    ...(auth.user.role === "admin" ? [{ id: "admin", label: "🔐 Admin" }] : []),
   ];
 
   return (
@@ -1359,8 +1376,12 @@ export default function App() {
             </button>
           ))}
         </div>
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#444" }}>
-          <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#00c853" }} />Estúdio Se7e
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#444" }}>
+            <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#00c853" }} />
+            <span style={{ color: "#555" }}>{auth.user.name}</span>
+          </div>
+          <button onClick={onLogout} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid #1a1a2e", background: "transparent", color: "#444", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Sair</button>
         </div>
       </div>
 
@@ -1373,6 +1394,11 @@ export default function App() {
             agents={agents}
             kanbanCols={kanbanCols}
           />
+        )}
+
+        {/* Admin */}
+        {view === "admin" && auth.user.role === "admin" && (
+          <AdminPanel auth={auth} onLogout={onLogout} />
         )}
 
         {/* Config */}
