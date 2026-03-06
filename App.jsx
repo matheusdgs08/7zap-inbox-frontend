@@ -662,6 +662,199 @@ function OnboardingView({ auth }) {
   );
 }
 
+
+// ─── WhatsApp Connection Screen ───────────────────────────────────────────────
+function WhatsAppScreen({ auth }) {
+  const [status, setStatus] = useState(null);
+  const [qrCode, setQrCode] = useState("");
+  const [instance, setInstance] = useState("default");
+  const [loadingQr, setLoadingQr] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [lastCheck, setLastCheck] = useState(null);
+  const [phone, setPhone] = useState("");
+  const pollRef = useRef(null);
+
+  const checkStatus = async () => {
+    try {
+      const r = await fetch(`${API_URL}/whatsapp/status?instance=${instance}`, { headers });
+      const d = await r.json();
+      setStatus(d.connected ? "connected" : "disconnected");
+      setPhone(d.phone || "");
+      setLastCheck(new Date());
+      if (d.connected) setQrCode("");
+    } catch (e) { setStatus("error"); }
+  };
+
+  const fetchQrCode = async () => {
+    setLoadingQr(true); setQrCode("");
+    try {
+      const r = await fetch(`${API_URL}/whatsapp/qrcode?instance=${instance}`, { headers });
+      const d = await r.json();
+      if (d.qr_code) setQrCode(d.qr_code);
+      else if (d.state === "open") { setStatus("connected"); }
+    } catch (e) {}
+    setLoadingQr(false);
+  };
+
+  const disconnect = async () => {
+    if (!window.confirm("Deseja desconectar o WhatsApp? Nenhuma mensagem será recebida até reconectar.")) return;
+    setDisconnecting(true);
+    try {
+      await fetch(`${API_URL}/whatsapp/disconnect`, { method: "POST", headers, body: JSON.stringify({ instance }) });
+      setStatus("disconnected"); setQrCode(""); setPhone("");
+    } catch (e) {}
+    setDisconnecting(false);
+  };
+
+  useEffect(() => {
+    checkStatus();
+    pollRef.current = setInterval(checkStatus, 8000);
+    return () => clearInterval(pollRef.current);
+  }, [instance]);
+
+  useEffect(() => {
+    if (status === "disconnected" && !qrCode && !loadingQr) fetchQrCode();
+  }, [status]);
+
+  const isConnected = status === "connected";
+  const statusColor = isConnected ? "#00c853" : status === "error" ? "#ff6d00" : "#f44336";
+  const statusLabel = isConnected ? "Conectado" : status === "error" ? "Erro de conexão" : status === "disconnected" ? "Desconectado" : "Verificando...";
+  const statusIcon = isConnected ? "🟢" : status === "error" ? "🟠" : status === "disconnected" ? "🔴" : "⏳";
+
+  return (
+    <div style={{ flex: 1, overflowY: "auto", padding: 40 }}>
+      <div style={{ maxWidth: 680, margin: "0 auto" }}>
+
+        {/* Header */}
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>📱 Conexão WhatsApp</div>
+          <div style={{ fontSize: 13, color: "#555" }}>Gerencie a conexão do seu número com o 7CRM</div>
+        </div>
+
+        {/* Status Card */}
+        <div style={{ background: "#0d0d18", border: `1px solid ${statusColor}44`, borderRadius: 16, padding: 24, marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
+            <div style={{ width: 52, height: 52, borderRadius: 14, background: `${statusColor}15`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>
+              {isConnected ? "📱" : "📵"}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>
+                {isConnected ? (phone ? `+${phone}` : "Número conectado") : "Número da recepção"}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 12 }}>{statusIcon}</span>
+                <span style={{ fontSize: 13, color: statusColor, fontWeight: 600 }}>{statusLabel}</span>
+                {lastCheck && <span style={{ fontSize: 11, color: "#333" }}>· {timeAgo(lastCheck.toISOString())}</span>}
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={checkStatus} style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid #252540", background: "transparent", color: "#555", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>🔄 Atualizar</button>
+              {isConnected && (
+                <button onClick={disconnect} disabled={disconnecting} style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid #f4433344", background: "transparent", color: "#f44336", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                  {disconnecting ? "..." : "Desconectar"}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Instance input */}
+          <div style={{ padding: "10px 14px", background: "#13131f", border: "1px solid #1a1a2e", borderRadius: 10, display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 11, color: "#555", fontWeight: 700, whiteSpace: "nowrap" }}>INSTÂNCIA</span>
+            <input value={instance} onChange={e => { setInstance(e.target.value); setStatus(null); setQrCode(""); }} style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: "#e8e8f0", fontSize: 13, fontFamily: "inherit" }} placeholder="default" />
+            <span style={{ fontSize: 11, color: "#333" }}>nome da instância na Evolution API</span>
+          </div>
+        </div>
+
+        {/* QR Code Card — só quando desconectado */}
+        {(status === "disconnected" || status === "error") && (
+          <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 16, padding: 28, marginBottom: 20 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>📷 Conectar via QR Code</div>
+            <div style={{ fontSize: 13, color: "#555", marginBottom: 24 }}>
+              Abra o WhatsApp no celular → <strong style={{ color: "#e8e8f0" }}>Menu (⋮)</strong> → <strong style={{ color: "#e8e8f0" }}>Dispositivos conectados</strong> → <strong style={{ color: "#e8e8f0" }}>Adicionar dispositivo</strong>
+            </div>
+
+            <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
+              {/* QR */}
+              <div style={{ flexShrink: 0 }}>
+                {loadingQr ? (
+                  <div style={{ width: 180, height: 180, background: "#13131f", borderRadius: 12, border: "2px solid #1a1a2e", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                    <div style={{ width: 28, height: 28, border: "3px solid #1a1a2e", borderTop: "3px solid #00c853", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+                    <span style={{ fontSize: 11, color: "#555" }}>Gerando...</span>
+                  </div>
+                ) : qrCode ? (
+                  <div>
+                    <img src={qrCode} alt="QR Code" style={{ width: 180, height: 180, borderRadius: 12, border: "3px solid #00c85344", display: "block" }} />
+                    <div style={{ fontSize: 10, color: "#555", marginTop: 6, textAlign: "center" }}>Válido por ~60 segundos</div>
+                  </div>
+                ) : (
+                  <div style={{ width: 180, height: 180, background: "#13131f", border: "2px dashed #252540", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <span style={{ fontSize: 12, color: "#333" }}>Sem QR Code</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Steps */}
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: "#888" }}>Passo a passo:</div>
+                {[
+                  "Abra o WhatsApp no celular",
+                  "Toque nos 3 pontos (⋮) no canto superior",
+                  "Selecione 'Dispositivos conectados'",
+                  "Toque em 'Adicionar dispositivo'",
+                  "Aponte a câmera para o QR Code ao lado",
+                  "Aguarde 5 segundos — pronto! ✅",
+                ].map((step, i) => (
+                  <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 8 }}>
+                    <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#00c85320", border: "1px solid #00c85340", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#00c853", flexShrink: 0 }}>{i + 1}</div>
+                    <span style={{ fontSize: 12, color: "#666", paddingTop: 2 }}>{step}</span>
+                  </div>
+                ))}
+                <button onClick={fetchQrCode} disabled={loadingQr} style={{ marginTop: 12, width: "100%", padding: "10px 0", borderRadius: 10, border: "none", background: loadingQr ? "#1a1a2e" : "linear-gradient(135deg,#00c853,#00796b)", color: loadingQr ? "#444" : "#000", fontSize: 13, fontWeight: 700, cursor: loadingQr ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+                  {loadingQr ? "Gerando QR Code..." : qrCode ? "🔄 Novo QR Code" : "📷 Gerar QR Code"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Connected state info */}
+        {isConnected && (
+          <div style={{ background: "#00c85310", border: "1px solid #00c85330", borderRadius: 14, padding: 20, marginBottom: 20, display: "flex", gap: 14, alignItems: "center" }}>
+            <span style={{ fontSize: 32 }}>✅</span>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#00c853", marginBottom: 4 }}>WhatsApp conectado e recebendo mensagens</div>
+              <div style={{ fontSize: 12, color: "#555" }}>Todas as mensagens recebidas nesse número aparecem automaticamente no Inbox. O status é verificado a cada 8 segundos.</div>
+            </div>
+          </div>
+        )}
+
+        {/* Info cards */}
+        <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 20 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#555", marginBottom: 14 }}>ℹ️ Informações importantes</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {[
+              { icon: "⚠️", title: "API não oficial", desc: "Usa WhatsApp Web. Pode desconectar 2-3x por ano — basta gerar novo QR Code.", color: "#ff6d00" },
+              { icon: "💾", title: "Dados seguros", desc: "Mensagens salvas no banco mesmo quando desconectado. Nenhum dado é perdido.", color: "#00c853" },
+              { icon: "⚡", title: "Reconexão em 2 min", desc: "Se desconectar, clique em 'Gerar QR Code' e escaneie novamente. Rápido e simples.", color: "#00bcd4" },
+              { icon: "🔄", title: "Monitoramento automático", desc: "O painel verifica o status a cada 8 segundos e avisa se cair.", color: "#7c4dff" },
+            ].map(item => (
+              <div key={item.title} style={{ display: "flex", gap: 12, padding: "10px 14px", background: "#13131f", borderRadius: 10 }}>
+                <span style={{ fontSize: 16, flexShrink: 0 }}>{item.icon}</span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: item.color, marginBottom: 2 }}>{item.title}</div>
+                  <div style={{ fontSize: 12, color: "#555" }}>{item.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+      </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
 // ─── Leads Board (por etiqueta) ───────────────────────────────────────────────
 
 // ─── Broadcasts / Disparos View ──────────────────────────────────────────────
@@ -1848,6 +2041,7 @@ function AppInner({ auth, onLogout }) {
     { id: "disparos", label: "📢 Disparos" },
     { id: "config", label: "⚙️ Config" },
     ...(auth.user.role === "admin" ? [{ id: "admin", label: "🔐 Admin" }] : []),
+    ...(auth.user.role === "admin" ? [{ id: "whatsapp", label: "📱 WhatsApp" }] : []),
     ...(trialInfo?.status === "trial" ? [{ id: "upgrade", label: "⭐ Assinar" }] : []),
     ...(auth.user.role === "admin" && trialInfo?.plan !== "trial" ? [{ id: "onboarding", label: "🧠 Onboarding IA" }] : []),
   ];
@@ -1946,6 +2140,11 @@ function AppInner({ auth, onLogout }) {
         {/* Onboarding IA */}
         {view === "onboarding" && auth.user.role === "admin" && (
           <OnboardingView auth={auth} />
+        )}
+
+        {/* WhatsApp Connection */}
+        {view === "whatsapp" && auth.user.role === "admin" && (
+          <WhatsAppScreen auth={auth} />
         )}
 
         {/* Upgrade */}
