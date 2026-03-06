@@ -183,6 +183,228 @@ function LabelManagerModal({ labels, onChange, onClose }) {
   );
 }
 
+// ─── Login Screen ────────────────────────────────────────────────────────────
+function LoginScreen({ onLogin }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showPw, setShowPw] = useState(false);
+
+  const submit = async () => {
+    if (!email.trim() || !password.trim()) return;
+    setLoading(true); setError("");
+    try {
+      const r = await fetch(`${API_URL}/auth/login`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), password })
+      });
+      const d = await r.json();
+      if (!r.ok) { setError(d.detail || "Erro ao fazer login"); setLoading(false); return; }
+      onLogin(d);
+    } catch (e) { setError("Erro de conexão. Tente novamente."); }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{ display: "flex", height: "100vh", width: "100vw", background: "#0a0a0f", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
+      <div style={{ width: 400, padding: "40px 36px", background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 20, boxShadow: "0 32px 80px #00000080" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 32, justifyContent: "center" }}>
+          <svg width="36" height="36" viewBox="0 0 28 28" fill="none">
+            <rect width="28" height="28" rx="7" fill="url(#glogin)"/>
+            <defs><linearGradient id="glogin" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor="#00c853"/><stop offset="100%" stopColor="#00695c"/></linearGradient></defs>
+            <text x="4" y="20" fontSize="14" fontWeight="900" fill="white" fontFamily="sans-serif">7</text>
+            <circle cx="19" cy="14" r="5" fill="none" stroke="white" strokeWidth="2"/>
+            <line x1="19" y1="9" x2="19" y2="19" stroke="white" strokeWidth="1.5"/>
+            <line x1="14" y1="14" x2="24" y2="14" stroke="white" strokeWidth="1.5"/>
+          </svg>
+          <span style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.5px", color: "#e8e8f0" }}>7<span style={{ color: "#00c853" }}>CRM</span></span>
+        </div>
+        <div style={{ fontSize: 20, fontWeight: 700, textAlign: "center", marginBottom: 4, color: "#e8e8f0" }}>Bem-vindo de volta</div>
+        <div style={{ fontSize: 13, color: "#555", textAlign: "center", marginBottom: 28 }}>Entre com seu email e senha</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 6 }}>EMAIL</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === "Enter" && submit()} placeholder="seu@email.com.br" autoFocus style={{ width: "100%", padding: "11px 14px", background: "#13131f", border: `1px solid ${error ? "#f4433644" : "#252540"}`, borderRadius: 10, color: "#e8e8f0", fontSize: 14, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 6 }}>SENHA</label>
+            <div style={{ position: "relative" }}>
+              <input type={showPw ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === "Enter" && submit()} placeholder="••••••••" style={{ width: "100%", padding: "11px 40px 11px 14px", background: "#13131f", border: `1px solid ${error ? "#f4433644" : "#252540"}`, borderRadius: 10, color: "#e8e8f0", fontSize: 14, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
+              <span onClick={() => setShowPw(p => !p)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", cursor: "pointer", color: "#555", fontSize: 16 }}>{showPw ? "🙈" : "👁"}</span>
+            </div>
+          </div>
+          {error && <div style={{ background: "#f4433315", border: "1px solid #f4433333", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#f44336" }}>❌ {error}</div>}
+          <button onClick={submit} disabled={loading || !email.trim() || !password.trim()} style={{ marginTop: 4, padding: "13px 0", borderRadius: 10, border: "none", background: (!loading && email.trim() && password.trim()) ? "linear-gradient(135deg,#00c853,#00796b)" : "#1a1a2e", color: (!loading && email.trim() && password.trim()) ? "#000" : "#444", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+            {loading ? "Entrando..." : "Entrar →"}
+          </button>
+        </div>
+        <div style={{ marginTop: 24, textAlign: "center", fontSize: 12, color: "#333" }}>7CRM v1.0 · Estúdio Se7e</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Admin Panel ──────────────────────────────────────────────────────────────
+function AdminPanel({ auth, onLogout }) {
+  const [tab, setTab] = useState("users");
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editUser, setEditUser] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [fName, setFName] = useState(""); const [fEmail, setFEmail] = useState(""); const [fPw, setFPw] = useState(""); const [fRole, setFRole] = useState("agent"); const [fColor, setFColor] = useState("#00c853"); const [saving, setSaving] = useState(false);
+  const [showChangePw, setShowChangePw] = useState(false); const [curPw, setCurPw] = useState(""); const [newPw, setNewPw] = useState(""); const [changingPw, setChangingPw] = useState(false);
+
+  const aHeaders = { ...headers, "Authorization": `Bearer ${auth.token}` };
+  const showToast = (msg, color = "#00c853") => { setToast({ msg, color }); setTimeout(() => setToast(null), 3500); };
+
+  const fetchUsers = async () => {
+    setLoading(true);
+    try { const r = await fetch(`${API_URL}/admin/users`, { headers: aHeaders }); const d = await r.json(); setUsers(d.users || []); } catch (e) {}
+    setLoading(false);
+  };
+  useEffect(() => { fetchUsers(); }, []);
+
+  const openCreate = () => { setEditUser(null); setFName(""); setFEmail(""); setFPw(""); setFRole("agent"); setFColor("#00c853"); setShowForm(true); };
+  const openEdit = (u) => { setEditUser(u); setFName(u.name); setFEmail(u.email); setFPw(""); setFRole(u.role); setFColor(u.avatar_color || "#00c853"); setShowForm(true); };
+
+  const saveUser = async () => {
+    if (!fName.trim() || !fEmail.trim() || (!editUser && !fPw.trim())) return;
+    setSaving(true);
+    try {
+      if (editUser) {
+        const body = { name: fName, email: fEmail, role: fRole, avatar_color: fColor };
+        if (fPw.trim()) body.password = fPw;
+        await fetch(`${API_URL}/admin/users/${editUser.id}`, { method: "PUT", headers: aHeaders, body: JSON.stringify(body) });
+        showToast("✓ Usuário atualizado!");
+      } else {
+        await fetch(`${API_URL}/admin/users`, { method: "POST", headers: aHeaders, body: JSON.stringify({ tenant_id: auth.user.tenant_id, name: fName, email: fEmail, password: fPw, role: fRole, avatar_color: fColor }) });
+        showToast("✓ Usuário criado!");
+      }
+      setShowForm(false); fetchUsers();
+    } catch (e) { showToast("Erro ao salvar", "#f44336"); }
+    setSaving(false);
+  };
+
+  const toggleActive = async (u) => {
+    await fetch(`${API_URL}/admin/users/${u.id}`, { method: "PUT", headers: aHeaders, body: JSON.stringify({ is_active: !u.is_active }) });
+    showToast(u.is_active ? "Usuário desativado" : "Usuário reativado", u.is_active ? "#f44336" : "#00c853");
+    fetchUsers();
+  };
+
+  const changePw = async () => {
+    if (!curPw || newPw.length < 6 || changingPw) return;
+    setChangingPw(true);
+    try {
+      const r = await fetch(`${API_URL}/auth/change-password`, { method: "POST", headers: aHeaders, body: JSON.stringify({ current_password: curPw, new_password: newPw }) });
+      if (r.ok) { showToast("✓ Senha alterada!"); setShowChangePw(false); setCurPw(""); setNewPw(""); }
+      else { const d = await r.json(); showToast(d.detail || "Erro", "#f44336"); }
+    } catch (e) {}
+    setChangingPw(false);
+  };
+
+  const COLORS = ["#00c853","#7c4dff","#00bcd4","#ff6d00","#f44336","#e91e63","#ffd600","#8bc34a"];
+  const inp = { width: "100%", padding: "9px 12px", background: "#13131f", border: "1px solid #252540", borderRadius: 8, color: "#e8e8f0", fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box" };
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
+      {toast && <div style={{ position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)", zIndex: 9999, background: toast.color, color: "#000", padding: "11px 22px", borderRadius: 12, fontSize: 13, fontWeight: 700, boxShadow: "0 8px 32px #00000060" }}>{toast.msg}</div>}
+      <div style={{ padding: "10px 24px", borderBottom: "1px solid #1a1a2e", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ display: "flex", gap: 3, background: "#0a0a0f", border: "1px solid #1a1a2e", borderRadius: 8, padding: 3 }}>
+          {[["users","👥 Usuários"],["account","👤 Minha conta"]].map(([id, label]) => (
+            <button key={id} onClick={() => setTab(id)} style={{ padding: "5px 14px", borderRadius: 6, border: "none", background: tab === id ? "#1a1a2e" : "transparent", color: tab === id ? "#e8e8f0" : "#555", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{label}</button>
+          ))}
+        </div>
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: 28 }}>
+        {tab === "users" && (
+          <div style={{ maxWidth: 860 }}>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 20 }}>
+              <div><div style={{ fontSize: 18, fontWeight: 700 }}>👥 Usuários</div><div style={{ fontSize: 12, color: "#555", marginTop: 2 }}>Gerencie quem tem acesso ao 7CRM</div></div>
+              <button onClick={openCreate} style={{ marginLeft: "auto", padding: "9px 20px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#00c853,#00796b)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>+ Novo usuário</button>
+            </div>
+            {loading ? <div style={{ color: "#555", padding: 40, textAlign: "center" }}>Carregando...</div> : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {users.map(u => (
+                  <div key={u.id} style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 12, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, opacity: u.is_active ? 1 : 0.5 }}>
+                    <Avatar name={u.name} size={40} color={u.avatar_color} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                        <span style={{ fontSize: 14, fontWeight: 700 }}>{u.name}</span>
+                        <span style={{ fontSize: 11, background: u.role === "admin" ? "#7c4dff22" : "#00c85322", color: u.role === "admin" ? "#a78bfa" : "#00c853", padding: "1px 8px", borderRadius: 20, fontWeight: 700 }}>{u.role === "admin" ? "Admin" : "Atendente"}</span>
+                        {!u.is_active && <span style={{ fontSize: 11, background: "#f4433322", color: "#f44336", padding: "1px 8px", borderRadius: 20 }}>Inativo</span>}
+                      </div>
+                      <div style={{ fontSize: 12, color: "#555" }}>{u.email}</div>
+                      {u.last_login && <div style={{ fontSize: 11, color: "#333", marginTop: 2 }}>Último acesso: {new Date(u.last_login).toLocaleString("pt-BR")}</div>}
+                    </div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button onClick={() => openEdit(u)} style={{ padding: "6px 14px", borderRadius: 7, border: "1px solid #252540", background: "transparent", color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>✏️ Editar</button>
+                      {u.id !== auth.user.id && <button onClick={() => toggleActive(u)} style={{ padding: "6px 14px", borderRadius: 7, border: `1px solid ${u.is_active ? "#f4433333" : "#00c85333"}`, background: "transparent", color: u.is_active ? "#f44336" : "#00c853", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>{u.is_active ? "Desativar" : "Reativar"}</button>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {tab === "account" && (
+          <div style={{ maxWidth: 480 }}>
+            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 20 }}>👤 Minha conta</div>
+            <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 24, marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
+                <Avatar name={auth.user.name} size={52} color={auth.user.avatar_color} />
+                <div>
+                  <div style={{ fontSize: 17, fontWeight: 700 }}>{auth.user.name}</div>
+                  <div style={{ fontSize: 13, color: "#555" }}>{auth.user.email}</div>
+                  <span style={{ fontSize: 11, background: auth.user.role === "admin" ? "#7c4dff22" : "#00c85522", color: auth.user.role === "admin" ? "#a78bfa" : "#00c853", display: "inline-block", padding: "2px 10px", borderRadius: 20, marginTop: 4, fontWeight: 700 }}>{auth.user.role === "admin" ? "Administrador" : "Atendente"}</span>
+                </div>
+              </div>
+              <button onClick={() => setShowChangePw(p => !p)} style={{ padding: "9px 20px", borderRadius: 8, border: "1px solid #252540", background: "transparent", color: "#888", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>🔑 Alterar senha</button>
+              {showChangePw && (
+                <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+                  <input type="password" value={curPw} onChange={e => setCurPw(e.target.value)} placeholder="Senha atual" style={inp} />
+                  <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} placeholder="Nova senha (mín. 6 caracteres)" style={inp} />
+                  <button onClick={changePw} disabled={changingPw || !curPw || newPw.length < 6} style={{ padding: "9px 0", borderRadius: 8, border: "none", background: (!changingPw && curPw && newPw.length >= 6) ? "linear-gradient(135deg,#00c853,#00796b)" : "#1a1a2e", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{changingPw ? "Salvando..." : "Salvar nova senha"}</button>
+                </div>
+              )}
+            </div>
+            <button onClick={onLogout} style={{ width: "100%", padding: "11px 0", borderRadius: 10, border: "1px solid #f4433333", background: "transparent", color: "#f44336", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Sair da conta →</button>
+          </div>
+        )}
+      </div>
+      {showForm && (
+        <div style={{ position: "fixed", inset: 0, background: "#00000090", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 16, padding: 28, width: 420, maxWidth: "90vw" }}>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 20 }}>
+              <span style={{ fontSize: 16, fontWeight: 700 }}>{editUser ? "Editar usuário" : "Novo usuário"}</span>
+              <span onClick={() => setShowForm(false)} style={{ marginLeft: "auto", cursor: "pointer", color: "#555", fontSize: 20 }}>×</span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 5 }}>NOME</label><input value={fName} onChange={e => setFName(e.target.value)} placeholder="Nome completo" style={inp} /></div>
+              <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 5 }}>EMAIL</label><input type="email" value={fEmail} onChange={e => setFEmail(e.target.value)} placeholder="email@empresa.com" style={inp} /></div>
+              <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 5 }}>{editUser ? "NOVA SENHA (vazio = não alterar)" : "SENHA"}</label><input type="password" value={fPw} onChange={e => setFPw(e.target.value)} placeholder="••••••••" style={inp} /></div>
+              <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 5 }}>PAPEL</label>
+                <select value={fRole} onChange={e => setFRole(e.target.value)} style={{ ...inp, cursor: "pointer" }}>
+                  <option value="agent">Atendente</option>
+                  <option value="admin">Administrador</option>
+                </select>
+              </div>
+              <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 8 }}>COR DO AVATAR</label>
+                <div style={{ display: "flex", gap: 8 }}>{COLORS.map(c => <div key={c} onClick={() => setFColor(c)} style={{ width: 28, height: 28, borderRadius: "50%", background: c, cursor: "pointer", border: fColor === c ? "3px solid #fff" : "3px solid transparent", boxSizing: "border-box" }} />)}</div>
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: "1px solid #252540", background: "transparent", color: "#666", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
+                <button onClick={saveUser} disabled={saving} style={{ flex: 2, padding: "10px 0", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#00c853,#00796b)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{saving ? "Salvando..." : (editUser ? "Salvar" : "Criar usuário")}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Leads Board (por etiqueta) ───────────────────────────────────────────────
 
 // ─── Broadcasts / Disparos View ──────────────────────────────────────────────
