@@ -217,9 +217,9 @@ function LoginScreen({ onLogin }) {
           
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
             {[
-              { plan: "starter", label: "Starter", price: "R$ 149/mês", desc: "1 número · 3 atendentes · Sem IA", color: "#00bcd4" },
-              { plan: "pro", label: "Pro ⭐", price: "R$ 299/mês", desc: "2 números · 8 atendentes · Co-pilot IA + Disparos", color: "#00c853", highlight: true },
-              { plan: "business", label: "Business", price: "R$ 599/mês", desc: "Ilimitado · IA · White-label · Suporte prioritário", color: "#7c4dff" },
+              { plan: "starter", label: "Starter", price: "R$ 149/mês", desc: "1 número · 5 atendentes · Sem IA", color: "#00bcd4" },
+              { plan: "pro", label: "Pro ⭐", price: "R$ 299/mês", desc: "3 números · 15 atendentes · Co-pilot IA + Onboarding", color: "#00c853", highlight: true },
+              { plan: "business", label: "Business", price: "R$ 599/mês", desc: "8 números · 30 atendentes · IA · White-label", color: "#7c4dff" },
             ].map(p => (
               <div key={p.plan} onClick={async () => {
                 await fetch(`${API_URL}/tenant/activate-plan`, { method: "POST", headers, body: JSON.stringify({ tenant_id: TENANT_ID, plan: p.plan }) });
@@ -522,7 +522,7 @@ function OnboardingView({ auth }) {
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {[
                   { n: "1", title: "Seleciona o período", desc: "Escolha quantos dias de histórico a IA vai analisar", icon: "📅" },
-                  { n: "2", title: "IA analisa as conversas", desc: "Claude lê até 50 conversas e identifica padrões do seu negócio", icon: "🔍" },
+                  { n: "2", title: "IA analisa as conversas", desc: "Nossa IA lê até 200 conversas e identifica padrões do seu negócio", icon: "🔍" },
                   { n: "3", title: "Prompt gerado automaticamente", desc: "Tom de voz, FAQ, produtos e regras da sua empresa — tudo automatico", icon: "✨" },
                   { n: "4", title: "Revise e ative", desc: "Edite se quiser e salve. Co-pilot começa a usar imediatamente", icon: "🚀" },
                 ].map(s => (
@@ -554,7 +554,7 @@ function OnboardingView({ auth }) {
 
             {/* Warning */}
             <div style={{ background: "#7c4dff15", border: "1px solid #7c4dff33", borderRadius: 10, padding: "12px 16px", fontSize: 12, color: "#a78bfa", marginBottom: 20 }}>
-              ⚡ Disponível apenas no plano <strong>Pro e Business</strong>. Consome ~50 créditos de IA (uma única vez).
+              ⚡ Disponível apenas nos planos <strong>Pro</strong> (200 conversas) e <strong>Business</strong> (500 conversas). Uso: 1x por mês.
             </div>
 
             <button onClick={analyze} style={{ width: "100%", padding: "14px 0", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #00c853, #00796b)", color: "#000", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
@@ -568,7 +568,7 @@ function OnboardingView({ auth }) {
           <div style={{ textAlign: "center", paddingTop: 60 }}>
             <div style={{ fontSize: 48, marginBottom: 24 }}>🧠</div>
             <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Analisando suas conversas...</div>
-            <div style={{ fontSize: 13, color: "#555", marginBottom: 40 }}>Claude está lendo o histórico e aprendendo sobre seu negócio. Isso pode levar até 30 segundos.</div>
+            <div style={{ fontSize: 13, color: "#555", marginBottom: 40 }}>Nossa IA está lendo o histórico e aprendendo sobre seu negócio. Isso pode levar até 60 segundos.</div>
             
             {/* Progress bar */}
             <div style={{ background: "#1a1a2e", borderRadius: 20, height: 8, marginBottom: 12, overflow: "hidden" }}>
@@ -1863,9 +1863,9 @@ function AppInner({ auth, onLogout }) {
           
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
             {[
-              { plan: "starter", label: "Starter", price: "R$ 149/mês", desc: "1 número · 3 atendentes · Sem IA", color: "#00bcd4" },
-              { plan: "pro", label: "Pro ⭐", price: "R$ 299/mês", desc: "2 números · 8 atendentes · Co-pilot IA + Disparos", color: "#00c853", highlight: true },
-              { plan: "business", label: "Business", price: "R$ 599/mês", desc: "Ilimitado · IA · White-label · Suporte prioritário", color: "#7c4dff" },
+              { plan: "starter", label: "Starter", price: "R$ 149/mês", desc: "1 número · 5 atendentes · Sem IA", color: "#00bcd4" },
+              { plan: "pro", label: "Pro ⭐", price: "R$ 299/mês", desc: "3 números · 15 atendentes · Co-pilot IA + Onboarding", color: "#00c853", highlight: true },
+              { plan: "business", label: "Business", price: "R$ 599/mês", desc: "8 números · 30 atendentes · IA · White-label", color: "#7c4dff" },
             ].map(p => (
               <div key={p.plan} onClick={async () => {
                 await fetch(`${API_URL}/tenant/activate-plan`, { method: "POST", headers, body: JSON.stringify({ tenant_id: TENANT_ID, plan: p.plan }) });
@@ -1958,9 +1958,9 @@ function AppInner({ auth, onLogout }) {
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {[
-                  { plan: "starter", label: "Starter", price: "R$ 149", desc: "Para recepções e pequenos negócios", color: "#00bcd4", features: ["1 número conectado", "Até 3 atendentes", "Inbox + Kanban + Etiquetas", "Disparos em massa", "Número extra: +R$49/mês"] },
-                  { plan: "pro", label: "Pro", price: "R$ 299", desc: "Para academias, clínicas e empresas em crescimento", color: "#00c853", highlight: true, features: ["2 números conectados", "Até 8 atendentes", "Tudo do Starter", "Co-pilot IA (1.000 créditos/mês)", "Onboarding Inteligente IA", "Número extra: +R$49/mês"] },
-                  { plan: "business", label: "Business", price: "R$ 599", desc: "Para redes, franquias e operações maiores", color: "#7c4dff", features: ["Números ilimitados", "Atendentes ilimitados", "Tudo do Pro", "3.000 créditos IA/mês", "White-label", "Suporte prioritário"] },
+                  { plan: "starter", label: "Starter", price: "R$ 149", desc: "Para recepções e pequenos negócios", color: "#00bcd4", features: ["1 número conectado", "Até 5 atendentes", "Inbox + Kanban + Etiquetas", "Disparos em massa", "Número extra: +R$49/mês"] },
+                  { plan: "pro", label: "Pro", price: "R$ 299", desc: "Para academias, clínicas e empresas em crescimento", color: "#00c853", highlight: true, features: ["3 números conectados", "Até 15 atendentes", "Tudo do Starter", "Co-pilot IA (1.000 créditos/mês)", "Onboarding Inteligente IA (200 conversas)", "Número extra: +R$49/mês"] },
+                  { plan: "business", label: "Business", price: "R$ 599", desc: "Para redes, franquias e operações maiores", color: "#7c4dff", features: ["8 números conectados", "Até 30 atendentes", "Tudo do Pro", "3.000 créditos IA/mês", "Onboarding Inteligente IA (500 conversas)", "White-label", "Suporte prioritário"] },
                 ].map(p => (
                   <div key={p.plan} style={{ background: "#0d0d18", border: `2px solid ${p.highlight ? p.color : "#1a1a2e"}`, borderRadius: 14, padding: 24, position: "relative" }}>
                     {p.highlight && <div style={{ position: "absolute", top: -10, right: 20, background: "#00c853", color: "#000", fontSize: 10, fontWeight: 800, padding: "2px 12px", borderRadius: 20 }}>MAIS POPULAR</div>}
