@@ -2502,7 +2502,7 @@ function AppInner({ auth, onLogout }) {
   const pollRef = useRef(null);
   const labelOverrideRef = useRef({}); // { convId: { labels, until } }
   const autoProcessedRef = useRef(new Set()); // msgIds already auto-replied
-  const autoProcessingRef = useRef(false); // prevent concurrent auto-reply runs
+  const autoProcessingRef = useRef(new Set()); // per-conv processing lock
   const autoModeRef = useRef({}); // { convId: boolean } — persists across polls
 
   const fetchConversations = useCallback(async () => {
@@ -2710,47 +2710,52 @@ function AppInner({ auth, onLogout }) {
 
   const autoReply = useCallback(async (conv) => {
     if (!isAutoActive(conv)) return;
-    if (autoProcessingRef.current) return;
-    autoProcessingRef.current = true;
+    // Per-conversation lock — don't block other convs
+    if (autoProcessingRef.current.has(conv.id)) return;
+    autoProcessingRef.current.add(conv.id);
     try {
-      // Fetch latest messages for this conversation
       const r = await fetch(`${API_URL}/conversations/${conv.id}/messages`, { headers });
       const d = await r.json();
       const msgs = d.messages || [];
-      // Find the latest inbound message not yet processed
       const lastInbound = [...msgs].reverse().find(m => m.direction === "inbound");
-      if (!lastInbound) { autoProcessingRef.current = false; return; }
-      if (autoProcessedRef.current.has(lastInbound.id)) { autoProcessingRef.current = false; return; }
-      // Mark as processing immediately to prevent duplicate replies
+      if (!lastInbound) return;
+      if (autoProcessedRef.current.has(lastInbound.id)) return;
       autoProcessedRef.current.add(lastInbound.id);
-      // Get AI suggestion
       const sr = await fetch(`${API_URL}/conversations/${conv.id}/suggest`, { headers });
+      if (!sr.ok) { console.error("Suggest failed:", sr.status); return; }
       const sd = await sr.json();
-      const suggestion = sd.suggestion || "";
-      if (!suggestion.trim()) { autoProcessingRef.current = false; return; }
-      // Send the reply automatically
+      const suggestion = (sd.suggestion || "").trim();
+      if (!suggestion) return;
       await fetch(`${API_URL}/conversations/${conv.id}/messages`, {
         method: "POST", headers,
-        body: JSON.stringify({ conversation_id: conv.id, text: suggestion.trim(), is_internal_note: false })
+        body: JSON.stringify({ conversation_id: conv.id, text: suggestion, is_internal_note: false })
       });
+      console.log(`🤖 Auto-reply sent to conv ${conv.id}`);
     } catch (e) {
       console.error("Auto-reply error:", e);
+    } finally {
+      autoProcessingRef.current.delete(conv.id);
     }
-    autoProcessingRef.current = false;
   }, [isAutoActive, headers]);
+
+  // Keep a ref to conversations so the engine always has fresh data without recreating interval
+  const conversationsRef = useRef(conversations);
+  useEffect(() => { conversationsRef.current = conversations; }, [conversations]);
 
   // Engine: scan all conversations every 6s for new inbound messages when auto active
   useEffect(() => {
     if (copilotAutoMode === "off") return;
+    console.log("🤖 Auto-pilot engine started, mode:", copilotAutoMode);
     const tick = async () => {
-      const convs = conversations.filter(c => isAutoActive(c) && c.unread_count > 0);
-      for (const conv of convs) {
-        await autoReply(conv);
-      }
+      const convs = conversationsRef.current.filter(c => isAutoActive(c) && c.unread_count > 0);
+      if (convs.length > 0) console.log(`🤖 Checking ${convs.length} conv(s) for auto-reply`);
+      // Process all convs in parallel (each has its own lock)
+      await Promise.all(convs.map(conv => autoReply(conv)));
     };
     const t = setInterval(tick, 6000);
-    return () => clearInterval(t);
-  }, [copilotAutoMode, conversations, isAutoActive, autoReply]);
+    tick(); // run immediately on activation
+    return () => { clearInterval(t); console.log("🤖 Auto-pilot engine stopped"); };
+  }, [copilotAutoMode, isAutoActive, autoReply]);
 
   const unreadCount = conversations.filter(c => c.unread_count > 0).length;
   const filtered = conversations.filter(c => {
