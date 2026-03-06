@@ -659,16 +659,13 @@ function WhatsAppScreen({ auth }) {
   const checkStatus = async () => {
     try {
       const r = await fetch(`${API_URL}/whatsapp/status?instance=${instance}`, { headers });
+      if (!r.ok) { setStatus("error"); return; }
       const d = await r.json();
       const newStatus = d.connected ? "connected" : "disconnected";
-
-      // Atualiza status imediatamente
       setStatus(newStatus);
       setPhone(d.phone || "");
       setLastCheck(new Date());
       if (d.connected) setQrCode("");
-
-      // Detecta transição desconectado → conectado → auto-sync!
       if (prevStatusRef.current === "disconnected" && newStatus === "connected") {
         setTimeout(() => syncHistory(true), 2000);
       }
