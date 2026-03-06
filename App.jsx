@@ -2102,16 +2102,15 @@ function TasksPanel({ convId, agents, onClose, onTaskDone }) {
   const [assignedTo, setAssignedTo] = useState("");
   const [creating, setCreating] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
+  const [taskError, setTaskError] = useState("");
   const fetchTasks = async () => {
     try {
-      const r = await fetch(`${API_URL}/conversations/${convId}/tasks?tenant_id=${TENANT_ID}`, { headers });
-      const d = await r.json();
-      setTasks(d.tasks || (d.conversations || []));
-      if (!d.tasks) {
-        // fallback: fetch all and filter
-        const r2 = await fetch(`${API_URL}/tasks?tenant_id=${TENANT_ID}`, { headers });
-        const d2 = await r2.json();
-        setTasks((d2.tasks || []).filter(t => t.conversation_id === convId));
+      // Try conversation-scoped endpoint first, fallback to /tasks filtered
+      const r = await fetch(`${API_URL}/tasks?tenant_id=${TENANT_ID}&conversation_id=${convId}`, { headers });
+      if (r.ok) {
+        const d = await r.json();
+        const list = d.tasks || d || [];
+        setTasks(Array.isArray(list) ? list.filter(t => t.conversation_id === convId) : []);
       }
     } catch (e) {}
     setLoading(false);
@@ -2120,12 +2119,23 @@ function TasksPanel({ convId, agents, onClose, onTaskDone }) {
   const createTask = async () => {
     if (!title.trim() || creating) return;
     setCreating(true);
+    setTaskError("");
     try {
-      const resp = await fetch(`${API_URL}/conversations/${convId}/tasks`, { method: "POST", headers, body: JSON.stringify({ tenant_id: TENANT_ID, conversation_id: convId, title: title.trim(), description: description.trim() || null, assigned_to: assignedTo || null, due_at: dueAt || null }) });
-      if (!resp.ok) { const err = await resp.json().catch(() => ({})); console.error("Task create error:", err); }
-      setTitle(""); setDescription(""); setDueAt(""); setAssignedTo("");
-      await fetchTasks();
-    } catch (e) { console.error("Task create exception:", e); }
+      const payload = { tenant_id: TENANT_ID, conversation_id: convId, title: title.trim(), description: description.trim() || null, assigned_to: assignedTo || null, due_at: dueAt || null };
+      const resp = await fetch(`${API_URL}/tasks`, { method: "POST", headers, body: JSON.stringify(payload) });
+      if (resp.ok) {
+        setTitle(""); setDescription(""); setDueAt(""); setAssignedTo("");
+        await fetchTasks();
+      } else {
+        const err = await resp.json().catch(() => ({}));
+        const msg = err.detail || err.message || `Erro ${resp.status}`;
+        setTaskError(msg);
+        console.error("Task create error:", resp.status, err);
+      }
+    } catch (e) {
+      setTaskError("Erro de conexão: " + e.message);
+      console.error("Task create exception:", e);
+    }
     setCreating(false);
   };
   const completeTask = async (taskId) => {
@@ -2150,6 +2160,7 @@ function TasksPanel({ convId, agents, onClose, onTaskDone }) {
             {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
           <button onClick={createTask} disabled={!title.trim() || creating} style={{ width: "100%", padding: "8px 0", borderRadius: 7, border: "none", background: title.trim() ? "linear-gradient(135deg, #00c853, #00796b)" : "#1a1a2e", color: title.trim() ? "#000" : "#444", fontSize: 12, fontWeight: 700, cursor: title.trim() ? "pointer" : "not-allowed", fontFamily: "inherit" }}>{creating ? "Criando..." : "+ Criar tarefa"}</button>
+          {taskError && <div style={{ background: "#f4433315", border: "1px solid #f4433333", borderRadius: 7, padding: "8px 10px", marginTop: 8, fontSize: 11, color: "#f44336" }}>❌ {taskError}</div>}
         </div>
         <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
           {loading ? <div style={{ textAlign: "center", color: "#555", fontSize: 12, padding: 16 }}>Carregando...</div>
