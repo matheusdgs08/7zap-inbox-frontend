@@ -2548,7 +2548,7 @@ function AppInner({ auth, onLogout }) {
     setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, labels: updated } : c));
     labelOverrideRef.current[selected.id] = { labels: updated, until: Date.now() + 60000 };
     try {
-      const resp = await fetch(`${API_URL}/conversations/${selected.id}/labels`, { method: "PUT", headers, body: JSON.stringify({ labels: updated }) });
+      const resp = await fetch(`${API_URL}/conversations/${selected.id}/labels`, { method: "PUT", headers, body: JSON.stringify({ label_ids: updated.map(l => l.id) }) });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       // Confirmed — extend the override so next poll doesn't overwrite
       labelOverrideRef.current[selected.id] = { labels: updated, until: Date.now() + 60000 };
@@ -2581,7 +2581,7 @@ function AppInner({ auth, onLogout }) {
       const alreadyHas = withoutFrom.some(l => l.id === targetLabel.id);
       updated = alreadyHas ? withoutFrom : [...withoutFrom, targetLabel];
     }
-    try { await fetch(`${API_URL}/conversations/${conv.id}/labels`, { method: "PUT", headers, body: JSON.stringify({ labels: updated }) }); } catch (e) {}
+    try { await fetch(`${API_URL}/conversations/${conv.id}/labels`, { method: "PUT", headers, body: JSON.stringify({ label_ids: updated.map(l => l.id) }) }); } catch (e) {}
     setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, labels: updated } : c));
   };
   const fetchSuggestion = async () => {
