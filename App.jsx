@@ -2747,9 +2747,16 @@ function AppInner({ auth, onLogout }) {
     if (copilotAutoMode === "off") return;
     console.log("🤖 Auto-pilot engine started, mode:", copilotAutoMode);
     const tick = async () => {
-      const convs = conversationsRef.current.filter(c => isAutoActive(c) && c.unread_count > 0);
+      const now = Date.now();
+      const convs = conversationsRef.current.filter(c => {
+        if (!isAutoActive(c)) return false;
+        // Primary: has unread messages
+        if ((c.unread_count || 0) > 0) return true;
+        // Fallback: last message was recent (< 3 min) — unread_count may not be set yet
+        const lastMsgAge = c.last_message_at ? (now - new Date(c.last_message_at).getTime()) : Infinity;
+        return lastMsgAge < 3 * 60 * 1000;
+      });
       if (convs.length > 0) console.log(`🤖 Checking ${convs.length} conv(s) for auto-reply`);
-      // Process all convs in parallel (each has its own lock)
       await Promise.all(convs.map(conv => autoReply(conv)));
     };
     const t = setInterval(tick, 6000);
