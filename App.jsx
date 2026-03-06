@@ -185,20 +185,72 @@ function LabelManagerModal({ labels, onChange, onClose }) {
 
 // ─── Login Screen ────────────────────────────────────────────────────────────
 function LoginScreen({ onLogin }) {
+  const params = new URLSearchParams(window.location.search);
+  const resetToken = params.get("reset");
+  const inviteCode = params.get("invite");
+
+  // qual tela mostrar: "login" | "forgot" | "reset" | "register"
+  const [screen, setScreen] = useState(resetToken ? "reset" : inviteCode ? "register" : "login");
+
+  // campos login
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
 
-  const submit = async () => {
+  // campos forgot
+  const [fEmail, setFEmail] = useState("");
+  const [fDone, setFDone] = useState(false);
+  const [fResetUrl, setFResetUrl] = useState("");
+
+  // campos reset
+  const [rToken] = useState(resetToken || "");
+  const [rPw, setRPw] = useState("");
+  const [rPw2, setRPw2] = useState("");
+  const [rDone, setRDone] = useState(false);
+
+  // campos register (convite)
+  const [invInfo, setInvInfo] = useState(null);
+  const [regName, setRegName] = useState("");
+  const [regEmail, setRegEmail] = useState("");
+  const [regPw, setRegPw] = useState("");
+  const [regDone, setRegDone] = useState(false);
+
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // Valida convite ao carregar
+  useEffect(() => {
+    if (inviteCode) {
+      fetch(`${API_URL}/auth/invite/${inviteCode}`)
+        .then(r => r.json())
+        .then(d => { if (d.ok) setInvInfo(d); else setError("Convite inválido ou expirado."); })
+        .catch(() => setError("Erro ao validar convite."));
+    }
+  }, []);
+
+  const Logo = () => (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 32, justifyContent: "center" }}>
+      <svg width="36" height="36" viewBox="0 0 28 28" fill="none">
+        <rect width="28" height="28" rx="7" fill="url(#glogin)"/>
+        <defs><linearGradient id="glogin" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor="#00c853"/><stop offset="100%" stopColor="#00695c"/></linearGradient></defs>
+        <text x="4" y="20" fontSize="14" fontWeight="900" fill="white" fontFamily="sans-serif">7</text>
+        <circle cx="19" cy="14" r="5" fill="none" stroke="white" strokeWidth="2"/>
+        <line x1="19" y1="9" x2="19" y2="19" stroke="white" strokeWidth="1.5"/>
+        <line x1="14" y1="14" x2="24" y2="14" stroke="white" strokeWidth="1.5"/>
+      </svg>
+      <span style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.5px", color: "#e8e8f0" }}>7<span style={{ color: "#00c853" }}>CRM</span></span>
+    </div>
+  );
+
+  const inp = (extra={}) => ({ width: "100%", padding: "11px 14px", background: "#13131f", border: "1px solid #252540", borderRadius: 10, color: "#e8e8f0", fontSize: 14, outline: "none", fontFamily: "inherit", boxSizing: "border-box", ...extra });
+  const btn = (active) => ({ marginTop: 4, padding: "13px 0", borderRadius: 10, border: "none", background: active ? "linear-gradient(135deg,#00c853,#00796b)" : "#1a1a2e", color: active ? "#000" : "#444", fontSize: 15, fontWeight: 700, cursor: active ? "pointer" : "default", fontFamily: "inherit", width: "100%" });
+
+  // ── LOGIN ──
+  const submitLogin = async () => {
     if (!email.trim() || !password.trim()) return;
     setLoading(true); setError("");
     try {
-      const r = await fetch(`${API_URL}/auth/login`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password })
-      });
+      const r = await fetch(`${API_URL}/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: email.trim(), password }) });
       const d = await r.json();
       if (!r.ok) { setError(d.detail || "Erro ao fazer login"); setLoading(false); return; }
       onLogin(d);
@@ -206,36 +258,178 @@ function LoginScreen({ onLogin }) {
     setLoading(false);
   };
 
-  return (
-    <div style={{ display: "flex", height: "100vh", width: "100vw", background: "#0a0a0f", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
-      <div style={{ width: 400, padding: "40px 36px", background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 20, boxShadow: "0 32px 80px #00000080" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 32, justifyContent: "center" }}>
-          <svg width="36" height="36" viewBox="0 0 28 28" fill="none">
-            <rect width="28" height="28" rx="7" fill="url(#glogin)"/>
-            <defs><linearGradient id="glogin" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor="#00c853"/><stop offset="100%" stopColor="#00695c"/></linearGradient></defs>
-            <text x="4" y="20" fontSize="14" fontWeight="900" fill="white" fontFamily="sans-serif">7</text>
-            <circle cx="19" cy="14" r="5" fill="none" stroke="white" strokeWidth="2"/>
-            <line x1="19" y1="9" x2="19" y2="19" stroke="white" strokeWidth="1.5"/>
-            <line x1="14" y1="14" x2="24" y2="14" stroke="white" strokeWidth="1.5"/>
-          </svg>
-          <span style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.5px", color: "#e8e8f0" }}>7<span style={{ color: "#00c853" }}>CRM</span></span>
+  // ── FORGOT PASSWORD ──
+  const submitForgot = async () => {
+    if (!fEmail.trim()) return;
+    setLoading(true); setError("");
+    try {
+      const r = await fetch(`${API_URL}/auth/forgot-password`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: fEmail.trim() }) });
+      const d = await r.json();
+      setFDone(true);
+      if (d.reset_url) setFResetUrl(d.reset_url);
+    } catch (e) { setError("Erro de conexão."); }
+    setLoading(false);
+  };
+
+  // ── RESET PASSWORD ──
+  const submitReset = async () => {
+    if (!rPw || rPw !== rPw2) { setError("Senhas não coincidem"); return; }
+    if (rPw.length < 6) { setError("Mínimo 6 caracteres"); return; }
+    setLoading(true); setError("");
+    try {
+      const r = await fetch(`${API_URL}/auth/reset-password`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: rToken, password: rPw }) });
+      const d = await r.json();
+      if (!r.ok) { setError(d.detail || "Erro"); setLoading(false); return; }
+      setRDone(true);
+    } catch (e) { setError("Erro de conexão."); }
+    setLoading(false);
+  };
+
+  // ── REGISTER WITH INVITE ──
+  const submitRegister = async () => {
+    if (!regName.trim() || !regEmail.trim() || regPw.length < 6) return;
+    setLoading(true); setError("");
+    try {
+      const r = await fetch(`${API_URL}/auth/register`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ invite_code: inviteCode || invInfo?.code, name: regName.trim(), email: regEmail.trim(), password: regPw }) });
+      const d = await r.json();
+      if (!r.ok) { setError(d.detail || "Erro"); setLoading(false); return; }
+      setRegDone(true);
+    } catch (e) { setError("Erro de conexão."); }
+    setLoading(false);
+  };
+
+  const box = { width: 400, padding: "40px 36px", background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 20, boxShadow: "0 32px 80px #00000080" };
+  const wrap = { display: "flex", height: "100vh", width: "100vw", background: "#0a0a0f", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans','Segoe UI',sans-serif" };
+
+  // ── TELA RESET ──
+  if (screen === "reset") return (
+    <div style={wrap}><div style={box}>
+      <Logo />
+      {rDone ? (
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Senha redefinida!</div>
+          <div style={{ fontSize: 13, color: "#555", marginBottom: 24 }}>Agora você pode entrar com sua nova senha.</div>
+          <button onClick={() => { setScreen("login"); window.history.replaceState({}, "", "/"); }} style={btn(true)}>Ir para o login →</button>
         </div>
+      ) : (
+        <>
+          <div style={{ fontSize: 20, fontWeight: 700, textAlign: "center", marginBottom: 4 }}>🔐 Nova senha</div>
+          <div style={{ fontSize: 13, color: "#555", textAlign: "center", marginBottom: 28 }}>Digite sua nova senha</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 6 }}>NOVA SENHA</label>
+              <input type="password" value={rPw} onChange={e => setRPw(e.target.value)} placeholder="Mínimo 6 caracteres" style={inp()} /></div>
+            <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 6 }}>CONFIRMAR SENHA</label>
+              <input type="password" value={rPw2} onChange={e => setRPw2(e.target.value)} onKeyDown={e => e.key === "Enter" && submitReset()} placeholder="Repita a senha" style={inp()} /></div>
+            {error && <div style={{ background: "#f4433315", border: "1px solid #f4433333", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#f44336" }}>❌ {error}</div>}
+            <button onClick={submitReset} disabled={loading || !rPw || !rPw2} style={btn(!loading && rPw && rPw2)}>{loading ? "Salvando..." : "Redefinir senha →"}</button>
+          </div>
+        </>
+      )}
+    </div></div>
+  );
+
+  // ── TELA REGISTER ──
+  if (screen === "register") return (
+    <div style={wrap}><div style={box}>
+      <Logo />
+      {error && !invInfo ? (
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>❌</div>
+          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8, color: "#f44336" }}>{error}</div>
+          <button onClick={() => setScreen("login")} style={{ ...btn(true), marginTop: 20 }}>Ir para o login</button>
+        </div>
+      ) : regDone ? (
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Conta criada!</div>
+          <div style={{ fontSize: 13, color: "#555", marginBottom: 24 }}>Bem-vindo ao 7CRM. Faça login para começar.</div>
+          <button onClick={() => { setScreen("login"); window.history.replaceState({}, "", "/"); }} style={btn(true)}>Fazer login →</button>
+        </div>
+      ) : (
+        <>
+          <div style={{ fontSize: 20, fontWeight: 700, textAlign: "center", marginBottom: 4 }}>🎟️ Criar conta</div>
+          <div style={{ fontSize: 13, color: "#555", textAlign: "center", marginBottom: 4 }}>
+            {invInfo ? <>Você foi convidado para <strong style={{ color: "#00c853" }}>{invInfo.tenant_name}</strong></> : "Carregando convite..."}
+          </div>
+          <div style={{ marginBottom: 24 }}/>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 6 }}>SEU NOME</label>
+              <input value={regName} onChange={e => setRegName(e.target.value)} placeholder="João Silva" style={inp()} /></div>
+            <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 6 }}>EMAIL</label>
+              <input type="email" value={regEmail} onChange={e => setRegEmail(e.target.value)} placeholder="seu@email.com" style={inp()} /></div>
+            <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 6 }}>SENHA</label>
+              <input type="password" value={regPw} onChange={e => setRegPw(e.target.value)} onKeyDown={e => e.key === "Enter" && submitRegister()} placeholder="Mínimo 6 caracteres" style={inp()} /></div>
+            {error && <div style={{ background: "#f4433315", border: "1px solid #f4433333", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#f44336" }}>❌ {error}</div>}
+            <button onClick={submitRegister} disabled={loading || !regName.trim() || !regEmail.trim() || regPw.length < 6 || !invInfo} style={btn(!loading && regName.trim() && regEmail.trim() && regPw.length >= 6 && invInfo)}>{loading ? "Criando..." : "Criar conta →"}</button>
+          </div>
+          <div style={{ marginTop: 20, textAlign: "center" }}>
+            <span onClick={() => setScreen("login")} style={{ fontSize: 12, color: "#555", cursor: "pointer" }}>Já tem conta? Entrar</span>
+          </div>
+        </>
+      )}
+    </div></div>
+  );
+
+  // ── TELA FORGOT ──
+  if (screen === "forgot") return (
+    <div style={wrap}><div style={box}>
+      <Logo />
+      {fDone ? (
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>📧</div>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Verifique seu email</div>
+          <div style={{ fontSize: 13, color: "#555", marginBottom: 24 }}>Se o email estiver cadastrado, você receberá um link para redefinir a senha.</div>
+          {fResetUrl && (
+            <div style={{ background: "#0a0a0f", border: "1px solid #252540", borderRadius: 10, padding: 16, marginBottom: 20, wordBreak: "break-all" }}>
+              <div style={{ fontSize: 11, color: "#555", marginBottom: 6 }}>📋 SMTP não configurado — compartilhe este link:</div>
+              <a href={fResetUrl} style={{ fontSize: 12, color: "#00c853" }}>{fResetUrl}</a>
+            </div>
+          )}
+          <button onClick={() => setScreen("login")} style={btn(true)}>Voltar ao login</button>
+        </div>
+      ) : (
+        <>
+          <div style={{ fontSize: 20, fontWeight: 700, textAlign: "center", marginBottom: 4 }}>🔑 Recuperar senha</div>
+          <div style={{ fontSize: 13, color: "#555", textAlign: "center", marginBottom: 28 }}>Digite seu email para receber o link</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 6 }}>EMAIL</label>
+              <input type="email" value={fEmail} onChange={e => setFEmail(e.target.value)} onKeyDown={e => e.key === "Enter" && submitForgot()} placeholder="seu@email.com.br" autoFocus style={inp()} /></div>
+            {error && <div style={{ background: "#f4433315", border: "1px solid #f4433333", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#f44336" }}>❌ {error}</div>}
+            <button onClick={submitForgot} disabled={loading || !fEmail.trim()} style={btn(!loading && fEmail.trim())}>{loading ? "Enviando..." : "Enviar link →"}</button>
+          </div>
+          <div style={{ marginTop: 20, textAlign: "center" }}>
+            <span onClick={() => setScreen("login")} style={{ fontSize: 12, color: "#555", cursor: "pointer" }}>← Voltar ao login</span>
+          </div>
+        </>
+      )}
+    </div></div>
+  );
+
+  // ── TELA LOGIN (default) ──
+  return (
+    <div style={wrap}>
+      <div style={box}>
+        <Logo />
         <div style={{ fontSize: 20, fontWeight: 700, textAlign: "center", marginBottom: 4, color: "#e8e8f0" }}>Bem-vindo de volta</div>
         <div style={{ fontSize: 13, color: "#555", textAlign: "center", marginBottom: 28 }}>Entre com seu email e senha</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
             <label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 6 }}>EMAIL</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === "Enter" && submit()} placeholder="seu@email.com.br" autoFocus style={{ width: "100%", padding: "11px 14px", background: "#13131f", border: `1px solid ${error ? "#f4433644" : "#252540"}`, borderRadius: 10, color: "#e8e8f0", fontSize: 14, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === "Enter" && submitLogin()} placeholder="seu@email.com.br" autoFocus style={inp()} />
           </div>
           <div>
             <label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 6 }}>SENHA</label>
             <div style={{ position: "relative" }}>
-              <input type={showPw ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === "Enter" && submit()} placeholder="••••••••" style={{ width: "100%", padding: "11px 40px 11px 14px", background: "#13131f", border: `1px solid ${error ? "#f4433644" : "#252540"}`, borderRadius: 10, color: "#e8e8f0", fontSize: 14, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
+              <input type={showPw ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === "Enter" && submitLogin()} placeholder="••••••••" style={inp({ paddingRight: 40 })} />
               <span onClick={() => setShowPw(p => !p)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", cursor: "pointer", color: "#555", fontSize: 16 }}>{showPw ? "🙈" : "👁"}</span>
             </div>
           </div>
+          <div style={{ textAlign: "right", marginTop: -8 }}>
+            <span onClick={() => setScreen("forgot")} style={{ fontSize: 12, color: "#555", cursor: "pointer" }}>Esqueci minha senha</span>
+          </div>
           {error && <div style={{ background: "#f4433315", border: "1px solid #f4433333", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#f44336" }}>❌ {error}</div>}
-          <button onClick={submit} disabled={loading || !email.trim() || !password.trim()} style={{ marginTop: 4, padding: "13px 0", borderRadius: 10, border: "none", background: (!loading && email.trim() && password.trim()) ? "linear-gradient(135deg,#00c853,#00796b)" : "#1a1a2e", color: (!loading && email.trim() && password.trim()) ? "#000" : "#444", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+          <button onClick={submitLogin} disabled={loading || !email.trim() || !password.trim()} style={btn(!loading && email.trim() && password.trim())}>
             {loading ? "Entrando..." : "Entrar →"}
           </button>
         </div>
@@ -322,7 +516,17 @@ function AdminPanel({ auth, onLogout }) {
           <div style={{ maxWidth: 860 }}>
             <div style={{ display: "flex", alignItems: "center", marginBottom: 20 }}>
               <div><div style={{ fontSize: 18, fontWeight: 700 }}>👥 Usuários</div><div style={{ fontSize: 12, color: "#555", marginTop: 2 }}>Gerencie quem tem acesso ao 7CRM</div></div>
-              <button onClick={openCreate} style={{ marginLeft: "auto", padding: "9px 20px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#00c853,#00796b)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>+ Novo usuário</button>
+              <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                <button onClick={async () => {
+                  const r = await fetch(`${API_URL}/auth/invite`, { method: "POST", headers: aHeaders, body: JSON.stringify({}) });
+                  const d = await r.json();
+                  if (d.invite_url) {
+                    navigator.clipboard.writeText(d.invite_url).catch(() => {});
+                    showToast("🎟️ Link copiado! " + d.code);
+                  }
+                }} style={{ padding: "9px 20px", borderRadius: 9, border: "1px solid #252540", background: "transparent", color: "#00c853", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🎟️ Gerar convite</button>
+                <button onClick={openCreate} style={{ padding: "9px 20px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#00c853,#00796b)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>+ Novo usuário</button>
+              </div>
             </div>
             {loading ? <div style={{ color: "#555", padding: 40, textAlign: "center" }}>Carregando...</div> : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
