@@ -10,12 +10,16 @@ const getStoredAuth = () => { try { return JSON.parse(localStorage.getItem("7crm
 const setStoredAuth = (data) => { if (data) localStorage.setItem("7crm_auth", JSON.stringify(data)); else localStorage.removeItem("7crm_auth"); };
 
 function timeAgo(dateStr) {
-  const now = new Date(); const date = new Date(dateStr);
+  if (!dateStr) return "";
+  const now = new Date();
+  const date = new Date(dateStr);
   const diff = Math.floor((now - date) / 1000);
-  if (diff < 60) return "agora";
-  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-  return `${Math.floor(diff / 86400)}d`;
+  const isToday = now.toDateString() === date.toDateString();
+  if (isToday) return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const yesterday = new Date(now); yesterday.setDate(yesterday.getDate() - 1);
+  if (yesterday.toDateString() === date.toDateString()) return "Ontem";
+  if (diff < 6 * 86400) return date.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
+  return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
 }
 function initials(name) {
   if (!name) return "?";
@@ -2355,6 +2359,7 @@ function AppInner({ auth, onLogout }) {
   const [sending, setSending] = useState(false);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [unreadFilter, setUnreadFilter] = useState("all"); // all | unread
   const [agents, setAgents] = useState([]);
   const [pendingTasksMap, setPendingTasksMap] = useState({}); // convId → count
   const [labels, setLabels] = useState(loadLabels);
@@ -2528,7 +2533,12 @@ function AppInner({ auth, onLogout }) {
     setLoadingSuggest(false);
   };
 
-  const filtered = conversations.filter(c => (c.contacts?.name || c.contacts?.phone || "").toLowerCase().includes(search.toLowerCase()));
+  const unreadCount = conversations.filter(c => c.unread_count > 0).length;
+  const filtered = conversations.filter(c => {
+    const matchSearch = (c.contacts?.name || c.contacts?.phone || "").toLowerCase().includes(search.toLowerCase());
+    const matchUnread = unreadFilter === "all" || c.unread_count > 0;
+    return matchSearch && matchUnread;
+  });
 
   const totalPendingTasks = Object.values(pendingTasksMap).reduce((a, b) => a + b, 0);
   const WORK_TABS = [
@@ -2792,6 +2802,15 @@ function AppInner({ auth, onLogout }) {
                 </div>
               </div>
 
+              {/* Tudo / Não lidas */}
+              <div style={{ display: "flex", borderBottom: "1px solid #1a1a2e" }}>
+                {[["all", "Tudo"], ["unread", "Não lidas"]].map(([id, label]) => (
+                  <button key={id} onClick={() => setUnreadFilter(id)} style={{ flex: 1, padding: "8px 0", border: "none", background: "transparent", color: unreadFilter === id ? "#00c853" : "#555", fontSize: 12, fontWeight: unreadFilter === id ? 700 : 500, cursor: "pointer", fontFamily: "inherit", borderBottom: `2px solid ${unreadFilter === id ? "#00c853" : "transparent"}`, transition: "all 0.15s" }}>
+                    {label}{id === "unread" && unreadCount > 0 ? ` (${unreadCount})` : ""}
+                  </button>
+                ))}
+              </div>
+
               <div style={{ flex: 1, overflowY: "auto" }}>
                 {loading ? <div style={{ padding: 24, textAlign: "center", color: "#555", fontSize: 13 }}>Carregando...</div>
                   : filtered.length === 0 ? <div style={{ padding: 24, textAlign: "center", color: "#555", fontSize: 13 }}>Nenhuma conversa</div>
@@ -2800,8 +2819,8 @@ function AppInner({ auth, onLogout }) {
                       <Avatar name={conv.contacts?.name || conv.contacts?.phone} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
-                          <span style={{ fontWeight: 600, fontSize: 13, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{conv.contacts?.name || conv.contacts?.phone}</span>
-                          <span style={{ fontSize: 11, color: "#555", flexShrink: 0 }}>{timeAgo(conv.last_message_at)}</span>
+                          <span style={{ fontWeight: conv.unread_count > 0 ? 800 : 600, fontSize: 13, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: conv.unread_count > 0 ? "#e8e8f0" : "#ccc" }}>{conv.contacts?.name || conv.contacts?.phone}</span>
+                          <span style={{ fontSize: 11, color: conv.unread_count > 0 ? "#00c853" : "#555", flexShrink: 0, fontWeight: conv.unread_count > 0 ? 700 : 400 }}>{timeAgo(conv.last_message_at)}</span>
                         </div>
                         <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 4 }}>
                           {conv.labels?.map(l => <LabelChip key={l.id} label={l} />)}
@@ -2809,7 +2828,7 @@ function AppInner({ auth, onLogout }) {
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           <span style={{ fontSize: 11, color: "#555", flex: 1 }}>{conv.assigned_agent ? `👤 ${conv.assigned_agent}` : conv.contacts?.phone}</span>
-                          {conv.unread_count > 0 && <span style={{ background: "#00c853", color: "#000", fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 10 }}>{conv.unread_count}</span>}
+                          {conv.unread_count > 0 && <span style={{ background: "#00c853", color: "#000", fontSize: 10, fontWeight: 800, minWidth: 18, height: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", padding: "0 4px", flexShrink: 0 }}>{conv.unread_count}</span>}
                           {pendingTasksMap[conv.id] > 0 && <span title={`${pendingTasksMap[conv.id]} tarefa(s) pendente(s)`} style={{ background: "#ff6d0022", border: "1px solid #ff6d0066", color: "#ff6d00", fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 10, flexShrink: 0 }}>✅ {pendingTasksMap[conv.id]}</span>}
                         </div>
                       </div>
