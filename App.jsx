@@ -870,9 +870,7 @@ function WhatsAppScreen({ auth }) {
       setPhone(d.phone || "");
       setLastCheck(new Date());
       if (d.connected) setQrCode("");
-      if (prevStatusRef.current === "disconnected" && newStatus === "connected") {
-        setTimeout(() => syncHistory(true), 2000);
-      }
+      // auto-sync removido — evita travar workers ao conectar
       prevStatusRef.current = newStatus;
     } catch (e) {
       setStatus("error");
@@ -2232,7 +2230,7 @@ function AppInner({ auth, onLogout }) {
     if (!selected) return;
     fetchMessages(selected.id);
     // Lazy load — busca histórico do WhatsApp ao abrir conversa (só 1x por sessão)
-    lazySyncChat(selected).then(() => fetchMessages(selected.id));
+    // lazySyncChat removido — endpoint não existe mais
     const t = setInterval(() => fetchMessages(selected.id), 5000);
     return () => clearInterval(t);
   }, [selected, fetchMessages]);
