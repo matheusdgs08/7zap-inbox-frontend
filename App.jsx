@@ -179,6 +179,436 @@ function LabelManagerModal({ labels, onChange, onClose }) {
 }
 
 // ─── Leads Board (por etiqueta) ───────────────────────────────────────────────
+
+// ─── Broadcasts / Disparos View ──────────────────────────────────────────────
+function BroadcastsView({ conversations, labels, agents, kanbanCols }) {
+  const [tab, setTab] = useState("new"); // new | queue | scheduled
+  const [broadcasts, setBroadcasts] = useState([]);
+  const [scheduledMsgs, setScheduledMsgs] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // New broadcast form state
+  const [bName, setBName] = useState("");
+  const [bMessage, setBMessage] = useState("");
+  const [bIntervalMin, setBIntervalMin] = useState(60);
+  const [bIntervalMax, setBIntervalMax] = useState(120);
+  const [bScheduledAt, setBScheduledAt] = useState("");
+  const [bFilter, setBFilter] = useState("manual"); // manual | label | kanban | status | csv
+  const [bFilterValue, setBFilterValue] = useState("");
+  const [bRecipients, setBRecipients] = useState([]); // [{phone,name}]
+  const [csvText, setCsvText] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [aiObjective, setAiObjective] = useState("");
+  const [loadingAI, setLoadingAI] = useState(false);
+
+  // Scheduled form
+  const [sPhone, setSPhone] = useState("");
+  const [sName, setSName] = useState("");
+  const [sMessage, setSMessage] = useState("");
+  const [sDate, setSDate] = useState("");
+  const [sRecurrence, setSRecurrence] = useState("");
+  const [sConvId, setSConvId] = useState("");
+  const [creatingSched, setCreatingSched] = useState(false);
+
+  const [selectedBroadcast, setSelectedBroadcast] = useState(null);
+
+  const fetchBroadcasts = async () => {
+    setLoading(true);
+    try {
+      const r = await fetch(`${API_URL}/broadcasts?tenant_id=${TENANT_ID}`, { headers });
+      const d = await r.json();
+      setBroadcasts(d.broadcasts || []);
+    } catch (e) {}
+    setLoading(false);
+  };
+  const fetchScheduled = async () => {
+    try {
+      const r = await fetch(`${API_URL}/scheduled-messages?tenant_id=${TENANT_ID}`, { headers });
+      const d = await r.json();
+      setScheduledMsgs(d.scheduled_messages || []);
+    } catch (e) {}
+  };
+
+  useEffect(() => {
+    if (tab === "queue") fetchBroadcasts();
+    if (tab === "scheduled") fetchScheduled();
+  }, [tab]);
+
+  // Build recipients from filter
+  const buildRecipients = () => {
+    if (bFilter === "manual") return bRecipients;
+    if (bFilter === "csv") {
+      return csvText.split("\n").map(line => {
+        const [phone, name] = line.split(",").map(s => s.trim());
+        return phone ? { phone: phone.replace(/\D/g, ""), name: name || "" } : null;
+      }).filter(Boolean);
+    }
+    let convs = conversations;
+    if (bFilter === "label" && bFilterValue) convs = convs.filter(c => (c.labels || []).some(l => l.id === bFilterValue));
+    if (bFilter === "kanban" && bFilterValue) convs = convs.filter(c => c.kanban_stage === bFilterValue);
+    if (bFilter === "status" && bFilterValue) convs = convs.filter(c => c.status === bFilterValue);
+    return convs.map(c => ({ phone: c.contacts?.phone?.replace(/\D/g, "") || "", name: c.contacts?.name || "", contact_id: c.contact_id })).filter(r => r.phone);
+  };
+
+  const previewRecipients = buildRecipients();
+
+  const suggestWithAI = async () => {
+    if (!aiObjective.trim() || loadingAI) return;
+    setLoadingAI(true);
+    try {
+      const r = await fetch(`${API_URL}/broadcasts/suggest-message`, { method: "POST", headers, body: JSON.stringify({ tenant_id: TENANT_ID, objective: aiObjective }) });
+      const d = await r.json();
+      setBMessage(d.suggestion || "");
+    } catch (e) {}
+    setLoadingAI(false);
+  };
+
+  const createBroadcast = async () => {
+    const recs = buildRecipients();
+    if (!bName.trim() || !bMessage.trim() || recs.length === 0 || creating) return;
+    if (bIntervalMin < 60) { alert("⚠️ Intervalo mínimo é 60 segundos para evitar ban!"); return; }
+    setCreating(true);
+    try {
+      await fetch(`${API_URL}/broadcasts`, { method: "POST", headers, body: JSON.stringify({
+        tenant_id: TENANT_ID, name: bName, message: bMessage,
+        interval_min: bIntervalMin, interval_max: bIntervalMax,
+        scheduled_at: bScheduledAt || null, recipients: recs
+      })});
+      setBName(""); setBMessage(""); setBIntervalMin(60); setBIntervalMax(120); setBScheduledAt(""); setBRecipients([]); setCsvText(""); setAiObjective("");
+      setTab("queue"); fetchBroadcasts();
+    } catch (e) {}
+    setCreating(false);
+  };
+
+  const cancelBroadcast = async (id) => {
+    await fetch(`${API_URL}/broadcasts/${id}/cancel`, { method: "PUT", headers });
+    fetchBroadcasts();
+  };
+
+  const createScheduled = async () => {
+    if (!sPhone.trim() || !sMessage.trim() || !sDate || creatingSched) return;
+    setCreatingSched(true);
+    try {
+      await fetch(`${API_URL}/scheduled-messages`, { method: "POST", headers, body: JSON.stringify({
+        tenant_id: TENANT_ID, contact_phone: sPhone.replace(/\D/g, ""), contact_name: sName,
+        message: sMessage, scheduled_at: sDate, recurrence: sRecurrence || null,
+        conversation_id: sConvId || null
+      })});
+      setSPhone(""); setSName(""); setSMessage(""); setSDate(""); setSRecurrence(""); setSConvId("");
+      fetchScheduled();
+    } catch (e) {}
+    setCreatingSched(false);
+  };
+
+  const deleteScheduled = async (id) => {
+    await fetch(`${API_URL}/scheduled-messages/${id}`, { method: "DELETE", headers });
+    setScheduledMsgs(prev => prev.filter(m => m.id !== id));
+  };
+
+  const STATUS_COLORS = { pending: "#ffd600", sending: "#00bcd4", done: "#00c853", cancelled: "#555", failed: "#f44336", scheduled: "#7c4dff" };
+  const STATUS_LABELS = { pending: "⏳ Aguardando", sending: "📤 Enviando", done: "✅ Concluído", cancelled: "🚫 Cancelado", failed: "❌ Falhou", scheduled: "📅 Agendado" };
+  const RECURRENCE_LABELS = { daily: "Diário", weekly: "Semanal", monthly: "Mensal" };
+
+  const inputStyle = { width: "100%", padding: "9px 12px", background: "#0d0d18", border: "1px solid #252540", borderRadius: 8, color: "#e8e8f0", fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box" };
+  const labelStyle = { fontSize: 11, fontWeight: 700, color: "#555", marginBottom: 6, display: "block" };
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      {/* Header tabs */}
+      <div style={{ padding: "12px 24px", borderBottom: "1px solid #1a1a2e", display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ display: "flex", gap: 3, background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 9, padding: 3 }}>
+          {[["new","✏️ Novo disparo"],["queue","📋 Fila"],["scheduled","📅 Agendamentos"]].map(([id, label]) => (
+            <button key={id} onClick={() => setTab(id)} style={{ padding: "6px 16px", borderRadius: 7, border: "none", background: tab === id ? "#1a1a2e" : "transparent", color: tab === id ? "#e8e8f0" : "#555", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{label}</button>
+          ))}
+        </div>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ background: "#f4433322", border: "1px solid #f4433344", borderRadius: 8, padding: "5px 12px", fontSize: 11, color: "#f44336", fontWeight: 600 }}>⚠️ Intervalo mín. 60s — abaixo disso risco de ban</div>
+        </div>
+      </div>
+
+      <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
+
+        {/* ── NEW BROADCAST ── */}
+        {tab === "new" && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: 20, maxWidth: 1100 }}>
+            {/* Left: form */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {/* Name */}
+              <div>
+                <label style={labelStyle}>NOME DO DISPARO</label>
+                <input value={bName} onChange={e => setBName(e.target.value)} placeholder="Ex: Promoção de Janeiro" style={inputStyle} />
+              </div>
+
+              {/* AI message helper */}
+              <div style={{ background: "#130f1f", border: "1px solid #7c4dff33", borderRadius: 12, padding: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                  <span>✨</span><span style={{ fontSize: 13, fontWeight: 700, color: "#a78bfa" }}>Sugestão de mensagem com IA</span>
+                </div>
+                <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                  <input value={aiObjective} onChange={e => setAiObjective(e.target.value)} onKeyDown={e => e.key === "Enter" && suggestWithAI()} placeholder="Ex: Relembrar alunos inativos, promoção de plano anual..." style={{ ...inputStyle, flex: 1 }} />
+                  <button onClick={suggestWithAI} disabled={loadingAI || !aiObjective.trim()} style={{ padding: "9px 16px", borderRadius: 8, border: "none", background: aiObjective.trim() ? "linear-gradient(135deg,#7c4dff,#5b21b6)" : "#1a1a2e", color: aiObjective.trim() ? "#fff" : "#444", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>{loadingAI ? "⏳" : "✨ Gerar"}</button>
+                </div>
+                <div style={{ fontSize: 11, color: "#555" }}>Use {"{nome}"} para personalizar com o nome do contato</div>
+              </div>
+
+              {/* Message */}
+              <div>
+                <label style={labelStyle}>MENSAGEM <span style={{ color: "#555", fontWeight: 400 }}>— use {"{nome}"} para personalizar</span></label>
+                <textarea value={bMessage} onChange={e => setBMessage(e.target.value)} placeholder="Olá {nome}, temos uma novidade especial para você..." rows={5} style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }} />
+                <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                  {["{nome}", "{telefone}"].map(v => (
+                    <span key={v} onClick={() => setBMessage(m => m + v)} style={{ fontSize: 11, background: "#1a1a2e", color: "#888", padding: "2px 8px", borderRadius: 6, cursor: "pointer", fontFamily: "monospace" }}>{v}</span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Interval config */}
+              <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 12, padding: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>⏱ Intervalo entre mensagens</div>
+                <div style={{ fontSize: 12, color: "#555", marginBottom: 14 }}>Enviar de X a Y segundos entre cada mensagem. Nunca abaixo de 60s.</div>
+                <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={labelStyle}>MÍNIMO (segundos)</label>
+                    <input type="number" min={60} max={600} value={bIntervalMin} onChange={e => setBIntervalMin(Math.max(60, parseInt(e.target.value) || 60))} style={inputStyle} />
+                  </div>
+                  <div style={{ color: "#555", paddingTop: 20 }}>→</div>
+                  <div style={{ flex: 1 }}>
+                    <label style={labelStyle}>MÁXIMO (segundos)</label>
+                    <input type="number" min={bIntervalMin} max={3600} value={bIntervalMax} onChange={e => setBIntervalMax(Math.max(bIntervalMin, parseInt(e.target.value) || 120))} style={inputStyle} />
+                  </div>
+                </div>
+                {bIntervalMin < 60 && <div style={{ marginTop: 8, color: "#f44336", fontSize: 11, fontWeight: 600 }}>⚠️ Mínimo de 60 segundos para evitar ban no WhatsApp!</div>}
+                <div style={{ marginTop: 10, fontSize: 11, color: "#444" }}>Com {previewRecipients.length} destinatários e intervalo de ~{Math.round((bIntervalMin + bIntervalMax)/2)}s, o disparo levará ~{Math.round(previewRecipients.length * (bIntervalMin + bIntervalMax)/2 / 60)} minutos.</div>
+              </div>
+
+              {/* Schedule */}
+              <div>
+                <label style={labelStyle}>AGENDAR PARA (opcional — deixe vazio para enviar agora)</label>
+                <input type="datetime-local" value={bScheduledAt} onChange={e => setBScheduledAt(e.target.value)} style={{ ...inputStyle, colorScheme: "dark" }} />
+              </div>
+            </div>
+
+            {/* Right: recipients */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 12, padding: 16, flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>👥 Destinatários</div>
+
+                {/* Filter selector */}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
+                  {[["manual","✋ Manual"],["label","🏷 Etiqueta"],["kanban","🗂 Kanban"],["status","● Status"],["csv","📄 CSV"]].map(([id, label]) => (
+                    <button key={id} onClick={() => { setBFilter(id); setBFilterValue(""); }} style={{ padding: "4px 12px", borderRadius: 20, border: `1px solid ${bFilter === id ? "#00c85344" : "#252540"}`, background: bFilter === id ? "#00c85315" : "transparent", color: bFilter === id ? "#00c853" : "#666", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{label}</button>
+                  ))}
+                </div>
+
+                {/* Filter content */}
+                {bFilter === "label" && (
+                  <select value={bFilterValue} onChange={e => setBFilterValue(e.target.value)} style={{ ...inputStyle, marginBottom: 10 }}>
+                    <option value="">Selecione uma etiqueta...</option>
+                    {labels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  </select>
+                )}
+                {bFilter === "kanban" && (
+                  <select value={bFilterValue} onChange={e => setBFilterValue(e.target.value)} style={{ ...inputStyle, marginBottom: 10 }}>
+                    <option value="">Selecione coluna do Kanban...</option>
+                    {kanbanCols.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                  </select>
+                )}
+                {bFilter === "status" && (
+                  <select value={bFilterValue} onChange={e => setBFilterValue(e.target.value)} style={{ ...inputStyle, marginBottom: 10 }}>
+                    <option value="">Selecione status...</option>
+                    <option value="open">Abertos</option>
+                    <option value="pending">Pendentes</option>
+                    <option value="resolved">Resolvidos</option>
+                  </select>
+                )}
+                {bFilter === "csv" && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 11, color: "#555", marginBottom: 6 }}>Cole aqui: <code style={{ color: "#888" }}>55119999999, Nome</code> (um por linha)</div>
+                    <textarea value={csvText} onChange={e => setCsvText(e.target.value)} rows={5} placeholder={"5511999999999, João Silva\n5511888888888, Maria"} style={{ ...inputStyle, resize: "vertical", fontFamily: "monospace", fontSize: 12 }} />
+                  </div>
+                )}
+                {bFilter === "manual" && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 11, color: "#555", marginBottom: 8 }}>Selecione conversas:</div>
+                    <div style={{ maxHeight: 200, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
+                      {conversations.filter(c => c.contacts?.phone).map(conv => {
+                        const checked = bRecipients.some(r => r.phone === conv.contacts.phone?.replace(/\D/g,""));
+                        return (
+                          <div key={conv.id} onClick={() => {
+                            const phone = conv.contacts.phone?.replace(/\D/g,"");
+                            const name = conv.contacts.name || "";
+                            setBRecipients(prev => checked ? prev.filter(r => r.phone !== phone) : [...prev, { phone, name }]);
+                          }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 8, cursor: "pointer", background: checked ? "#00c85310" : "transparent", border: `1px solid ${checked ? "#00c85333" : "transparent"}` }}>
+                            <div style={{ width: 16, height: 16, borderRadius: 4, border: `2px solid ${checked ? "#00c853" : "#333"}`, background: checked ? "#00c853" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{checked && <span style={{ color: "#000", fontSize: 10, fontWeight: 900 }}>✓</span>}</div>
+                            <Avatar name={conv.contacts.name || conv.contacts.phone} size={20} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{conv.contacts.name || conv.contacts.phone}</div>
+                              <div style={{ fontSize: 10, color: "#555" }}>{conv.contacts.phone}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Recipients preview */}
+                <div style={{ padding: "10px 12px", background: "#13131f", borderRadius: 8, marginBottom: 14 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: previewRecipients.length > 0 ? "#00c853" : "#555" }}>
+                    {previewRecipients.length > 0 ? `✓ ${previewRecipients.length} destinatário${previewRecipients.length !== 1 ? "s" : ""} selecionado${previewRecipients.length !== 1 ? "s" : ""}` : "Nenhum destinatário selecionado"}
+                  </div>
+                  {previewRecipients.slice(0, 3).map((r, i) => (
+                    <div key={i} style={{ fontSize: 11, color: "#555", marginTop: 3 }}>• {r.name || r.phone}</div>
+                  ))}
+                  {previewRecipients.length > 3 && <div style={{ fontSize: 11, color: "#444", marginTop: 3 }}>... e mais {previewRecipients.length - 3}</div>}
+                </div>
+
+                <button
+                  onClick={createBroadcast}
+                  disabled={creating || !bName.trim() || !bMessage.trim() || previewRecipients.length === 0}
+                  style={{ width: "100%", padding: "11px 0", borderRadius: 9, border: "none", background: (!creating && bName.trim() && bMessage.trim() && previewRecipients.length > 0) ? "linear-gradient(135deg,#00c853,#00796b)" : "#1a1a2e", color: (!creating && bName.trim() && bMessage.trim() && previewRecipients.length > 0) ? "#000" : "#444", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+                >{creating ? "Criando..." : bScheduledAt ? `📅 Agendar disparo` : `🚀 Iniciar disparo agora`}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── QUEUE ── */}
+        {tab === "queue" && (
+          <div style={{ maxWidth: 900 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <span style={{ fontSize: 13, fontWeight: 700 }}>Histórico de disparos</span>
+              <button onClick={fetchBroadcasts} style={{ padding: "5px 14px", borderRadius: 7, border: "1px solid #252540", background: "transparent", color: "#666", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>↻ Atualizar</button>
+            </div>
+            {loading ? <div style={{ textAlign: "center", color: "#555", padding: 40 }}>Carregando...</div>
+              : broadcasts.length === 0 ? (
+                <div style={{ textAlign: "center", padding: 60 }}>
+                  <div style={{ fontSize: 40, marginBottom: 12 }}>📢</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#444" }}>Nenhum disparo ainda</div>
+                  <div style={{ fontSize: 12, color: "#333", marginTop: 4 }}>Crie seu primeiro disparo na aba "Novo disparo"</div>
+                </div>
+              ) : broadcasts.map(b => {
+                const pct = b.total_recipients > 0 ? Math.round((b.sent_count / b.total_recipients) * 100) : 0;
+                const color = STATUS_COLORS[b.status] || "#555";
+                return (
+                  <div key={b.id} style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 12, padding: "16px 20px", marginBottom: 12 }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 10 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{b.name}</div>
+                        <div style={{ fontSize: 12, color: "#666", lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{b.message}</div>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 }}>
+                        <span style={{ background: color + "22", color, fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20 }}>{STATUS_LABELS[b.status]}</span>
+                        {(b.status === "pending" || b.status === "sending" || b.status === "scheduled") && (
+                          <button onClick={() => cancelBroadcast(b.id)} style={{ padding: "3px 10px", borderRadius: 6, border: "1px solid #f4433344", background: "transparent", color: "#f44336", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>🚫 Cancelar</button>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ background: "#13131f", borderRadius: 8, overflow: "hidden", height: 6, marginBottom: 8 }}>
+                      <div style={{ height: "100%", background: `linear-gradient(90deg, ${color}, ${color}88)`, width: `${pct}%`, transition: "width 0.5s" }} />
+                    </div>
+                    <div style={{ display: "flex", gap: 16, fontSize: 11, color: "#555" }}>
+                      <span>📤 {b.sent_count}/{b.total_recipients} enviados</span>
+                      {b.failed_count > 0 && <span style={{ color: "#f44336" }}>❌ {b.failed_count} falharam</span>}
+                      <span>⏱ {b.interval_min}-{b.interval_max}s entre msgs</span>
+                      {b.scheduled_at && <span>📅 {new Date(b.scheduled_at).toLocaleString("pt-BR")}</span>}
+                      {b.finished_at && <span>✓ {new Date(b.finished_at).toLocaleString("pt-BR")}</span>}
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        )}
+
+        {/* ── SCHEDULED ── */}
+        {tab === "scheduled" && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 20, maxWidth: 1000 }}>
+            {/* List */}
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
+                <span style={{ fontSize: 13, fontWeight: 700 }}>Mensagens agendadas</span>
+                <button onClick={fetchScheduled} style={{ padding: "5px 14px", borderRadius: 7, border: "1px solid #252540", background: "transparent", color: "#666", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>↻</button>
+              </div>
+              {scheduledMsgs.length === 0 ? (
+                <div style={{ textAlign: "center", padding: 40 }}>
+                  <div style={{ fontSize: 36, marginBottom: 10 }}>📅</div>
+                  <div style={{ fontSize: 14, color: "#444" }}>Nenhum agendamento ainda</div>
+                </div>
+              ) : scheduledMsgs.map(m => {
+                const isPast = new Date(m.scheduled_at) < new Date();
+                return (
+                  <div key={m.id} style={{ background: "#0d0d18", border: `1px solid ${isPast && m.status === "pending" ? "#f4433633" : "#1a1a2e"}`, borderRadius: 10, padding: "13px 16px", marginBottom: 10 }}>
+                    <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+                          <Avatar name={m.contact_name || m.contact_phone} size={24} />
+                          <span style={{ fontSize: 13, fontWeight: 600 }}>{m.contact_name || m.contact_phone}</span>
+                          <span style={{ fontSize: 11, color: "#555" }}>{m.contact_phone}</span>
+                          {m.recurrence && <span style={{ fontSize: 10, background: "#7c4dff22", color: "#a78bfa", padding: "1px 7px", borderRadius: 10 }}>🔁 {RECURRENCE_LABELS[m.recurrence]}</span>}
+                        </div>
+                        <div style={{ fontSize: 12, color: "#888", marginBottom: 6, lineHeight: 1.5 }}>{m.message}</div>
+                        <div style={{ fontSize: 11, color: isPast && m.status === "pending" ? "#f44336" : "#555" }}>
+                          📅 {new Date(m.scheduled_at).toLocaleString("pt-BR")}
+                          {isPast && m.status === "pending" && " — VENCIDA"}
+                        </div>
+                      </div>
+                      <button onClick={() => deleteScheduled(m.id)} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid #33333344", background: "transparent", color: "#555", fontSize: 12, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>🗑</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* New scheduled form */}
+            <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 12, padding: 18, alignSelf: "flex-start" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 14 }}>+ Novo agendamento</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div>
+                  <label style={labelStyle}>CONVERSA (opcional)</label>
+                  <select value={sConvId} onChange={e => {
+                    setSConvId(e.target.value);
+                    const conv = conversations.find(c => c.id === e.target.value);
+                    if (conv) { setSPhone(conv.contacts?.phone || ""); setSName(conv.contacts?.name || ""); }
+                  }} style={{ ...inputStyle }}>
+                    <option value="">Selecione ou preencha manualmente...</option>
+                    {conversations.map(c => <option key={c.id} value={c.id}>{c.contacts?.name || c.contacts?.phone}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>TELEFONE *</label>
+                  <input value={sPhone} onChange={e => setSPhone(e.target.value)} placeholder="5511999999999" style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>NOME</label>
+                  <input value={sName} onChange={e => setSName(e.target.value)} placeholder="Nome do contato" style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>MENSAGEM *</label>
+                  <textarea value={sMessage} onChange={e => setSMessage(e.target.value)} rows={3} placeholder="Sua mensagem..." style={{ ...inputStyle, resize: "none", lineHeight: 1.5 }} />
+                </div>
+                <div>
+                  <label style={labelStyle}>DATA E HORA *</label>
+                  <input type="datetime-local" value={sDate} onChange={e => setSDate(e.target.value)} style={{ ...inputStyle, colorScheme: "dark" }} />
+                </div>
+                <div>
+                  <label style={labelStyle}>RECORRÊNCIA</label>
+                  <select value={sRecurrence} onChange={e => setSRecurrence(e.target.value)} style={inputStyle}>
+                    <option value="">Sem recorrência (envio único)</option>
+                    <option value="daily">🔁 Diário</option>
+                    <option value="weekly">🔁 Semanal</option>
+                    <option value="monthly">🔁 Mensal</option>
+                  </select>
+                </div>
+                <button onClick={createScheduled} disabled={creatingSched || !sPhone.trim() || !sMessage.trim() || !sDate} style={{ padding: "10px 0", borderRadius: 8, border: "none", background: (!creatingSched && sPhone.trim() && sMessage.trim() && sDate) ? "linear-gradient(135deg,#00c853,#00796b)" : "#1a1a2e", color: (!creatingSched && sPhone.trim() && sMessage.trim() && sDate) ? "#000" : "#444", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{creatingSched ? "Salvando..." : "📅 Agendar mensagem"}</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Global Tasks View ───────────────────────────────────────────────────────
 function GlobalTasksView({ pendingTasksMap, conversations, agents, onSelectConv, onRefresh }) {
   const [tab, setTab] = useState("open"); // "open" | "done"
@@ -892,6 +1322,7 @@ export default function App() {
     { id: "leads", label: "🏷 Leads" },
     { id: "kanban", label: "🗂 Kanban" },
     { id: "tasks_global", label: "✅ Tarefas" },
+    { id: "disparos", label: "📢 Disparos" },
     { id: "config", label: "⚙️ Config" },
   ];
 
@@ -917,6 +1348,16 @@ export default function App() {
       </div>
 
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+        {/* Disparos */}
+        {view === "disparos" && (
+          <BroadcastsView
+            conversations={conversations}
+            labels={labels}
+            agents={agents}
+            kanbanCols={kanbanCols}
+          />
+        )}
+
         {/* Config */}
         {view === "config" && (
           <div style={{ flex: 1, overflowY: "auto", padding: 40, maxWidth: 720 }}>
@@ -932,10 +1373,29 @@ export default function App() {
               </div>
             </div>
             <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 24 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>📋 Informações do Tenant</div>
-              {[["Tenant ID", TENANT_ID], ["API URL", API_URL], ["Versão", "7CRM v1.0"]].map(([lbl, val]) => (
-                <div key={lbl} style={{ display: "flex", gap: 12, marginBottom: 8 }}><span style={{ fontSize: 12, color: "#555", width: 100, flexShrink: 0 }}>{lbl}</span><span style={{ fontSize: 12, color: "#888", fontFamily: "monospace", wordBreak: "break-all" }}>{val}</span></div>
-              ))}
+              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>🏢 Sua Empresa</div>
+              <div style={{ fontSize: 12, color: "#555", marginBottom: 20 }}>Informações do plano e uso atual</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
+                {[
+                  { label: "Plano atual", value: "Pro", color: "#7c4dff" },
+                  { label: "Versão", value: "7CRM v1.0", color: "#00c853" },
+                  { label: "Atendentes", value: `${agents.length} ativo${agents.length !== 1 ? "s" : ""}`, color: "#00bcd4" },
+                  { label: "Status", value: "🟢 Online", color: "#00c853" },
+                ].map(({ label, value, color }) => (
+                  <div key={label} style={{ background: "#13131f", border: "1px solid #1a1a2e", borderRadius: 10, padding: "12px 16px" }}>
+                    <div style={{ fontSize: 11, color: "#555", marginBottom: 4 }}>{label}</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ padding: "10px 14px", background: "#13131f", border: "1px solid #1a1a2e", borderRadius: 10, display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 18 }}>🔐</span>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#888", marginBottom: 2 }}>Login e gestão de usuários</div>
+                  <div style={{ fontSize: 11, color: "#444" }}>Em breve — autenticação por email/senha e painel de atendentes</div>
+                </div>
+                <span style={{ marginLeft: "auto", background: "#7c4dff22", color: "#a78bfa", fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 20 }}>EM BREVE</span>
+              </div>
             </div>
           </div>
         )}
