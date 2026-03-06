@@ -2383,24 +2383,25 @@ function AppInner({ auth, onLogout }) {
   const labelOverrideRef = useRef({}); // { convId: { labels, until } }
   const autoProcessedRef = useRef(new Set()); // msgIds already auto-replied
   const autoProcessingRef = useRef(false); // prevent concurrent auto-reply runs
+  const autoModeRef = useRef({}); // { convId: boolean } — persists across polls
 
   const fetchConversations = useCallback(async () => {
     try { const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}`, { headers }); const d = await r.json();
       const now = Date.now();
       const merged = (d.conversations || []).map(c => {
         const ov = labelOverrideRef.current[c.id];
-        if (ov && ov.until > now) return { ...c, labels: ov.labels };
-        return c;
+        const labels = (ov && ov.until > now) ? ov.labels : c.labels;
+        // Preserve auto_mode from local ref — backend may not return this field
+        const auto_mode = autoModeRef.current[c.id] !== undefined ? autoModeRef.current[c.id] : (c.auto_mode || false);
+        return { ...c, labels, auto_mode };
       });
       setConversations(merged);
-      // Keep selected in sync — but never overwrite labels if override active
+      // Keep selected in sync — preserve local-only fields
       setSelected(prev => {
         if (!prev) return prev;
         const fresh = merged.find(c => c.id === prev.id);
         if (!fresh) return prev;
-        const ov = labelOverrideRef.current[prev.id];
-        const labels = (ov && ov.until > Date.now()) ? prev.labels : fresh.labels;
-        return { ...fresh, labels };
+        return fresh; // already has labels + auto_mode merged above
       });
     } catch (e) {}
     setLoading(false);
@@ -2410,17 +2411,16 @@ function AppInner({ auth, onLogout }) {
       const now = Date.now();
       const merged = (d.conversations || []).map(c => {
         const ov = labelOverrideRef.current[c.id];
-        if (ov && ov.until > now) return { ...c, labels: ov.labels };
-        return c;
+        const labels = (ov && ov.until > now) ? ov.labels : c.labels;
+        const auto_mode = autoModeRef.current[c.id] !== undefined ? autoModeRef.current[c.id] : (c.auto_mode || false);
+        return { ...c, labels, auto_mode };
       });
       setConversations(merged);
       setSelected(prev => {
         if (!prev) return prev;
         const fresh = merged.find(c => c.id === prev.id);
         if (!fresh) return prev;
-        const ov = labelOverrideRef.current[prev.id];
-        const labels = (ov && ov.until > Date.now()) ? prev.labels : fresh.labels;
-        return { ...fresh, labels };
+        return fresh;
       });
     } catch (e) {}
     setLoading(false);
@@ -2958,6 +2958,7 @@ function AppInner({ auth, onLogout }) {
                         <span style={{ color: "#555" }}>— respondendo automaticamente mensagens recebidas</span>
                         {copilotAutoMode === "per_conv" && <button onClick={async () => {
                           const newVal = false;
+                          autoModeRef.current[selected.id] = newVal;
                           await fetch(`${API_URL}/conversations/${selected.id}/auto-mode`, { method: "PUT", headers, body: JSON.stringify({ enabled: newVal }) }).catch(() => {});
                           setSelected(prev => ({ ...prev, auto_mode: newVal }));
                           setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, auto_mode: newVal } : c));
@@ -2971,6 +2972,7 @@ function AppInner({ auth, onLogout }) {
                       {copilotAutoMode === "per_conv" && (
                         <button onClick={async () => {
                           const newVal = !selected.auto_mode;
+                          autoModeRef.current[selected.id] = newVal;
                           await fetch(`${API_URL}/conversations/${selected.id}/auto-mode`, { method: "PUT", headers, body: JSON.stringify({ enabled: newVal }) }).catch(() => {});
                           setSelected(prev => ({ ...prev, auto_mode: newVal }));
                           setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, auto_mode: newVal } : c));
