@@ -181,38 +181,52 @@ function LabelManagerModal({ labels, onChange, onClose }) {
 // ─── Leads Board (por etiqueta) ───────────────────────────────────────────────
 // ─── Global Tasks View ───────────────────────────────────────────────────────
 function GlobalTasksView({ pendingTasksMap, conversations, agents, onSelectConv, onRefresh }) {
-  const [allTasks, setAllTasks] = useState([]);
+  const [tab, setTab] = useState("open"); // "open" | "done"
+  const [openTasks, setOpenTasks] = useState([]);
+  const [doneTasks, setDoneTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTask, setSelectedTask] = useState(null);
   const [filterAgent, setFilterAgent] = useState("");
   const [filterOverdue, setFilterOverdue] = useState(false);
 
-  const fetchAll = async () => {
-    setLoading(true);
+  const fetchOpen = async () => {
     try {
       const r = await fetch(`${API_URL}/tasks?tenant_id=${TENANT_ID}`, { headers });
       const d = await r.json();
-      setAllTasks((d.tasks || []).filter(t => !t.done));
+      setOpenTasks((d.tasks || []).filter(t => !t.done));
     } catch (e) {}
+  };
+  const fetchDone = async () => {
+    try {
+      const r = await fetch(`${API_URL}/tasks/completed?tenant_id=${TENANT_ID}&days=7`, { headers });
+      const d = await r.json();
+      setDoneTasks(d.tasks || []);
+    } catch (e) {}
+  };
+  const fetchAll = async () => {
+    setLoading(true);
+    await Promise.all([fetchOpen(), fetchDone()]);
     setLoading(false);
   };
   useEffect(() => { fetchAll(); }, []);
 
   const completeTask = async (taskId) => {
     try { await fetch(`${API_URL}/tasks/${taskId}/done`, { method: "PUT", headers }); } catch (e) {}
-    setAllTasks(prev => prev.filter(t => t.id !== taskId));
+    const done = openTasks.find(t => t.id === taskId);
+    setOpenTasks(prev => prev.filter(t => t.id !== taskId));
+    if (done) setDoneTasks(prev => [{ ...done, done: true, done_at: new Date().toISOString() }, ...prev]);
     setSelectedTask(null);
     if (onRefresh) onRefresh();
   };
 
-  const getConv = (convId) => conversations.find(c => c.id === convId);
+  const getConv = (convId) => conversations.find(c => c.id === convId) || null;
   const isOverdue = (due) => due && new Date(due) < new Date();
+  const overdueCount = openTasks.filter(t => isOverdue(t.due_at)).length;
 
-  const filtered = allTasks
+  const filteredOpen = openTasks
     .filter(t => !filterAgent || t.assigned_to === filterAgent)
     .filter(t => !filterOverdue || isOverdue(t.due_at))
     .sort((a, b) => {
-      // Vencidas primeiro, depois por data
       const aOver = isOverdue(a.due_at) ? 0 : 1;
       const bOver = isOverdue(b.due_at) ? 0 : 1;
       if (aOver !== bOver) return aOver - bOver;
@@ -220,77 +234,111 @@ function GlobalTasksView({ pendingTasksMap, conversations, agents, onSelectConv,
       return 0;
     });
 
-  const overdueCount = allTasks.filter(t => isOverdue(t.due_at)).length;
+  const filteredDone = doneTasks
+    .filter(t => !filterAgent || t.assigned_to === filterAgent);
+
+  const renderCard = (task, isDone) => {
+    const conv = getConv(task.conversation_id);
+    const overdue = !isDone && isOverdue(task.due_at);
+    const assignedName = task.users?.name || agents.find(a => a.id === task.assigned_to)?.name;
+    const contactName = conv?.contacts?.name || conv?.contacts?.phone || task.conversations?.contacts?.name || task.conversations?.contacts?.phone;
+    const contactPhone = conv?.contacts?.phone || task.conversations?.contacts?.phone;
+    return (
+      <div
+        key={task.id}
+        onClick={() => !isDone && setSelectedTask(task)}
+        style={{ background: isDone ? "#0a0a0f" : "#0d0d18", border: `1px solid ${isDone ? "#1a1a2e" : overdue ? "#f4433633" : "#1a1a2e"}`, borderRadius: 12, padding: "14px 16px", cursor: isDone ? "default" : "pointer", transition: "all 0.15s", position: "relative", opacity: isDone ? 0.7 : 1 }}
+        onMouseEnter={e => { if (!isDone) { e.currentTarget.style.borderColor = overdue ? "#f4433666" : "#252540"; e.currentTarget.style.background = "#13131f"; }}}
+        onMouseLeave={e => { if (!isDone) { e.currentTarget.style.borderColor = overdue ? "#f4433633" : "#1a1a2e"; e.currentTarget.style.background = "#0d0d18"; }}}
+      >
+        {/* Status badge */}
+        {isDone
+          ? <div style={{ position: "absolute", top: 10, right: 12, background: "#00c85322", color: "#00c853", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 10 }}>✓ CONCLUÍDA</div>
+          : overdue && <div style={{ position: "absolute", top: 10, right: 12, background: "#f4433322", color: "#f44336", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 10 }}>⚠ VENCIDA</div>
+        }
+        <div style={{ fontSize: 13, fontWeight: 700, color: isDone ? "#888" : "#e8e8f0", marginBottom: 6, paddingRight: 70, textDecoration: isDone ? "line-through" : "none" }}>{task.title}</div>
+        {task.description && <div style={{ fontSize: 12, color: "#555", marginBottom: 10, lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{task.description}</div>}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+          {isDone && task.done_at && <span style={{ fontSize: 11, color: "#00c853" }}>✓ {new Date(task.done_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>}
+          {!isDone && task.due_at && <span style={{ fontSize: 11, color: overdue ? "#f44336" : "#888" }}>📅 {new Date(task.due_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>}
+          {assignedName && <span style={{ fontSize: 11, color: isDone ? "#555" : "#00c853" }}>👤 {assignedName}</span>}
+        </div>
+        {(conv || contactName) && (
+          <div
+            onClick={e => { e.stopPropagation(); if (conv) onSelectConv(conv); }}
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", background: "#1a1a2e", borderRadius: 8, cursor: conv ? "pointer" : "default" }}
+            onMouseEnter={e => { if (conv) e.currentTarget.style.background = "#252540"; }}
+            onMouseLeave={e => { if (conv) e.currentTarget.style.background = "#1a1a2e"; }}
+          >
+            <Avatar name={contactName} size={20} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#ccc" }}>{contactName}</div>
+              <div style={{ fontSize: 10, color: "#555" }}>{contactPhone}</div>
+            </div>
+            {conv && <span style={{ fontSize: 10, color: "#555", flexShrink: 0 }}>→ ver conversa</span>}
+          </div>
+        )}
+        {!isDone && <div style={{ marginTop: 8, fontSize: 10, color: "#444" }}>Clique para ver detalhes →</div>}
+      </div>
+    );
+  };
 
   return (
     <>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         {/* Header */}
-        <div style={{ padding: "14px 24px", borderBottom: "1px solid #1a1a2e", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 15, fontWeight: 700 }}>✅ Tarefas em Aberto</span>
-          <span style={{ background: "#00c85322", color: "#00c853", fontSize: 12, fontWeight: 700, padding: "2px 10px", borderRadius: 20 }}>{allTasks.length} total</span>
-          {overdueCount > 0 && <span style={{ background: "#f4433322", color: "#f44336", fontSize: 12, fontWeight: 700, padding: "2px 10px", borderRadius: 20 }}>⚠ {overdueCount} vencida{overdueCount > 1 ? "s" : ""}</span>}
+        <div style={{ padding: "12px 24px", borderBottom: "1px solid #1a1a2e", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          {/* Sub-tabs */}
+          <div style={{ display: "flex", gap: 4, background: "#0d0d18", borderRadius: 8, padding: 3, border: "1px solid #1a1a2e" }}>
+            <button onClick={() => setTab("open")} style={{ padding: "5px 14px", borderRadius: 6, border: "none", background: tab === "open" ? "#1a1a2e" : "transparent", color: tab === "open" ? "#e8e8f0" : "#555", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6 }}>
+              ⏳ Em aberto
+              {openTasks.length > 0 && <span style={{ background: overdueCount > 0 ? "#f44336" : "#00c853", color: "#000", fontSize: 10, fontWeight: 800, padding: "1px 6px", borderRadius: 10 }}>{openTasks.length}</span>}
+            </button>
+            <button onClick={() => { setTab("done"); fetchDone(); }} style={{ padding: "5px 14px", borderRadius: 6, border: "none", background: tab === "done" ? "#1a1a2e" : "transparent", color: tab === "done" ? "#e8e8f0" : "#555", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6 }}>
+              ✅ Concluídas
+              {doneTasks.length > 0 && <span style={{ background: "#25254060", color: "#666", fontSize: 10, fontWeight: 800, padding: "1px 6px", borderRadius: 10 }}>{doneTasks.length}</span>}
+            </button>
+          </div>
+          {tab === "open" && overdueCount > 0 && <span style={{ background: "#f4433322", color: "#f44336", fontSize: 11, fontWeight: 700, padding: "2px 10px", borderRadius: 20 }}>⚠ {overdueCount} vencida{overdueCount > 1 ? "s" : ""}</span>}
+          {tab === "done" && <span style={{ fontSize: 11, color: "#555" }}>Últimos 7 dias</span>}
           <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
-            <button onClick={() => setFilterOverdue(f => !f)} style={{ padding: "5px 12px", borderRadius: 7, border: `1px solid ${filterOverdue ? "#f4433344" : "#252540"}`, background: filterOverdue ? "#f4433315" : "transparent", color: filterOverdue ? "#f44336" : "#666", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>⚠ Vencidas</button>
+            {tab === "open" && <button onClick={() => setFilterOverdue(f => !f)} style={{ padding: "5px 12px", borderRadius: 7, border: `1px solid ${filterOverdue ? "#f4433344" : "#252540"}`, background: filterOverdue ? "#f4433315" : "transparent", color: filterOverdue ? "#f44336" : "#666", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>⚠ Vencidas</button>}
             <select value={filterAgent} onChange={e => setFilterAgent(e.target.value)} style={{ padding: "5px 10px", background: "#13131f", border: "1px solid #252540", borderRadius: 7, color: filterAgent ? "#e8e8f0" : "#555", fontSize: 12, outline: "none", fontFamily: "inherit", cursor: "pointer" }}>
               <option value="">Todos os atendentes</option>
               {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
-            <button onClick={fetchAll} style={{ padding: "5px 12px", borderRadius: 7, border: "1px solid #252540", background: "transparent", color: "#666", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>↻ Atualizar</button>
+            <button onClick={fetchAll} style={{ padding: "5px 12px", borderRadius: 7, border: "1px solid #252540", background: "transparent", color: "#666", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>↻</button>
           </div>
         </div>
 
-        {/* Tasks grid */}
+        {/* Content */}
         <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
           {loading ? (
-            <div style={{ textAlign: "center", color: "#555", padding: 40 }}>Carregando tarefas...</div>
-          ) : filtered.length === 0 ? (
-            <div style={{ textAlign: "center", padding: 60 }}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#444", marginBottom: 6 }}>Nenhuma tarefa pendente!</div>
-              <div style={{ fontSize: 13, color: "#333" }}>Todas as tarefas foram concluídas.</div>
-            </div>
+            <div style={{ textAlign: "center", color: "#555", padding: 40 }}>Carregando...</div>
+          ) : tab === "open" ? (
+            filteredOpen.length === 0 ? (
+              <div style={{ textAlign: "center", padding: 60 }}>
+                <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#444", marginBottom: 6 }}>Nenhuma tarefa pendente!</div>
+                <div style={{ fontSize: 13, color: "#333" }}>Todas as tarefas foram concluídas.</div>
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 12 }}>
+                {filteredOpen.map(t => renderCard(t, false))}
+              </div>
+            )
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 12 }}>
-              {filtered.map(task => {
-                const conv = getConv(task.conversation_id);
-                const overdue = isOverdue(task.due_at);
-                const assignedName = task.users?.name || agents.find(a => a.id === task.assigned_to)?.name;
-                return (
-                  <div
-                    key={task.id}
-                    onClick={() => setSelectedTask(task)}
-                    style={{ background: "#0d0d18", border: `1px solid ${overdue ? "#f4433633" : "#1a1a2e"}`, borderRadius: 12, padding: "14px 16px", cursor: "pointer", transition: "all 0.15s", position: "relative" }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = overdue ? "#f4433666" : "#252540"; e.currentTarget.style.background = "#13131f"; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = overdue ? "#f4433633" : "#1a1a2e"; e.currentTarget.style.background = "#0d0d18"; }}
-                  >
-                    {overdue && <div style={{ position: "absolute", top: 10, right: 12, background: "#f4433322", color: "#f44336", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 10 }}>VENCIDA</div>}
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "#e8e8f0", marginBottom: 6, paddingRight: overdue ? 60 : 0 }}>{task.title}</div>
-                    {task.description && <div style={{ fontSize: 12, color: "#666", marginBottom: 10, lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{task.description}</div>}
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-                      {task.due_at && <span style={{ fontSize: 11, color: overdue ? "#f44336" : "#888", display: "flex", alignItems: "center", gap: 4 }}>📅 {new Date(task.due_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>}
-                      {assignedName && <span style={{ fontSize: 11, color: "#00c853" }}>👤 {assignedName}</span>}
-                    </div>
-                    {conv && (
-                      <div
-                        onClick={e => { e.stopPropagation(); onSelectConv(conv); }}
-                        style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", background: "#1a1a2e", borderRadius: 8, cursor: "pointer" }}
-                        onMouseEnter={e => e.currentTarget.style.background = "#252540"}
-                        onMouseLeave={e => e.currentTarget.style.background = "#1a1a2e"}
-                      >
-                        <Avatar name={conv.contacts?.name || conv.contacts?.phone} size={20} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 11, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#ccc" }}>{conv.contacts?.name || conv.contacts?.phone}</div>
-                          <div style={{ fontSize: 10, color: "#555" }}>{conv.contacts?.phone}</div>
-                        </div>
-                        <span style={{ fontSize: 10, color: "#555", flexShrink: 0 }}>→ ver conversa</span>
-                      </div>
-                    )}
-                    <div style={{ marginTop: 8, fontSize: 10, color: "#444" }}>Clique para ver detalhes e atualizações →</div>
-                  </div>
-                );
-              })}
-            </div>
+            filteredDone.length === 0 ? (
+              <div style={{ textAlign: "center", padding: 60 }}>
+                <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#444", marginBottom: 6 }}>Nenhuma tarefa concluída</div>
+                <div style={{ fontSize: 13, color: "#333" }}>Nos últimos 7 dias ainda não há registros.</div>
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 12 }}>
+                {filteredDone.map(t => renderCard(t, true))}
+              </div>
+            )
           )}
         </div>
       </div>
