@@ -672,7 +672,28 @@ function WhatsAppScreen({ auth }) {
   const [disconnecting, setDisconnecting] = useState(false);
   const [lastCheck, setLastCheck] = useState(null);
   const [phone, setPhone] = useState("");
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState(null);
+  const [syncProgress, setSyncProgress] = useState(0);
   const pollRef = useRef(null);
+
+  const syncHistory = async () => {
+    setSyncing(true); setSyncResult(null); setSyncProgress(0);
+    const interval = setInterval(() => setSyncProgress(p => Math.min(p + Math.random() * 5, 90)), 1200);
+    try {
+      const r = await fetch(`${API_URL}/whatsapp/sync`, {
+        method: "POST", headers,
+        body: JSON.stringify({ tenant_id: TENANT_ID, instance })
+      });
+      const d = await r.json();
+      clearInterval(interval); setSyncProgress(100);
+      setSyncResult({ ok: r.ok, ...d });
+    } catch (e) {
+      clearInterval(interval);
+      setSyncResult({ ok: false, message: "Erro de conexão. Tente novamente." });
+    }
+    setSyncing(false);
+  };
 
   const checkStatus = async () => {
     try {
@@ -827,6 +848,57 @@ function WhatsAppScreen({ auth }) {
             </div>
           </div>
         )}
+
+        {/* Sync Card */}
+        <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 16, padding: 24, marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 16 }}>
+            <div style={{ fontSize: 28 }}>📲</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Sincronizar histórico</div>
+              <div style={{ fontSize: 12, color: "#555" }}>Importa as conversas e mensagens que já estão no seu WhatsApp para o Inbox do 7CRM.</div>
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          {syncing && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 12, color: "#00c853", marginBottom: 6 }}>⏳ Importando mensagens... isso pode levar alguns segundos</div>
+              <div style={{ background: "#1a1a2e", borderRadius: 20, height: 6, overflow: "hidden" }}>
+                <div style={{ height: "100%", borderRadius: 20, background: "linear-gradient(90deg, #00c853, #00bcd4)", width: `${syncProgress}%`, transition: "width 1s ease" }} />
+              </div>
+            </div>
+          )}
+
+          {/* Result */}
+          {syncResult && (
+            <div style={{ marginBottom: 16, padding: "12px 16px", borderRadius: 10, background: syncResult.ok ? "#00c85315" : "#f4433315", border: `1px solid ${syncResult.ok ? "#00c85333" : "#f4433333"}` }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: syncResult.ok ? "#00c853" : "#f44336", marginBottom: 6 }}>
+                {syncResult.ok ? "✅ Sincronização concluída!" : "❌ Erro"}
+              </div>
+              <div style={{ fontSize: 12, color: "#888" }}>{syncResult.message}</div>
+              {syncResult.ok && syncResult.stats && (
+                <div style={{ display: "flex", gap: 16, marginTop: 10 }}>
+                  {[
+                    { label: "Chats encontrados", value: syncResult.stats.chats },
+                    { label: "Contatos criados", value: syncResult.stats.contacts_created },
+                    { label: "Conversas novas", value: syncResult.stats.conversations_created },
+                    { label: "Mensagens salvas", value: syncResult.stats.messages_saved },
+                  ].map(s => (
+                    <div key={s.label} style={{ textAlign: "center" }}>
+                      <div style={{ fontSize: 18, fontWeight: 800, color: "#00c853" }}>{s.value}</div>
+                      <div style={{ fontSize: 10, color: "#555" }}>{s.label}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <button onClick={syncHistory} disabled={syncing || !isConnected} style={{ width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: !isConnected ? "#1a1a2e" : syncing ? "#1a1a2e" : "linear-gradient(135deg,#00c853,#00796b)", color: !isConnected || syncing ? "#444" : "#000", fontSize: 14, fontWeight: 800, cursor: !isConnected || syncing ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+            {syncing ? "⏳ Sincronizando..." : !isConnected ? "Conecte o WhatsApp primeiro" : "📲 Sincronizar histórico agora"}
+          </button>
+          {!isConnected && <div style={{ fontSize: 11, color: "#444", textAlign: "center", marginTop: 6 }}>O número precisa estar conectado para sincronizar</div>}
+        </div>
 
         {/* Info cards */}
         <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 20 }}>
