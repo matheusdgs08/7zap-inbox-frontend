@@ -677,7 +677,7 @@ function WhatsAppScreen({ auth }) {
   const [syncProgress, setSyncProgress] = useState(0);
   const pollRef = useRef(null);
 
-  const syncHistory = async () => {
+  const syncHistory = async (auto = false) => {
     setSyncing(true); setSyncResult(null); setSyncProgress(0);
     const interval = setInterval(() => setSyncProgress(p => Math.min(p + Math.random() * 5, 90)), 1200);
     try {
@@ -687,23 +687,36 @@ function WhatsAppScreen({ auth }) {
       });
       const d = await r.json();
       clearInterval(interval); setSyncProgress(100);
-      setSyncResult({ ok: r.ok, ...d });
+      setSyncResult({ ok: r.ok, auto, ...d });
     } catch (e) {
       clearInterval(interval);
-      setSyncResult({ ok: false, message: "Erro de conexão. Tente novamente." });
+      if (!auto) setSyncResult({ ok: false, message: "Erro de conexão. Tente novamente." });
     }
     setSyncing(false);
   };
+
+  const prevStatusRef = useRef(null);
 
   const checkStatus = async () => {
     try {
       const r = await fetch(`${API_URL}/whatsapp/status?instance=${instance}`, { headers });
       const d = await r.json();
-      setStatus(d.connected ? "connected" : "disconnected");
+      const newStatus = d.connected ? "connected" : "disconnected";
+
+      // Atualiza status imediatamente
+      setStatus(newStatus);
       setPhone(d.phone || "");
       setLastCheck(new Date());
       if (d.connected) setQrCode("");
-    } catch (e) { setStatus("error"); }
+
+      // Detecta transição desconectado → conectado → auto-sync!
+      if (prevStatusRef.current === "disconnected" && newStatus === "connected") {
+        setTimeout(() => syncHistory(true), 2000);
+      }
+      prevStatusRef.current = newStatus;
+    } catch (e) {
+      setStatus("error");
+    }
   };
 
   const fetchQrCode = async () => {
@@ -873,7 +886,7 @@ function WhatsAppScreen({ auth }) {
           {syncResult && (
             <div style={{ marginBottom: 16, padding: "12px 16px", borderRadius: 10, background: syncResult.ok ? "#00c85315" : "#f4433315", border: `1px solid ${syncResult.ok ? "#00c85333" : "#f4433333"}` }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: syncResult.ok ? "#00c853" : "#f44336", marginBottom: 6 }}>
-                {syncResult.ok ? "✅ Sincronização concluída!" : "❌ Erro"}
+                {syncResult.ok ? (syncResult.auto ? "✅ Sincronização automática concluída!" : "✅ Sincronização concluída!") : "❌ Erro"}
               </div>
               <div style={{ fontSize: 12, color: "#888" }}>{syncResult.message}</div>
               {syncResult.ok && syncResult.stats && (
@@ -2005,6 +2018,24 @@ function AppInner({ auth, onLogout }) {
     try { const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}`, { headers }); const d = await r.json(); setConversations(d.conversations || []); } catch (e) {}
     setLoading(false);
   }, []);
+  const lazySyncChat = useCallback(async (conv) => {
+    // Busca mensagens do WhatsApp para essa conversa específica
+    // Chamado uma vez quando o atendente abre a conversa
+    const phone = conv?.contacts?.phone;
+    if (!phone || !conv?.id) return;
+    try {
+      await fetch(`${API_URL}/whatsapp/sync-chat`, {
+        method: "POST", headers,
+        body: JSON.stringify({
+          tenant_id: TENANT_ID,
+          conversation_id: conv.id,
+          phone: phone,
+          instance: "default"
+        })
+      });
+    } catch (e) {}
+  }, []);
+
   const fetchMessages = useCallback(async (convId) => {
     try { const r = await fetch(`${API_URL}/conversations/${convId}/messages`, { headers }); const d = await r.json(); setMessages(d.messages || []); } catch (e) {}
   }, []);
@@ -2040,6 +2071,8 @@ function AppInner({ auth, onLogout }) {
   useEffect(() => {
     if (!selected) return;
     fetchMessages(selected.id);
+    // Lazy load — busca histórico do WhatsApp ao abrir conversa (só 1x por sessão)
+    lazySyncChat(selected).then(() => fetchMessages(selected.id));
     const t = setInterval(() => fetchMessages(selected.id), 5000);
     return () => clearInterval(t);
   }, [selected, fetchMessages]);
