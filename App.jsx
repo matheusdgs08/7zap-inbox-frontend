@@ -136,7 +136,7 @@ function LabelManagerModal({ labels, onChange, onClose }) {
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "#00000090", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200 }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "#13131f", border: "1px solid #252540", borderRadius: 14, padding: 24, width: 420, maxHeight: "85vh", overflowY: "auto", boxShadow: "0 24px 64px #00000080" }}>
+      <div onClick={e => e.stopPropagation()} onMouseDown={e => e.preventDefault()} style={{ background: "#13131f", border: "1px solid #252540", borderRadius: 14, padding: 24, width: 420, maxHeight: "85vh", overflowY: "auto", boxShadow: "0 24px 64px #00000080" }}>
         <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>🏷 Gerenciar Etiquetas</div>
         <div style={{ fontSize: 12, color: "#555", marginBottom: 20 }}>Crie, renomeie, recolora ou remova etiquetas</div>
 
@@ -439,6 +439,157 @@ function LoginScreen({ onLogin }) {
   );
 }
 
+
+// ─── Licenses Panel ───────────────────────────────────────────────────────────
+function LicensesPanel({ aHeaders, showToast }) {
+  const [tenants, setTenants] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [cName, setCName] = useState("");
+  const [cEmail, setCEmail] = useState("");
+  const [cPlan, setCPlan] = useState("starter");
+  const [creating, setCreating] = useState(false);
+
+  const PLANS = [
+    { id: "trial", label: "Trial", color: "#ff6d00", price: "Grátis 7 dias" },
+    { id: "starter", label: "Starter", color: "#00bcd4", price: "R$ 149/mês" },
+    { id: "pro", label: "Pro", color: "#00c853", price: "R$ 299/mês" },
+    { id: "business", label: "Business", color: "#7c4dff", price: "R$ 599/mês" },
+  ];
+  const planInfo = (id) => PLANS.find(p => p.id === id) || PLANS[0];
+
+  const fetchTenants = async () => {
+    setLoading(true);
+    try {
+      const r = await fetch(`${API_URL}/admin/tenants`, { headers: aHeaders });
+      const d = await r.json();
+      setTenants(d.tenants || []);
+    } catch (e) {}
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchTenants(); }, []);
+
+  const changePlan = async (tenantId, plan) => {
+    try {
+      await fetch(`${API_URL}/admin/tenants/${tenantId}/plan`, { method: "PUT", headers: aHeaders, body: JSON.stringify({ plan }) });
+      setTenants(prev => prev.map(t => t.id === tenantId ? { ...t, plan } : t));
+      showToast(`✓ Plano atualizado para ${plan}`);
+    } catch (e) { showToast("Erro ao atualizar plano", "#f44336"); }
+  };
+
+  const toggleActive = async (tenant) => {
+    try {
+      await fetch(`${API_URL}/admin/tenants/${tenant.id}`, { method: "PUT", headers: aHeaders, body: JSON.stringify({ is_active: !tenant.is_active }) });
+      setTenants(prev => prev.map(t => t.id === tenant.id ? { ...t, is_active: !t.is_active } : t));
+      showToast(tenant.is_active ? "Licença suspensa" : "Licença reativada", tenant.is_active ? "#f44336" : "#00c853");
+    } catch (e) {}
+  };
+
+  const createTenant = async () => {
+    if (!cName.trim() || !cEmail.trim() || creating) return;
+    setCreating(true);
+    try {
+      const r = await fetch(`${API_URL}/admin/tenants`, { method: "POST", headers: aHeaders, body: JSON.stringify({ name: cName.trim(), email: cEmail.trim(), plan: cPlan }) });
+      const d = await r.json();
+      showToast("🎉 Cliente criado! Convite: " + (d.invite_url || "gerado"));
+      if (d.invite_url) navigator.clipboard.writeText(d.invite_url).catch(() => {});
+      setCName(""); setCEmail(""); setCPlan("starter"); setShowCreate(false);
+      fetchTenants();
+    } catch (e) { showToast("Erro ao criar cliente", "#f44336"); }
+    setCreating(false);
+  };
+
+  const inp = { width: "100%", padding: "9px 12px", background: "#13131f", border: "1px solid #252540", borderRadius: 8, color: "#e8e8f0", fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box" };
+
+  return (
+    <div style={{ maxWidth: 900 }}>
+      <div style={{ display: "flex", alignItems: "center", marginBottom: 20 }}>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 700 }}>🏢 Licenças de Clientes</div>
+          <div style={{ fontSize: 12, color: "#555", marginTop: 2 }}>Gerencie os planos e acessos de cada empresa</div>
+        </div>
+        <button onClick={() => setShowCreate(s => !s)} style={{ marginLeft: "auto", padding: "9px 20px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#00c853,#00796b)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>+ Novo cliente</button>
+      </div>
+
+      {/* Create form */}
+      {showCreate && (
+        <div style={{ background: "#0d0d18", border: "1px solid #00c85333", borderRadius: 14, padding: 24, marginBottom: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>🎉 Cadastrar novo cliente</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+            <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 5 }}>NOME DA EMPRESA</label>
+              <input value={cName} onChange={e => setCName(e.target.value)} placeholder="Academia Fitness XYZ" style={inp} /></div>
+            <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 5 }}>EMAIL DO ADMIN</label>
+              <input type="email" value={cEmail} onChange={e => setCEmail(e.target.value)} placeholder="dono@academia.com" style={inp} /></div>
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 8 }}>PLANO</label>
+            <div style={{ display: "flex", gap: 8 }}>
+              {[["starter","Starter","R$ 149"],["pro","Pro","R$ 299"],["business","Business","R$ 599"],["trial","Trial","7 dias grátis"]].map(([id, label, price]) => (
+                <div key={id} onClick={() => setCPlan(id)}
+                  style={{ flex: 1, padding: "10px", borderRadius: 8, border: `2px solid ${cPlan === id ? planInfo(id).color : "#252540"}`, background: cPlan === id ? planInfo(id).color + "18" : "#13131f", cursor: "pointer", textAlign: "center" }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: cPlan === id ? planInfo(id).color : "#888" }}>{label}</div>
+                  <div style={{ fontSize: 11, color: "#555" }}>{price}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setShowCreate(false)} style={{ padding: "9px 20px", borderRadius: 8, border: "1px solid #252540", background: "transparent", color: "#666", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
+            <button onClick={createTenant} disabled={creating || !cName.trim() || !cEmail.trim()} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: "none", background: (!creating && cName.trim() && cEmail.trim()) ? "linear-gradient(135deg,#00c853,#00796b)" : "#1a1a2e", color: (!creating && cName.trim() && cEmail.trim()) ? "#000" : "#444", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+              {creating ? "Criando..." : "🚀 Criar cliente + copiar link de acesso"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Tenant list */}
+      {loading ? <div style={{ color: "#555", padding: 40, textAlign: "center" }}>Carregando...</div>
+        : tenants.length === 0 ? (
+          <div style={{ textAlign: "center", padding: 60 }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🏢</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#444" }}>Nenhum cliente ainda</div>
+            <div style={{ fontSize: 12, color: "#333", marginTop: 4 }}>Crie o primeiro cliente acima</div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {tenants.map(t => {
+              const pi = planInfo(t.plan);
+              return (
+                <div key={t.id} style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 12, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, opacity: t.is_active === false ? 0.5 : 1 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: pi.color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>🏢</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
+                      <span style={{ fontSize: 14, fontWeight: 700 }}>{t.name}</span>
+                      <span style={{ fontSize: 11, background: pi.color + "22", color: pi.color, padding: "1px 8px", borderRadius: 20, fontWeight: 700 }}>{pi.label}</span>
+                      <span style={{ fontSize: 11, color: "#555" }}>{pi.price}</span>
+                      {t.is_active === false && <span style={{ fontSize: 11, background: "#f4433322", color: "#f44336", padding: "1px 8px", borderRadius: 20 }}>Suspenso</span>}
+                    </div>
+                    <div style={{ fontSize: 12, color: "#555" }}>{t.email || t.id}</div>
+                    {t.created_at && <div style={{ fontSize: 11, color: "#333", marginTop: 2 }}>Desde: {new Date(t.created_at).toLocaleDateString("pt-BR")}</div>}
+                  </div>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <select value={t.plan || "starter"} onChange={e => changePlan(t.id, e.target.value)}
+                      style={{ padding: "5px 10px", background: "#13131f", border: "1px solid #252540", borderRadius: 7, color: "#e8e8f0", fontSize: 12, outline: "none", fontFamily: "inherit", cursor: "pointer" }}>
+                      <option value="trial">Trial</option>
+                      <option value="starter">Starter</option>
+                      <option value="pro">Pro</option>
+                      <option value="business">Business</option>
+                    </select>
+                    <button onClick={() => toggleActive(t)}
+                      style={{ padding: "6px 12px", borderRadius: 7, border: `1px solid ${t.is_active === false ? "#00c85333" : "#f4433333"}`, background: "transparent", color: t.is_active === false ? "#00c853" : "#f44336", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                      {t.is_active === false ? "Reativar" : "Suspender"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+    </div>
+  );
+}
+
 // ─── Admin Panel ──────────────────────────────────────────────────────────────
 function AdminPanel({ auth, onLogout }) {
   const [tab, setTab] = useState("users");
@@ -447,7 +598,7 @@ function AdminPanel({ auth, onLogout }) {
   const [showForm, setShowForm] = useState(false);
   const [editUser, setEditUser] = useState(null);
   const [toast, setToast] = useState(null);
-  const [fName, setFName] = useState(""); const [fEmail, setFEmail] = useState(""); const [fPw, setFPw] = useState(""); const [fRole, setFRole] = useState("agent"); const [fColor, setFColor] = useState("#00c853"); const [saving, setSaving] = useState(false);
+  const [fName, setFName] = useState(""); const [fEmail, setFEmail] = useState(""); const [fPw, setFPw] = useState(""); const [fRole, setFRole] = useState("agent"); const [fColor, setFColor] = useState("#00c853"); const [fPerms, setFPerms] = useState("read_write"); const [saving, setSaving] = useState(false);
   const [showChangePw, setShowChangePw] = useState(false); const [curPw, setCurPw] = useState(""); const [newPw, setNewPw] = useState(""); const [changingPw, setChangingPw] = useState(false);
 
   const aHeaders = { ...headers, "Authorization": `Bearer ${auth.token}` };
@@ -460,20 +611,20 @@ function AdminPanel({ auth, onLogout }) {
   };
   useEffect(() => { fetchUsers(); }, []);
 
-  const openCreate = () => { setEditUser(null); setFName(""); setFEmail(""); setFPw(""); setFRole("agent"); setFColor("#00c853"); setShowForm(true); };
-  const openEdit = (u) => { setEditUser(u); setFName(u.name); setFEmail(u.email); setFPw(""); setFRole(u.role); setFColor(u.avatar_color || "#00c853"); setShowForm(true); };
+  const openCreate = () => { setEditUser(null); setFName(""); setFEmail(""); setFPw(""); setFRole("agent"); setFColor("#00c853"); setFPerms("read_write"); setShowForm(true); };
+  const openEdit = (u) => { setEditUser(u); setFName(u.name); setFEmail(u.email); setFPw(""); setFRole(u.role); setFColor(u.avatar_color || "#00c853"); setFPerms(u.permissions || "read_write"); setShowForm(true); };
 
   const saveUser = async () => {
     if (!fName.trim() || !fEmail.trim() || (!editUser && !fPw.trim())) return;
     setSaving(true);
     try {
       if (editUser) {
-        const body = { name: fName, email: fEmail, role: fRole, avatar_color: fColor };
+        const body = { name: fName, email: fEmail, role: fRole, avatar_color: fColor, permissions: fPerms };
         if (fPw.trim()) body.password = fPw;
         await fetch(`${API_URL}/admin/users/${editUser.id}`, { method: "PUT", headers: aHeaders, body: JSON.stringify(body) });
         showToast("✓ Usuário atualizado!");
       } else {
-        await fetch(`${API_URL}/admin/users`, { method: "POST", headers: aHeaders, body: JSON.stringify({ tenant_id: auth.user.tenant_id, name: fName, email: fEmail, password: fPw, role: fRole, avatar_color: fColor }) });
+        await fetch(`${API_URL}/admin/users`, { method: "POST", headers: aHeaders, body: JSON.stringify({ tenant_id: auth.user.tenant_id, name: fName, email: fEmail, password: fPw, role: fRole, avatar_color: fColor, permissions: fPerms }) });
         showToast("✓ Usuário criado!");
       }
       setShowForm(false); fetchUsers();
@@ -506,7 +657,7 @@ function AdminPanel({ auth, onLogout }) {
       {toast && <div style={{ position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)", zIndex: 9999, background: toast.color, color: "#000", padding: "11px 22px", borderRadius: 12, fontSize: 13, fontWeight: 700, boxShadow: "0 8px 32px #00000060" }}>{toast.msg}</div>}
       <div style={{ padding: "10px 24px", borderBottom: "1px solid #1a1a2e", display: "flex", alignItems: "center", gap: 8 }}>
         <div style={{ display: "flex", gap: 3, background: "#0a0a0f", border: "1px solid #1a1a2e", borderRadius: 8, padding: 3 }}>
-          {[["users","👥 Usuários"],["account","👤 Minha conta"]].map(([id, label]) => (
+          {[["users","👥 Usuários"],["licenses","🏢 Licenças"],["account","👤 Minha conta"]].map(([id, label]) => (
             <button key={id} onClick={() => setTab(id)} style={{ padding: "5px 14px", borderRadius: 6, border: "none", background: tab === id ? "#1a1a2e" : "transparent", color: tab === id ? "#e8e8f0" : "#555", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{label}</button>
           ))}
         </div>
@@ -537,6 +688,7 @@ function AdminPanel({ auth, onLogout }) {
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
                         <span style={{ fontSize: 14, fontWeight: 700 }}>{u.name}</span>
                         <span style={{ fontSize: 11, background: u.role === "admin" ? "#7c4dff22" : "#00c85322", color: u.role === "admin" ? "#a78bfa" : "#00c853", padding: "1px 8px", borderRadius: 20, fontWeight: 700 }}>{u.role === "admin" ? "Admin" : "Atendente"}</span>
+                        {u.permissions && u.permissions !== "read_write" && <span style={{ fontSize: 10, background: "#1a1a2e", color: "#555", padding: "1px 8px", borderRadius: 20 }}>{u.permissions === "read" ? "👁 Leitura" : u.permissions === "read_write_manage" ? "⚙️ Gestão" : u.permissions === "full" ? "🔑 Full" : ""}</span>}
                         {!u.is_active && <span style={{ fontSize: 11, background: "#f4433322", color: "#f44336", padding: "1px 8px", borderRadius: 20 }}>Inativo</span>}
                       </div>
                       <div style={{ fontSize: 12, color: "#555" }}>{u.email}</div>
@@ -551,6 +703,9 @@ function AdminPanel({ auth, onLogout }) {
               </div>
             )}
           </div>
+        )}
+        {tab === "licenses" && (
+          <LicensesPanel aHeaders={aHeaders} showToast={showToast} />
         )}
         {tab === "account" && (
           <div style={{ maxWidth: 480 }}>
@@ -593,6 +748,26 @@ function AdminPanel({ auth, onLogout }) {
                   <option value="agent">Atendente</option>
                   <option value="admin">Administrador</option>
                 </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 8 }}>PERMISSÕES</label>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {[
+                    { id: "read", label: "👁 Somente leitura", desc: "Visualiza conversas e mensagens" },
+                    { id: "read_write", label: "✏️ Leitura + Escrita", desc: "Visualiza e responde mensagens" },
+                    { id: "read_write_manage", label: "⚙️ Leitura + Escrita + Gestão", desc: "Atribui, etiqueta, move kanban" },
+                    { id: "full", label: "🔑 Acesso total", desc: "Tudo + deleta conversas e contatos" },
+                  ].map(p => (
+                    <div key={p.id} onClick={() => setFPerms(p.id)}
+                      style={{ display: "flex", gap: 10, padding: "8px 12px", borderRadius: 8, border: `1px solid ${fPerms === p.id ? "#00c85344" : "#252540"}`, background: fPerms === p.id ? "#00c85310" : "transparent", cursor: "pointer" }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: fPerms === p.id ? "#00c853" : "#ccc" }}>{p.label}</div>
+                        <div style={{ fontSize: 11, color: "#555" }}>{p.desc}</div>
+                      </div>
+                      {fPerms === p.id && <span style={{ color: "#00c853", fontSize: 14, alignSelf: "center" }}>✓</span>}
+                    </div>
+                  ))}
+                </div>
               </div>
               <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 8 }}>COR DO AVATAR</label>
                 <div style={{ display: "flex", gap: 8 }}>{COLORS.map(c => <div key={c} onClick={() => setFColor(c)} style={{ width: 28, height: 28, borderRadius: "50%", background: c, cursor: "pointer", border: fColor === c ? "3px solid #fff" : "3px solid transparent", boxSizing: "border-box" }} />)}</div>
@@ -966,7 +1141,7 @@ function WhatsAppScreen({ auth }) {
           <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 16, padding: 28, marginBottom: 20 }}>
             <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>📷 Conectar via QR Code</div>
             <div style={{ fontSize: 13, color: "#555", marginBottom: 24 }}>
-              Abra o WhatsApp no celular, va em <strong style={{ color: "#e8e8f0" }}>Menu (3 pontos)</strong>, depois <strong style={{ color: "#e8e8f0" }}>Dispositivos conectados</strong> e <strong style={{ color: "#e8e8f0" }}>Adicionar dispositivo</strong>
+              Abra o WhatsApp no celular → <strong style={{ color: "#e8e8f0" }}>Menu (⋮)</strong> → <strong style={{ color: "#e8e8f0" }}>Dispositivos conectados</strong> → <strong style={{ color: "#e8e8f0" }}>Adicionar dispositivo</strong>
             </div>
 
             {/* QR grande e centralizado */}
@@ -996,9 +1171,9 @@ function WhatsAppScreen({ auth }) {
                 <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 10, color: "#666" }}>Como escanear:</div>
                 {[
                   "Abra o WhatsApp no celular",
-                  "Menu (3 pontos) > Dispositivos conectados",
+                  "Menu (⋮) → Dispositivos conectados",
                   "Adicionar dispositivo",
-                  "Aponte a camera para o QR acima",
+                  "Aponte a câmera para o QR acima ✅",
                 ].map((step, i) => (
                   <div key={i} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
                     <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#00c85320", border: "1px solid #00c85340", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#00c853", flexShrink: 0 }}>{i + 1}</div>
@@ -1066,8 +1241,11 @@ function WhatsAppScreen({ auth }) {
             </div>
           )}
 
-          <button onClick={syncHistory} disabled={syncing || !isConnected} style={{ width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: !isConnected ? "#1a1a2e" : syncing ? "#1a1a2e" : "linear-gradient(135deg,#00c853,#00796b)", color: !isConnected || syncing ? "#444" : "#000", fontSize: 14, fontWeight: 800, cursor: !isConnected || syncing ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
-            {syncing ? "⏳ Sincronizando..." : !isConnected ? "Conecte o WhatsApp primeiro" : "📲 Sincronizar histórico agora"}
+          <div style={{ background: "#ff6d0012", border: "1px solid #ff6d0033", borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 12, color: "#ff6d00" }}>
+            ⚠️ <strong>Atenção:</strong> A sincronização roda em background no servidor. Com alto volume pode demorar. Não clique múltiplas vezes.
+          </div>
+          <button onClick={() => { if(window.confirm("Iniciar sincronização em background? O processo pode demorar alguns minutos dependendo do volume.")) syncHistory(); }} disabled={syncing || !isConnected} style={{ width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: !isConnected ? "#1a1a2e" : syncing ? "#1a1a2e" : "linear-gradient(135deg,#00c853,#00796b)", color: !isConnected || syncing ? "#444" : "#000", fontSize: 14, fontWeight: 800, cursor: !isConnected || syncing ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+            {syncing ? "⏳ Sincronizando em background..." : !isConnected ? "Conecte o WhatsApp primeiro" : "📲 Sincronizar histórico"}
           </button>
           {!isConnected && <div style={{ fontSize: 11, color: "#444", textAlign: "center", marginTop: 6 }}>O número precisa estar conectado para sincronizar</div>}
         </div>
@@ -1779,7 +1957,7 @@ function LeadsBoard({ conversations, kanbanCols, labels, onSelectConv, onManageL
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <div style={{ padding: "14px 24px", borderBottom: "1px solid #1a1a2e", display: "flex", alignItems: "center", gap: 12 }}>
-        <span style={{ fontSize: 15, fontWeight: 700 }}>🏷 Contatos por Etiqueta</span>
+        <span style={{ fontSize: 15, fontWeight: 700 }}>🏷 Leads por Etiqueta</span>
         <span style={{ fontSize: 12, color: "#555" }}>Arraste para mover entre etiquetas</span>
         <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
           <span style={{ fontSize: 12, color: "#555", background: "#1a1a2e", padding: "4px 12px", borderRadius: 20 }}>{conversations.length} total</span>
@@ -1925,14 +2103,29 @@ function TasksPanel({ convId, agents, onClose, onTaskDone }) {
   const [creating, setCreating] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const fetchTasks = async () => {
-    try { const r = await fetch(`${API_URL}/tasks?tenant_id=${TENANT_ID}`, { headers }); const d = await r.json(); setTasks((d.tasks || []).filter(t => t.conversation_id === convId)); } catch (e) {}
+    try {
+      const r = await fetch(`${API_URL}/conversations/${convId}/tasks?tenant_id=${TENANT_ID}`, { headers });
+      const d = await r.json();
+      setTasks(d.tasks || (d.conversations || []));
+      if (!d.tasks) {
+        // fallback: fetch all and filter
+        const r2 = await fetch(`${API_URL}/tasks?tenant_id=${TENANT_ID}`, { headers });
+        const d2 = await r2.json();
+        setTasks((d2.tasks || []).filter(t => t.conversation_id === convId));
+      }
+    } catch (e) {}
     setLoading(false);
   };
   useEffect(() => { fetchTasks(); }, [convId]);
   const createTask = async () => {
     if (!title.trim() || creating) return;
     setCreating(true);
-    try { await fetch(`${API_URL}/conversations/${convId}/tasks?tenant_id=${TENANT_ID}`, { method: "POST", headers, body: JSON.stringify({ title: title.trim(), description: description.trim() || null, assigned_to: assignedTo || null, due_at: dueAt || null }) }); setTitle(""); setDescription(""); setDueAt(""); setAssignedTo(""); await fetchTasks(); } catch (e) {}
+    try {
+      const resp = await fetch(`${API_URL}/conversations/${convId}/tasks`, { method: "POST", headers, body: JSON.stringify({ tenant_id: TENANT_ID, conversation_id: convId, title: title.trim(), description: description.trim() || null, assigned_to: assignedTo || null, due_at: dueAt || null }) });
+      if (!resp.ok) { const err = await resp.json().catch(() => ({})); console.error("Task create error:", err); }
+      setTitle(""); setDescription(""); setDueAt(""); setAssignedTo("");
+      await fetchTasks();
+    } catch (e) { console.error("Task create exception:", e); }
     setCreating(false);
   };
   const completeTask = async (taskId) => {
@@ -1990,9 +2183,9 @@ function ColumnManagerModal({ columns, onChange, onClose }) {
   const save = () => { onChange(cols); saveColumns(cols); onClose(); };
   return (
     <div style={{ position: "fixed", inset: 0, background: "#00000090", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200 }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "#13131f", border: "1px solid #252540", borderRadius: 14, padding: 24, width: 420, maxHeight: "85vh", overflowY: "auto", boxShadow: "0 24px 64px #00000080" }}>
+      <div onClick={e => e.stopPropagation()} onMouseDown={e => e.preventDefault()} style={{ background: "#13131f", border: "1px solid #252540", borderRadius: 14, padding: 24, width: 420, maxHeight: "85vh", overflowY: "auto", boxShadow: "0 24px 64px #00000080" }}>
         <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>⚙️ Gerenciar Colunas</div>
-        <div style={{ fontSize: 12, color: "#555", marginBottom: 20 }}>Crie, renomeie ou delete colunas do Workspace</div>
+        <div style={{ fontSize: 12, color: "#555", marginBottom: 20 }}>Crie, renomeie ou delete colunas do Kanban</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
           {cols.map(col => (
             <div key={col.id} style={{ position: "relative" }}>
@@ -2078,7 +2271,7 @@ function KanbanBoard({ conversations, columns, onMoveCard, onSelectConv, onManag
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <div style={{ padding: "14px 24px", borderBottom: "1px solid #1a1a2e", display: "flex", alignItems: "center", gap: 12 }}>
-        <span style={{ fontSize: 15, fontWeight: 700 }}>Workspace</span>
+        <span style={{ fontSize: 15, fontWeight: 700 }}>Kanban de Conversas</span>
         <span style={{ fontSize: 12, color: "#555" }}>Arraste para mover entre colunas</span>
         <button onClick={onManageCols} style={{ marginLeft: "auto", padding: "6px 14px", borderRadius: 7, border: "1px solid #252540", background: "transparent", color: "#888", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>⚙️ Gerenciar colunas</button>
       </div>
@@ -2149,7 +2342,7 @@ function AppInner({ auth, onLogout }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [filter, setFilter] = useState("open");
+  const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [agents, setAgents] = useState([]);
   const [pendingTasksMap, setPendingTasksMap] = useState({}); // convId → count
@@ -2164,17 +2357,37 @@ function AppInner({ auth, onLogout }) {
   const [suggestion, setSuggestion] = useState("");
   const [loadingSuggest, setLoadingSuggest] = useState(false);
   const [copilotPrompt, setCopilotPrompt] = useState("");
+  const [copilotAutoMode, setCopilotAutoMode] = useState("off"); // off | schedule | always | per_conv
+  const [copilotScheduleStart, setCopilotScheduleStart] = useState("18:00");
+  const [copilotScheduleEnd, setCopilotScheduleEnd] = useState("09:00");
   const [savingPrompt, setSavingPrompt] = useState(false);
   const [promptSaved, setPromptSaved] = useState(false);
   const bottomRef = useRef(null);
   const pollRef = useRef(null);
+  const labelOverrideRef = useRef({}); // { convId: { labels, until } }
 
   const fetchConversations = useCallback(async () => {
-    try { const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&status=${filter}`, { headers }); const d = await r.json(); setConversations(d.conversations || []); } catch (e) {}
+    try { const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}`, { headers }); const d = await r.json();
+      const now = Date.now();
+      const merged = (d.conversations || []).map(c => {
+        const ov = labelOverrideRef.current[c.id];
+        if (ov && ov.until > now) return { ...c, labels: ov.labels };
+        return c;
+      });
+      setConversations(merged);
+    } catch (e) {}
     setLoading(false);
   }, [filter]);
   const fetchAllConversations = useCallback(async () => {
-    try { const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}`, { headers }); const d = await r.json(); setConversations(d.conversations || []); } catch (e) {}
+    try { const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}`, { headers }); const d = await r.json();
+      const now = Date.now();
+      const merged = (d.conversations || []).map(c => {
+        const ov = labelOverrideRef.current[c.id];
+        if (ov && ov.until > now) return { ...c, labels: ov.labels };
+        return c;
+      });
+      setConversations(merged);
+    } catch (e) {}
     setLoading(false);
   }, []);
   const lazySyncChat = useCallback(async (conv) => {
@@ -2202,7 +2415,12 @@ function AppInner({ auth, onLogout }) {
     try { const r = await fetch(`${API_URL}/users?tenant_id=${TENANT_ID}`, { headers }); const d = await r.json(); setAgents(d.users || []); } catch (e) {}
   }, []);
   const fetchTenant = useCallback(async () => {
-    try { const r = await fetch(`${API_URL}/tenant?tenant_id=${TENANT_ID}`, { headers }); const d = await r.json(); setCopilotPrompt(d.copilot_prompt || ""); } catch (e) {}
+    try { const r = await fetch(`${API_URL}/tenant?tenant_id=${TENANT_ID}`, { headers }); const d = await r.json();
+      setCopilotPrompt(d.copilot_prompt || "");
+      setCopilotAutoMode(d.copilot_auto_mode || "off");
+      setCopilotScheduleStart(d.copilot_schedule_start || "18:00");
+      setCopilotScheduleEnd(d.copilot_schedule_end || "09:00");
+    } catch (e) {}
   }, []);
   const fetchPendingTasks = useCallback(async () => {
     try {
@@ -2217,7 +2435,10 @@ function AppInner({ auth, onLogout }) {
   }, []);
   const savePrompt = async () => {
     setSavingPrompt(true); setPromptSaved(false);
-    try { await fetch(`${API_URL}/tenant/copilot-prompt`, { method: "PUT", headers, body: JSON.stringify({ tenant_id: TENANT_ID, copilot_prompt: copilotPrompt }) }); setPromptSaved(true); setTimeout(() => setPromptSaved(false), 3000); } catch (e) {}
+    try {
+      await fetch(`${API_URL}/tenant/copilot-prompt`, { method: "PUT", headers, body: JSON.stringify({ tenant_id: TENANT_ID, copilot_prompt: copilotPrompt, copilot_auto_mode: copilotAutoMode, copilot_schedule_start: copilotScheduleStart, copilot_schedule_end: copilotScheduleEnd }) });
+      setPromptSaved(true); setTimeout(() => setPromptSaved(false), 3000);
+    } catch (e) {}
     setSavingPrompt(false);
   };
 
@@ -2262,7 +2483,9 @@ function AppInner({ auth, onLogout }) {
     const current = selected.labels || []; const exists = current.some(l => l.id === label.id);
     const updated = exists ? current.filter(l => l.id !== label.id) : [...current, label];
     try { await fetch(`${API_URL}/conversations/${selected.id}/labels`, { method: "PUT", headers, body: JSON.stringify({ labels: updated }) }); } catch (e) {}
-    setSelected(prev => ({ ...prev, labels: updated })); setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, labels: updated } : c));
+    setSelected(prev => ({ ...prev, labels: updated }));
+    setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, labels: updated } : c));
+    labelOverrideRef.current[selected.id] = { labels: updated, until: Date.now() + 15000 };
   };
   const moveKanbanCard = async (conv, newStage) => {
     try { await fetch(`${API_URL}/conversations/${conv.id}/kanban`, { method: "PUT", headers, body: JSON.stringify({ stage: newStage }) }); } catch (e) {}
@@ -2299,8 +2522,8 @@ function AppInner({ auth, onLogout }) {
   const totalPendingTasks = Object.values(pendingTasksMap).reduce((a, b) => a + b, 0);
   const WORK_TABS = [
     { id: "inbox", label: "📥 Inbox" },
-    { id: "leads", label: "🏷 Contatos" },
-    { id: "kanban", label: "🗂 Workspace" },
+    { id: "leads", label: "🏷 Leads" },
+    { id: "kanban", label: "🗂 Kanban" },
     { id: "tasks_global", label: "✅ Tarefas" },
     { id: "disparos", label: "📢 Disparos" },
     { id: "config", label: "⚙️ Config IA" },
@@ -2435,11 +2658,60 @@ function AppInner({ auth, onLogout }) {
             <div style={{ marginBottom: 32 }}><div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>⚙️ Configurações</div><div style={{ fontSize: 13, color: "#555" }}>Personalize o comportamento do 7zap para sua empresa</div></div>
             <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 28, marginBottom: 24 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><span style={{ fontSize: 18 }}>✨</span><span style={{ fontSize: 16, fontWeight: 700 }}>Co-pilot IA</span><span style={{ background: "#7c4dff22", color: "#a78bfa", fontSize: 11, fontWeight: 700, padding: "2px 10px", borderRadius: 20 }}>Claude (Anthropic)</span></div>
-              <div style={{ fontSize: 13, color: "#555", marginBottom: 20 }}>Defina o prompt do Co-pilot — tom de voz, produtos, regras e instruções do seu negócio.</div>
+              <div style={{ fontSize: 13, color: "#555", marginBottom: 20 }}>Prompt + modo automático do Co-pilot para sua empresa.</div>
+
+              {/* Auto mode */}
+              <div style={{ background: "#13131f", border: "1px solid #252540", borderRadius: 12, padding: 20, marginBottom: 20 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>🤖 Modo Automático</div>
+                <div style={{ fontSize: 12, color: "#555", marginBottom: 14 }}>Quando ativo, o Co-pilot responde sozinho sem precisar de aprovação humana.</div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+                  {[
+                    { id: "off", label: "⛔ Desativado", desc: "Só sugere resposta" },
+                    { id: "schedule", label: "🕐 Por horário", desc: "Fora do horário comercial" },
+                    { id: "always", label: "🔄 Sempre ativo", desc: "Responde tudo automaticamente" },
+                    { id: "per_conv", label: "🎛 Por conversa", desc: "Atendente ativa manualmente" },
+                  ].map(m => (
+                    <div key={m.id} onClick={() => setCopilotAutoMode(m.id)}
+                      style={{ flex: "1 1 180px", padding: "12px 14px", borderRadius: 10, border: `2px solid ${copilotAutoMode === m.id ? "#7c4dff" : "#252540"}`, background: copilotAutoMode === m.id ? "#7c4dff18" : "#0d0d18", cursor: "pointer" }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: copilotAutoMode === m.id ? "#a78bfa" : "#888", marginBottom: 3 }}>{m.label}</div>
+                      <div style={{ fontSize: 11, color: "#555" }}>{m.desc}</div>
+                    </div>
+                  ))}
+                </div>
+                {copilotAutoMode === "schedule" && (
+                  <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontSize: 11, color: "#555", marginBottom: 4, fontWeight: 700 }}>INÍCIO DO PERÍODO AUTOMÁTICO</div>
+                      <input type="time" value={copilotScheduleStart} onChange={e => setCopilotScheduleStart(e.target.value)}
+                        style={{ padding: "7px 12px", background: "#0d0d18", border: "1px solid #252540", borderRadius: 8, color: "#e8e8f0", fontSize: 13, outline: "none", colorScheme: "dark" }} />
+                    </div>
+                    <div style={{ color: "#555", paddingTop: 18 }}>até</div>
+                    <div>
+                      <div style={{ fontSize: 11, color: "#555", marginBottom: 4, fontWeight: 700 }}>FIM DO PERÍODO AUTOMÁTICO</div>
+                      <input type="time" value={copilotScheduleEnd} onChange={e => setCopilotScheduleEnd(e.target.value)}
+                        style={{ padding: "7px 12px", background: "#0d0d18", border: "1px solid #252540", borderRadius: 8, color: "#e8e8f0", fontSize: 13, outline: "none", colorScheme: "dark" }} />
+                    </div>
+                    <div style={{ fontSize: 11, color: "#7c4dff", paddingTop: 18 }}>Automático das {copilotScheduleStart} às {copilotScheduleEnd}</div>
+                  </div>
+                )}
+                {copilotAutoMode === "always" && (
+                  <div style={{ background: "#f4433315", border: "1px solid #f4433333", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#f44336" }}>
+                    ⚠️ Modo <strong>Sempre ativo</strong> responde automaticamente a TODAS as mensagens sem revisão humana. Use com atenção.
+                  </div>
+                )}
+                {copilotAutoMode === "per_conv" && (
+                  <div style={{ background: "#00c85315", border: "1px solid #00c85333", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#00c853" }}>
+                    ✓ Um botão <strong>🤖 Auto</strong> vai aparecer em cada conversa para o atendente ativar o modo automático individualmente.
+                  </div>
+                )}
+              </div>
+
+              {/* Prompt */}
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#666", marginBottom: 8 }}>PROMPT DO CO-PILOT</div>
               <textarea value={copilotPrompt} onChange={e => setCopilotPrompt(e.target.value)} rows={10} placeholder="Você é um atendente da academia Estúdio Se7e..." style={{ width: "100%", padding: "14px 16px", background: "#13131f", border: "1px solid #252540", borderRadius: 10, color: "#e8e8f0", fontSize: 13, outline: "none", resize: "vertical", fontFamily: "inherit", lineHeight: 1.6, boxSizing: "border-box", minHeight: 200 }} />
               <div style={{ fontSize: 11, color: "#444", marginTop: 6, marginBottom: 16 }}>{copilotPrompt.length} caracteres</div>
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                <button onClick={savePrompt} disabled={savingPrompt} style={{ padding: "10px 28px", borderRadius: 9, border: "none", background: savingPrompt ? "#1a1a2e" : "linear-gradient(135deg, #7c4dff, #5b21b6)", color: savingPrompt ? "#444" : "#fff", fontSize: 14, fontWeight: 700, cursor: savingPrompt ? "not-allowed" : "pointer", fontFamily: "inherit" }}>{savingPrompt ? "Salvando..." : "💾 Salvar prompt"}</button>
+                <button onClick={savePrompt} disabled={savingPrompt} style={{ padding: "10px 28px", borderRadius: 9, border: "none", background: savingPrompt ? "#1a1a2e" : "linear-gradient(135deg, #7c4dff, #5b21b6)", color: savingPrompt ? "#444" : "#fff", fontSize: 14, fontWeight: 700, cursor: savingPrompt ? "not-allowed" : "pointer", fontFamily: "inherit" }}>{savingPrompt ? "Salvando..." : "💾 Salvar configurações"}</button>
                 {promptSaved && <span style={{ fontSize: 13, color: "#00c853", fontWeight: 600 }}>✓ Salvo!</span>}
               </div>
             </div>
@@ -2508,13 +2780,7 @@ function AppInner({ auth, onLogout }) {
                   <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar conversa..." style={{ width: "100%", padding: "7px 12px 7px 30px", background: "#1a1a2e", border: "1px solid #252540", borderRadius: 8, color: "#e8e8f0", fontSize: 13, outline: "none", boxSizing: "border-box" }} />
                 </div>
               </div>
-              <div style={{ display: "flex", padding: "7px 10px", gap: 4, borderBottom: "1px solid #1a1a2e" }}>
-                {["open","pending","resolved"].map(f => (
-                  <button key={f} onClick={() => { setFilter(f); setSelected(null); }} style={{ flex: 1, padding: "5px 0", borderRadius: 6, border: "none", background: filter === f ? "#00c85320" : "transparent", color: filter === f ? "#00c853" : "#666", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
-                    {f === "open" ? "Abertos" : f === "pending" ? "Pendentes" : "Resolvidos"}
-                  </button>
-                ))}
-              </div>
+
               <div style={{ flex: 1, overflowY: "auto" }}>
                 {loading ? <div style={{ padding: 24, textAlign: "center", color: "#555", fontSize: 13 }}>Carregando...</div>
                   : filtered.length === 0 ? <div style={{ padding: 24, textAlign: "center", color: "#555", fontSize: 13 }}>Nenhuma conversa</div>
@@ -2531,7 +2797,6 @@ function AppInner({ auth, onLogout }) {
                           <KanbanBadge stage={conv.kanban_stage} columns={kanbanCols} />
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <StatusDot status={conv.status} />
                           <span style={{ fontSize: 11, color: "#555", flex: 1 }}>{conv.assigned_agent ? `👤 ${conv.assigned_agent}` : conv.contacts?.phone}</span>
                           {conv.unread_count > 0 && <span style={{ background: "#00c853", color: "#000", fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 10 }}>{conv.unread_count}</span>}
                           {pendingTasksMap[conv.id] > 0 && <span title={`${pendingTasksMap[conv.id]} tarefa(s) pendente(s)`} style={{ background: "#ff6d0022", border: "1px solid #ff6d0066", color: "#ff6d00", fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 10, flexShrink: 0 }}>✅ {pendingTasksMap[conv.id]}</span>}
@@ -2565,9 +2830,15 @@ function AppInner({ auth, onLogout }) {
                       <button onClick={() => setShowLabelPicker(true)} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #252540", background: "transparent", color: "#888", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>🏷 Etiqueta</button>
                       <button onClick={() => setShowAssign(true)} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #252540", background: "transparent", color: "#888", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>👤 Atribuir</button>
                       <button onClick={fetchSuggestion} disabled={loadingSuggest} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #7c4dff44", background: loadingSuggest ? "#1a1a2e" : "#7c4dff15", color: loadingSuggest ? "#444" : "#a78bfa", fontSize: 11, cursor: loadingSuggest ? "not-allowed" : "pointer", fontFamily: "inherit", fontWeight: 600 }}>{loadingSuggest ? "⏳..." : "✨ Co-pilot"}</button>
+                      {copilotAutoMode === "per_conv" && (
+                        <button onClick={async () => {
+                          const newVal = !selected.auto_mode;
+                          await fetch(`${API_URL}/conversations/${selected.id}/auto-mode`, { method: "PUT", headers, body: JSON.stringify({ enabled: newVal }) }).catch(() => {});
+                          setSelected(prev => ({ ...prev, auto_mode: newVal }));
+                          setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, auto_mode: newVal } : c));
+                        }} style={{ padding: "5px 10px", borderRadius: 6, border: `1px solid ${selected.auto_mode ? "#00c85344" : "#252540"}`, background: selected.auto_mode ? "#00c85318" : "transparent", color: selected.auto_mode ? "#00c853" : "#555", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>🤖 Auto {selected.auto_mode ? "ON" : "OFF"}</button>
+                      )}
                       <button onClick={() => setShowTasks(t => !t)} style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 6, border: `1px solid ${showTasks ? "#00c85344" : pendingTasksMap[selected?.id] > 0 ? "#ff6d0044" : "#252540"}`, background: showTasks ? "#00c85315" : pendingTasksMap[selected?.id] > 0 ? "#ff6d0010" : "transparent", color: showTasks ? "#00c853" : pendingTasksMap[selected?.id] > 0 ? "#ff6d00" : "#888", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>✅ Tarefas{!showTasks && pendingTasksMap[selected?.id] > 0 && <span style={{ background: "#ff6d00", color: "#000", fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 10 }}>{pendingTasksMap[selected.id]}</span>}</button>
-                      {/* Status Dropdown */}
-                      <StatusDropdown status={selected.status} onChange={(newStatus) => changeStatus(selected.id, newStatus)} />
                     </div>
                   </div>
 
