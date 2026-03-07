@@ -2481,6 +2481,306 @@ function KanbanBoard({ conversations, columns, onMoveCard, onSelectConv, onManag
   );
 }
 
+
+// ─── Reports View ─────────────────────────────────────────────────────────────
+function ReportsView({ auth }) {
+  const [tab, setTab] = useState("mensagens");
+  const [days, setDays] = useState(30);
+  const [data, setData] = useState({});
+  const [loading, setLoading] = useState(false);
+
+  const fetchReport = async (type) => {
+    setLoading(true);
+    try {
+      const r = await fetch(`${API_URL}/reports/${type}?tenant_id=${TENANT_ID}&days=${days}`, { headers });
+      const d = await r.json();
+      setData(prev => ({ ...prev, [type]: d }));
+    } catch(e) {}
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchReport("messages");
+    fetchReport("agents");
+    fetchReport("broadcasts");
+    fetchReport("credits");
+  }, [days]);
+
+  const TABS = [
+    { id: "mensagens", label: "💬 Mensagens" },
+    { id: "atendentes", label: "👥 Atendentes" },
+    { id: "disparos", label: "📢 Disparos" },
+    { id: "creditos", label: "⚡ Créditos IA" },
+  ];
+
+  const WEEKDAYS = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
+  const maxDay = Math.max(1, ...(data.messages?.by_weekday || []).map(d => d.count));
+  const maxHour = Math.max(1, ...(data.messages?.by_hour || []).map(h => h.count));
+
+  const Bar = ({ value, max, color = "#00c853", height = 40 }) => (
+    <div style={{ width: "100%", height, background: "#0f0f1e", borderRadius: 4, overflow: "hidden", display: "flex", alignItems: "flex-end" }}>
+      <div style={{ width: "100%", height: `${Math.max(4, value/max*100)}%`, background: color, borderRadius: 4, transition: "height 0.4s" }} />
+    </div>
+  );
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      {/* Sub header */}
+      <div style={{ borderBottom: "1px solid #1a1a2e", padding: "0 24px", display: "flex", alignItems: "center", gap: 4, background: "#0d0d18", flexShrink: 0 }}>
+        {TABS.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)}
+            style={{ padding: "10px 14px", border: "none", borderBottom: `2px solid ${tab===t.id?"#00c853":"transparent"}`,
+              background: "transparent", color: tab===t.id?"#00c853":"#444", fontSize: 12, fontWeight: 600,
+              cursor: "pointer", fontFamily: "inherit" }}>
+            {t.label}
+          </button>
+        ))}
+        <div style={{ flex: 1 }} />
+        <div style={{ display: "flex", gap: 6 }}>
+          {[7,30,90].map(d => (
+            <button key={d} onClick={() => setDays(d)}
+              style={{ padding: "5px 12px", borderRadius: 6, border: `1px solid ${days===d?"#00c853":"#1a1a2e"}`,
+                background: days===d?"#00c85315":"transparent", color: days===d?"#00c853":"#444",
+                fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+              {d}d
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ flex: 1, overflowY: "auto", padding: 24 }}>
+        {loading && <div style={{ textAlign: "center", padding: 40, color: "#444", fontSize: 13 }}>Carregando...</div>}
+
+        {/* ── MENSAGENS ── */}
+        {tab === "mensagens" && data.messages && (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 20 }}>
+              {[
+                { label: "Total mensagens", value: data.messages.total?.toLocaleString("pt-BR"), color: "#e8e8ff" },
+                { label: "Recebidas", value: data.messages.inbound?.toLocaleString("pt-BR"), color: "#00c853" },
+                { label: "Enviadas", value: data.messages.outbound?.toLocaleString("pt-BR"), color: "#7c4dff" },
+                { label: "Média diária", value: Math.round((data.messages.total||0)/days).toLocaleString("pt-BR"), color: "#ff9800" },
+              ].map(k => (
+                <div key={k.label} style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 12, padding: "14px 16px" }}>
+                  <div style={{ fontSize: 10, color: "#444", marginBottom: 6, letterSpacing: 1 }}>{k.label.toUpperCase()}</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: k.color }}>{k.value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Por dia */}
+            <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 20, marginBottom: 16 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16 }}>📅 Mensagens por dia</div>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 80 }}>
+                {(data.messages.by_day || []).slice(-30).map((d, i) => {
+                  const maxD = Math.max(1, ...(data.messages.by_day||[]).map(x=>x.count));
+                  const pct = d.count/maxD*100;
+                  const isWeekend = new Date(d.date).getDay() % 6 === 0;
+                  return (
+                    <div key={i} title={`${d.date}: ${d.count} msgs`} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                      <div style={{ width: "100%", height: 64, display: "flex", alignItems: "flex-end" }}>
+                        <div style={{ width: "100%", height: `${Math.max(4, pct)}%`, background: isWeekend?"#7c4dff":"#00c853", borderRadius: "3px 3px 0 0", opacity: 0.8 }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ fontSize: 10, color: "#333", marginTop: 8 }}>
+                <span style={{ color: "#00c853" }}>■</span> Dias úteis &nbsp;
+                <span style={{ color: "#7c4dff" }}>■</span> Fins de semana
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              {/* Por hora */}
+              <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 20 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16 }}>🕐 Pico de mensagens por hora</div>
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 80 }}>
+                  {(data.messages.by_hour || []).map((h, i) => {
+                    const pct = h.count/maxHour*100;
+                    const isDay = h.hour >= 8 && h.hour <= 18;
+                    return (
+                      <div key={i} style={{ flex: 1 }} title={`${h.hour}h: ${h.count}`}>
+                        <div style={{ height: 64, display: "flex", alignItems: "flex-end" }}>
+                          <div style={{ width: "100%", height: `${Math.max(3, pct)}%`, background: isDay?"#00c853":"#333", borderRadius: "2px 2px 0 0" }} />
+                        </div>
+                        {h.hour % 6 === 0 && <div style={{ fontSize: 8, color: "#333", textAlign: "center" }}>{h.hour}h</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Por dia da semana */}
+              <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 20 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16 }}>📊 Por dia da semana</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {(data.messages.by_weekday || []).map((d, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ fontSize: 11, color: "#555", width: 28 }}>{d.label}</span>
+                      <div style={{ flex: 1, height: 16, background: "#0f0f1e", borderRadius: 4, overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${Math.max(4, d.count/maxDay*100)}%`, background: i>=5?"#7c4dff":"#00c853", borderRadius: 4, transition: "width 0.4s" }} />
+                      </div>
+                      <span style={{ fontSize: 11, color: "#555", width: 30, textAlign: "right" }}>{d.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ── ATENDENTES ── */}
+        {tab === "atendentes" && data.agents && (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 20 }}>
+              {[
+                { label: "Total atendentes", value: data.agents.agents?.length, color: "#e8e8ff" },
+                { label: "Total conversas", value: data.agents.agents?.reduce((a,x)=>a+x.total_convs,0), color: "#00c853" },
+                { label: "Resolvidas", value: data.agents.agents?.reduce((a,x)=>a+x.resolved,0), color: "#7c4dff" },
+              ].map(k => (
+                <div key={k.label} style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 12, padding: "14px 16px" }}>
+                  <div style={{ fontSize: 10, color: "#444", marginBottom: 6, letterSpacing: 1 }}>{k.label.toUpperCase()}</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: k.color }}>{k.value}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 20 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16 }}>Ranking de atendentes</div>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr>{["Atendente","Função","Conversas","Resolvidas","Msgs enviadas","Taxa resolução"].map(h => (
+                    <th key={h} style={{ textAlign: "left", padding: "8px 12px", fontSize: 10, color: "#444", letterSpacing: 1, borderBottom: "1px solid #1a1a2e" }}>{h.toUpperCase()}</th>
+                  ))}</tr>
+                </thead>
+                <tbody>
+                  {(data.agents.agents || []).map((a, i) => {
+                    const taxa = a.total_convs > 0 ? Math.round(a.resolved/a.total_convs*100) : 0;
+                    return (
+                      <tr key={a.id} style={{ borderBottom: "1px solid #0f0f1e" }}>
+                        <td style={{ padding: "12px", fontWeight: 700, color: "#e8e8ff" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <div style={{ width: 28, height: 28, borderRadius: "50%", background: `hsl(${i*60},50%,30%)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: "#fff" }}>
+                              {a.name?.[0]?.toUpperCase()}
+                            </div>
+                            {a.name}
+                          </div>
+                        </td>
+                        <td style={{ padding: "12px" }}><span style={{ background: a.role==="admin"?"#7c4dff22":"#1a1a2e", color: a.role==="admin"?"#a78bfa":"#555", padding: "2px 8px", borderRadius: 20, fontSize: 11 }}>{a.role}</span></td>
+                        <td style={{ padding: "12px", fontWeight: 700, color: "#00c853" }}>{a.total_convs}</td>
+                        <td style={{ padding: "12px", color: "#7c4dff" }}>{a.resolved}</td>
+                        <td style={{ padding: "12px", color: "#888" }}>{a.msgs_sent}</td>
+                        <td style={{ padding: "12px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <div style={{ flex: 1, height: 6, background: "#0f0f1e", borderRadius: 3 }}>
+                              <div style={{ height: "100%", width: `${taxa}%`, background: taxa>70?"#00c853":taxa>40?"#ff9800":"#f44336", borderRadius: 3 }} />
+                            </div>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: taxa>70?"#00c853":taxa>40?"#ff9800":"#f44336", minWidth: 35 }}>{taxa}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        {/* ── DISPAROS ── */}
+        {tab === "disparos" && data.broadcasts && (
+          <>
+            {data.broadcasts.broadcasts?.length === 0 && (
+              <div style={{ textAlign: "center", padding: 60, color: "#444", fontSize: 13 }}>
+                Nenhum disparo realizado ainda.
+              </div>
+            )}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {(data.broadcasts.broadcasts || []).map(b => (
+                <div key={b.id} style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 20 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "#e8e8f0", marginBottom: 4 }}>{b.message || "(sem mensagem)"}</div>
+                      <div style={{ fontSize: 11, color: "#444" }}>{b.created_at ? new Date(b.created_at).toLocaleDateString("pt-BR") : "—"}</div>
+                    </div>
+                    <span style={{ background: b.status==="completed"?"#00c85320":"#ff980020", color: b.status==="completed"?"#00c853":"#ff9800", fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 20 }}>
+                      {b.status}
+                    </span>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
+                    {[
+                      { label: "Enviados", value: b.sent, color: "#e8e8ff" },
+                      { label: "Entregues", value: b.delivered, color: "#00c853" },
+                      { label: "Taxa entrega", value: `${b.reply_rate}%`, color: b.reply_rate>50?"#00c853":"#ff9800" },
+                    ].map(s => (
+                      <div key={s.label} style={{ background: "#13131f", borderRadius: 8, padding: "10px 14px" }}>
+                        <div style={{ fontSize: 10, color: "#444", marginBottom: 4 }}>{s.label}</div>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: s.color }}>{s.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* ── CRÉDITOS IA ── */}
+        {tab === "creditos" && data.credits && (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 20 }}>
+              {[
+                { label: "Usados no período", value: data.credits.total_used, color: "#e8e8ff" },
+                { label: "Restantes", value: data.credits.credits_remaining, color: "#00c853" },
+                { label: "Limite do plano", value: data.credits.credits_limit, color: "#7c4dff" },
+                { label: "Custo real (API)", value: `R$ ${data.credits.cost_estimate?.toFixed(2)}`, color: "#ff9800" },
+              ].map(k => (
+                <div key={k.label} style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 12, padding: "14px 16px" }}>
+                  <div style={{ fontSize: 10, color: "#444", marginBottom: 6, letterSpacing: 1 }}>{k.label.toUpperCase()}</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: k.color }}>{k.value?.toLocaleString?.("pt-BR") ?? k.value}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 20 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16 }}>⚡ Consumo por atendente</div>
+                {(data.credits.by_agent || []).length === 0 && <div style={{ color: "#444", fontSize: 12 }}>Nenhum uso registrado.</div>}
+                {(data.credits.by_agent || []).map((a, i) => {
+                  const maxA = Math.max(1, ...(data.credits.by_agent||[]).map(x=>x.used));
+                  return (
+                    <div key={i} style={{ marginBottom: 10 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, fontSize: 12 }}>
+                        <span style={{ color: "#888" }}>{a.name}</span>
+                        <span style={{ fontWeight: 700, color: "#00c853" }}>{a.used} créditos</span>
+                      </div>
+                      <div style={{ height: 6, background: "#0f0f1e", borderRadius: 3 }}>
+                        <div style={{ height: "100%", width: `${a.used/maxA*100}%`, background: `hsl(${i*50+140},60%,40%)`, borderRadius: 3 }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 20 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16 }}>📅 Uso por dia</div>
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 100 }}>
+                  {(data.credits.by_day || []).slice(-30).map((d, i) => {
+                    const maxC = Math.max(1, ...(data.credits.by_day||[]).map(x=>x.count));
+                    return (
+                      <div key={i} title={`${d.date}: ${d.count}`} style={{ flex: 1, height: "100%", display: "flex", alignItems: "flex-end" }}>
+                        <div style={{ width: "100%", height: `${Math.max(4, d.count/maxC*100)}%`, background: "#7c4dff", borderRadius: "2px 2px 0 0", opacity: 0.8 }} />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Dashboard de Sócios ───────────────────────────────────────────────────────
 const SOCIOS_EMAILS = ["matheusdgs08@gmail.com", "socio2@email.com", "socio3@email.com"];
 
@@ -3407,6 +3707,7 @@ function AppInner({ auth, onLogout }) {
     { id: "disparos", label: "📢 Disparos" },
     { id: "config", label: "⚙️ Config IA" },
     ...(auth.user.role === "admin" && trialInfo?.plan !== "trial" ? [{ id: "onboarding", label: "🧠 Onboarding IA" }] : []),
+    ...(auth.user.role === "admin" ? [{ id: "relatorios", label: "📈 Relatórios" }] : []),
     ...(trialInfo?.status === "trial" ? [{ id: "upgrade", label: "⭐ Assinar" }] : []),
   ];
 
@@ -3504,6 +3805,11 @@ function AppInner({ auth, onLogout }) {
         {/* Dashboard Sócios */}
         {view === "socios" && IS_SOCIO && (
           <DashboardSocios auth={auth} clientes_reais={[]} />
+        )}
+
+        {/* Relatórios */}
+        {view === "relatorios" && auth.user.role === "admin" && (
+          <ReportsView auth={auth} />
         )}
 
         {/* Onboarding IA */}
@@ -3659,13 +3965,32 @@ function AppInner({ auth, onLogout }) {
                   </div>
                 ))}
               </div>
-              <div style={{ padding: "10px 14px", background: "#13131f", border: "1px solid #1a1a2e", borderRadius: 10, display: "flex", alignItems: "center", gap: 10 }}>
+              {/* Users management */}
+              <div style={{ padding: "12px 16px", background: "#13131f", border: "1px solid #1a1a2e", borderRadius: 10, display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontSize: 18 }}>🔐</span>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "#888", marginBottom: 2 }}>Login e gestão de usuários</div>
-                  <div style={{ fontSize: 11, color: "#444" }}>Em breve — autenticação por email/senha e painel de atendentes</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#888", marginBottom: 2 }}>Gestão de usuários e atendentes</div>
+                  <div style={{ fontSize: 11, color: "#444" }}>Convites, permissões e controle de acesso</div>
                 </div>
-                <span style={{ marginLeft: "auto", background: "#7c4dff22", color: "#a78bfa", fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 20 }}>EM BREVE</span>
+                <button onClick={() => { setView("admin"); }}
+                  style={{ padding: "6px 14px", borderRadius: 7, border: "1px solid #7c4dff44", background: "#7c4dff15", color: "#a78bfa", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                  Gerenciar →
+                </button>
+              </div>
+
+              {/* Buy credits */}
+              <div style={{ padding: "14px 16px", background: "linear-gradient(135deg, #00c85310, #7c4dff10)", border: "1px solid #00c85333", borderRadius: 10, display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 22 }}>⚡</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#00c853", marginBottom: 2 }}>Créditos de IA</div>
+                  <div style={{ fontSize: 11, color: "#555" }}>
+                    {aiCredits ? `${aiCredits.credits.toLocaleString("pt-BR")} créditos restantes de ${aiCredits.limit.toLocaleString("pt-BR")}` : "Carregando..."}
+                  </div>
+                </div>
+                <button onClick={() => setShowBuyCredits(true)}
+                  style={{ padding: "8px 18px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #00c853, #00796b)", color: "#000", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+                  + Comprar créditos
+                </button>
               </div>
             </div>
           </div>
