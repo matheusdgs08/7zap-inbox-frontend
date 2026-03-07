@@ -2690,37 +2690,98 @@ function ReportsView({ auth }) {
         {/* ── DISPAROS ── */}
         {tab === "disparos" && data.broadcasts && (
           <>
+            {/* Totais agregados */}
+            {data.broadcasts.broadcasts?.length > 0 && (() => {
+              const all = data.broadcasts.broadcasts;
+              const totalSent = all.reduce((a,b) => a + (b.sent||0), 0);
+              const totalReplied = all.reduce((a,b) => a + (b.replied||0), 0);
+              const totalFailed = all.reduce((a,b) => a + (b.failed||0), 0);
+              const avgRoi = totalSent > 0 ? Math.round(totalReplied/totalSent*100) : 0;
+              return (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 20 }}>
+                  {[
+                    { label: "Total disparos", value: all.length, color: "#e8e8ff" },
+                    { label: "Mensagens enviadas", value: totalSent.toLocaleString("pt-BR"), color: "#7c4dff" },
+                    { label: "Conversas geradas", value: totalReplied.toLocaleString("pt-BR"), color: "#00c853" },
+                    { label: "ROI médio", value: `${avgRoi}%`, color: avgRoi>10?"#00c853":avgRoi>5?"#ff9800":"#f44336" },
+                  ].map(k => (
+                    <div key={k.label} style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 12, padding: "14px 16px" }}>
+                      <div style={{ fontSize: 10, color: "#444", marginBottom: 6, letterSpacing: 1 }}>{k.label.toUpperCase()}</div>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: k.color }}>{k.value}</div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
             {data.broadcasts.broadcasts?.length === 0 && (
               <div style={{ textAlign: "center", padding: 60, color: "#444", fontSize: 13 }}>
                 Nenhum disparo realizado ainda.
               </div>
             )}
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {(data.broadcasts.broadcasts || []).map(b => (
-                <div key={b.id} style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 20 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "#e8e8f0", marginBottom: 4 }}>{b.message || "(sem mensagem)"}</div>
-                      <div style={{ fontSize: 11, color: "#444" }}>{b.created_at ? new Date(b.created_at).toLocaleDateString("pt-BR") : "—"}</div>
-                    </div>
-                    <span style={{ background: b.status==="completed"?"#00c85320":"#ff980020", color: b.status==="completed"?"#00c853":"#ff9800", fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 20 }}>
-                      {b.status}
-                    </span>
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
-                    {[
-                      { label: "Enviados", value: b.sent, color: "#e8e8ff" },
-                      { label: "Entregues", value: b.delivered, color: "#00c853" },
-                      { label: "Taxa entrega", value: `${b.reply_rate}%`, color: b.reply_rate>50?"#00c853":"#ff9800" },
-                    ].map(s => (
-                      <div key={s.label} style={{ background: "#13131f", borderRadius: 8, padding: "10px 14px" }}>
-                        <div style={{ fontSize: 10, color: "#444", marginBottom: 4 }}>{s.label}</div>
-                        <div style={{ fontSize: 18, fontWeight: 800, color: s.color }}>{s.value}</div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {(data.broadcasts.broadcasts || []).map(b => {
+                const roiColor = b.roi_pct > 10 ? "#00c853" : b.roi_pct > 4 ? "#ff9800" : "#f44336";
+                return (
+                  <div key={b.id} style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 20 }}>
+                    {/* Header */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+                      <div style={{ flex: 1 }}>
+                        {b.name && <div style={{ fontSize: 12, color: "#555", marginBottom: 4, fontWeight: 600 }}>📢 {b.name}</div>}
+                        <div style={{ fontSize: 13, color: "#888", marginBottom: 6, lineHeight: 1.5 }}>"{b.message || "(sem mensagem)"}"</div>
+                        <div style={{ fontSize: 11, color: "#333" }}>{b.created_at ? new Date(b.created_at).toLocaleDateString("pt-BR", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" }) : "—"}</div>
                       </div>
-                    ))}
+                      <span style={{ background: b.status==="completed"?"#00c85320":b.status==="running"?"#7c4dff20":"#ff980020", color: b.status==="completed"?"#00c853":b.status==="running"?"#a78bfa":"#ff9800", fontSize: 10, fontWeight: 700, padding: "4px 12px", borderRadius: 20, whiteSpace: "nowrap", marginLeft: 12 }}>
+                        {b.status === "completed" ? "✓ Concluído" : b.status === "running" ? "⏳ Rodando" : b.status}
+                      </span>
+                    </div>
+
+                    {/* Métricas */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 8, marginBottom: 16 }}>
+                      {[
+                        { label: "Enviados", value: b.sent, color: "#7c4dff", icon: "📤" },
+                        { label: "Entregues", value: b.delivered, color: "#00bcd4", icon: "✓" },
+                        { label: "Falhas", value: b.failed, color: b.failed > 0 ? "#f44336" : "#333", icon: "✗" },
+                        { label: "Responderam", value: b.replied, color: b.replied > 0 ? "#00c853" : "#444", icon: "💬" },
+                        { label: "ROI", value: `${b.roi_pct}%`, color: roiColor, icon: "📈" },
+                      ].map(s => (
+                        <div key={s.label} style={{ background: "#13131f", borderRadius: 10, padding: "10px 12px", textAlign: "center" }}>
+                          <div style={{ fontSize: 16, marginBottom: 4 }}>{s.icon}</div>
+                          <div style={{ fontSize: 18, fontWeight: 800, color: s.color, marginBottom: 2 }}>{s.value}</div>
+                          <div style={{ fontSize: 9, color: "#333", letterSpacing: 1 }}>{s.label.toUpperCase()}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Barra de conversão visual */}
+                    <div style={{ marginBottom: b.replied_sample?.length > 0 ? 12 : 0 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#333", marginBottom: 4 }}>
+                        <span>Taxa de conversão em conversa</span>
+                        <span style={{ color: roiColor, fontWeight: 700 }}>{b.replied} de {b.delivered} entregues</span>
+                      </div>
+                      <div style={{ height: 8, background: "#0f0f1e", borderRadius: 4, overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${Math.min(100, b.roi_pct)}%`, background: `linear-gradient(90deg, ${roiColor}88, ${roiColor})`, borderRadius: 4, transition: "width 0.5s" }} />
+                      </div>
+                    </div>
+
+                    {/* Quem respondeu (sample) */}
+                    {b.replied_sample?.length > 0 && (
+                      <div style={{ marginTop: 12, padding: "10px 14px", background: "#00c85308", border: "1px solid #00c85322", borderRadius: 8 }}>
+                        <div style={{ fontSize: 10, color: "#00c853", fontWeight: 700, marginBottom: 6, letterSpacing: 1 }}>💬 RESPONDERAM</div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                          {b.replied_sample.map((name, i) => (
+                            <span key={i} style={{ background: "#00c85315", color: "#00c853", fontSize: 11, padding: "2px 10px", borderRadius: 20 }}>{name}</span>
+                          ))}
+                          {b.replied > b.replied_sample.length && (
+                            <span style={{ color: "#333", fontSize: 11 }}>+{b.replied - b.replied_sample.length} outros</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </>
         )}
@@ -3948,6 +4009,20 @@ function AppInner({ auth, onLogout }) {
                 <button onClick={savePrompt} disabled={savingPrompt} style={{ padding: "10px 28px", borderRadius: 9, border: "none", background: savingPrompt ? "#1a1a2e" : "linear-gradient(135deg, #7c4dff, #5b21b6)", color: savingPrompt ? "#444" : "#fff", fontSize: 14, fontWeight: 700, cursor: savingPrompt ? "not-allowed" : "pointer", fontFamily: "inherit" }}>{savingPrompt ? "Salvando..." : "💾 Salvar configurações"}</button>
                 {promptSaved && <span style={{ fontSize: 13, color: "#00c853", fontWeight: 600 }}>✓ Salvo!</span>}
               </div>
+              {/* Credits card — direto abaixo do salvar */}
+              <div style={{ padding: "14px 16px", background: "linear-gradient(135deg, #00c85310, #7c4dff10)", border: "1px solid #00c85333", borderRadius: 10, display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 22 }}>⚡</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#00c853", marginBottom: 2 }}>Créditos de IA</div>
+                  <div style={{ fontSize: 11, color: "#555" }}>
+                    {aiCredits ? `${aiCredits.credits.toLocaleString("pt-BR")} créditos restantes de ${aiCredits.limit.toLocaleString("pt-BR")}` : "Carregando..."}
+                  </div>
+                </div>
+                <button onClick={() => setShowBuyCredits(true)}
+                  style={{ padding: "8px 18px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #00c853, #00796b)", color: "#000", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+                  + Comprar créditos
+                </button>
+              </div>
             </div>
             <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 24 }}>
               <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>🏢 Sua Empresa</div>
@@ -3978,20 +4053,7 @@ function AppInner({ auth, onLogout }) {
                 </button>
               </div>
 
-              {/* Buy credits */}
-              <div style={{ padding: "14px 16px", background: "linear-gradient(135deg, #00c85310, #7c4dff10)", border: "1px solid #00c85333", borderRadius: 10, display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ fontSize: 22 }}>⚡</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#00c853", marginBottom: 2 }}>Créditos de IA</div>
-                  <div style={{ fontSize: 11, color: "#555" }}>
-                    {aiCredits ? `${aiCredits.credits.toLocaleString("pt-BR")} créditos restantes de ${aiCredits.limit.toLocaleString("pt-BR")}` : "Carregando..."}
-                  </div>
-                </div>
-                <button onClick={() => setShowBuyCredits(true)}
-                  style={{ padding: "8px 18px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #00c853, #00796b)", color: "#000", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
-                  + Comprar créditos
-                </button>
-              </div>
+
             </div>
           </div>
         )}
