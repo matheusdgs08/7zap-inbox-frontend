@@ -2504,6 +2504,121 @@ function hasPerm(user, required) {
   return userLevel >= reqLevel;
 }
 
+
+// ── Upgrade Modal ─────────────────────────────────────────
+function UpgradeModal({ feature, onClose, currentPlan }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "#000000cc", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}
+      onClick={onClose}>
+      <div style={{ background: "#0d0d18", border: "1px solid #7c4dff44", borderRadius: 18, padding: 32, maxWidth: 420, width: "90%", textAlign: "center" }}
+        onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>✨</div>
+        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>Recurso Premium</div>
+        <div style={{ fontSize: 14, color: "#888", marginBottom: 20 }}>{feature} está disponível a partir do plano <strong style={{ color: "#a78bfa" }}>Pro</strong>.</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+          {[
+            { plan: "Pro", price: "R$ 299/mês", color: "#00c853", features: ["8 atendentes", "2 números", "Co-pilot IA", "1.000 créditos/mês", "Checkout PIX"] },
+            { plan: "Business", price: "R$ 599/mês", color: "#7c4dff", features: ["Ilimitado", "White-label", "3.000 créditos/mês", "API própria", "Suporte prioritário"] },
+          ].map(p => (
+            <div key={p.plan} style={{ background: "#13131f", border: `1px solid ${p.color}44`, borderRadius: 12, padding: "14px 16px", textAlign: "left" }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: p.color, marginBottom: 2 }}>{p.plan}</div>
+              <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 10 }}>{p.price}</div>
+              {p.features.map(f => <div key={f} style={{ fontSize: 11, color: "#666", marginBottom: 3 }}>✓ {f}</div>)}
+            </div>
+          ))}
+        </div>
+        <button onClick={() => window.open("https://wa.me/5511999999999?text=Quero+fazer+upgrade+do+7zap","_blank")}
+          style={{ width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#7c4dff,#5b21b6)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", marginBottom: 8 }}>
+          🚀 Fazer upgrade agora
+        </button>
+        <button onClick={onClose} style={{ width: "100%", padding: "9px 0", borderRadius: 10, border: "1px solid #252540", background: "transparent", color: "#555", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+          Fechar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Credits Widget ────────────────────────────────────────
+function CreditsWidget({ credits, limit, plan, onBuyMore, onUpgrade }) {
+  if (!limit || limit >= 99999) return null;
+  const pct = Math.round((credits / limit) * 100);
+  const isLow = pct <= 25;
+  const isEmpty = credits <= 0;
+  const color = isEmpty ? "#f44336" : isLow ? "#ff9800" : "#00c853";
+  return (
+    <div style={{ background: isEmpty ? "#f4433310" : isLow ? "#ff980010" : "#0d0d18", border: `1px solid ${color}33`, borderRadius: 10, padding: "10px 14px", marginBottom: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "#888" }}>⚡ Créditos IA</span>
+        <span style={{ fontSize: 13, fontWeight: 800, color }}>{credits.toLocaleString("pt-BR")}<span style={{ color: "#555", fontWeight: 400 }}>/{limit.toLocaleString("pt-BR")}</span></span>
+      </div>
+      <div style={{ height: 6, background: "#1a1a2e", borderRadius: 3, overflow: "hidden", marginBottom: 6 }}>
+        <div style={{ height: "100%", width: `${Math.max(2, pct)}%`, background: color, borderRadius: 3, transition: "width 0.5s" }} />
+      </div>
+      {isEmpty && <div style={{ fontSize: 11, color: "#f44336", marginBottom: 6 }}>Créditos esgotados! IA pausada.</div>}
+      {isLow && !isEmpty && <div style={{ fontSize: 11, color: "#ff9800", marginBottom: 6 }}>⚠️ Menos de 25% restante.</div>}
+      <div style={{ display: "flex", gap: 6 }}>
+        {plan === "starter" ? (
+          <button onClick={onUpgrade} style={{ flex: 1, padding: "5px 0", borderRadius: 7, border: "none", background: "linear-gradient(135deg,#7c4dff,#5b21b6)", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+            ✨ Upgrade para mais créditos
+          </button>
+        ) : (isLow || isEmpty) && (
+          <button onClick={onBuyMore} style={{ flex: 1, padding: "5px 0", borderRadius: 7, border: "none", background: "linear-gradient(135deg,#ff9800,#e65100)", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+            + Comprar créditos
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Buy Credits Modal ─────────────────────────────────────
+function BuyCreditsModal({ tenantId, authHeaders, onClose, onSuccess }) {
+  const [buying, setBuying] = useState(false);
+  const PACKS = [
+    { amount: 500,  price: "R$ 29", label: "Pacote Básico" },
+    { amount: 1000, price: "R$ 49", label: "Pacote Pro", highlight: true },
+    { amount: 2000, price: "R$ 89", label: "Pacote Max" },
+  ];
+  const buy = async (amount) => {
+    setBuying(amount);
+    try {
+      const r = await fetch(`${API_URL}/credits/buy`, { method: "POST", headers: authHeaders,
+        body: JSON.stringify({ tenant_id: tenantId, amount }) });
+      const d = await r.json();
+      if (d.ok) { onSuccess(amount); onClose(); }
+    } catch(e) {}
+    setBuying(false);
+  };
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "#000000cc", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }} onClick={onClose}>
+      <div style={{ background: "#0d0d18", border: "1px solid #ff980044", borderRadius: 18, padding: 28, maxWidth: 380, width: "90%" }}
+        onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
+        <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>⚡ Comprar Créditos</div>
+        <div style={{ fontSize: 12, color: "#555", marginBottom: 20 }}>1 crédito = 1 resposta da IA</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+          {PACKS.map(p => (
+            <button key={p.amount} onClick={() => buy(p.amount)} disabled={!!buying}
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderRadius: 10,
+                border: `1px solid ${p.highlight ? "#ff980066" : "#252540"}`,
+                background: p.highlight ? "#ff980015" : "transparent",
+                color: "#e8e8f0", cursor: "pointer", fontFamily: "inherit" }}>
+              <div style={{ textAlign: "left" }}>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>{p.label}</div>
+                <div style={{ fontSize: 11, color: "#555" }}>+{p.amount.toLocaleString("pt-BR")} créditos</div>
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: p.highlight ? "#ff9800" : "#e8e8f0" }}>
+                {buying === p.amount ? "..." : p.price}
+              </div>
+            </button>
+          ))}
+        </div>
+        <button onClick={onClose} style={{ width: "100%", padding: "9px", borderRadius: 9, border: "1px solid #252540", background: "transparent", color: "#555", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
+      </div>
+    </div>
+  );
+}
+
 function AppInner({ auth, onLogout }) {
   const [view, setView] = useState("inbox");
   const [trialInfo, setTrialInfo] = useState(null); // {status, days_left, is_blocked, plan}
@@ -2530,6 +2645,9 @@ function AppInner({ auth, onLogout }) {
   const [pendingTasksMap, setPendingTasksMap] = useState({}); // convId → count
   const [labels, setLabels] = useState([]);
   const [labelsError, setLabelsError] = useState("");
+  const [aiCredits, setAiCredits] = useState(null); // { credits, limit, plan, pct, warning }
+  const [showUpgrade, setShowUpgrade] = useState(null); // feature name string
+  const [showBuyCredits, setShowBuyCredits] = useState(false);
   const fetchLabels = useCallback(async () => {
     setLabelsError("");
     try {
@@ -2589,7 +2707,17 @@ function AppInner({ auth, onLogout }) {
   const autoModeRef = useRef({}); // { convId: boolean } — persists across polls
 
   const fetchConversations = useCallback(async () => {
-    try { const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}`, { headers }); const d = await r.json();
+    try {
+      const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}`, { headers });
+      if (r.status === 401) {
+        const err = await r.json().catch(() => ({}));
+        if ((err.detail || "").includes("Sess\u00e3o encerrada")) {
+          onLogout();
+          alert("\u26a0\ufe0f Sua sess\u00e3o foi encerrada pois outro dispositivo fez login com esta conta.");
+        }
+        return;
+      }
+      const d = await r.json();
       const now = Date.now();
       const merged = (d.conversations || []).map(c => {
         const ov = labelOverrideRef.current[c.id];
@@ -2658,7 +2786,16 @@ function AppInner({ auth, onLogout }) {
       setCopilotAutoMode(d.copilot_auto_mode || "off");
       setCopilotScheduleStart(d.copilot_schedule_start || "18:00");
       setCopilotScheduleEnd(d.copilot_schedule_end || "09:00");
+      if (d.ai_credits !== undefined) setAiCredits({ credits: d.ai_credits, limit: d.ai_credits_limit, plan: d.plan, pct: d.ai_credits_pct, warning: d.ai_credits_pct <= 25 });
     } catch (e) {}
+  }, []);
+
+  const fetchCredits = useCallback(async () => {
+    try {
+      const r = await fetch(`${API_URL}/credits?tenant_id=${TENANT_ID}`, { headers });
+      const d = await r.json();
+      setAiCredits({ credits: d.credits, limit: d.limit, plan: d.plan, pct: d.pct, warning: d.warning });
+    } catch(e) {}
   }, []);
   const fetchPendingTasks = useCallback(async () => {
     try {
@@ -2769,7 +2906,18 @@ function AppInner({ auth, onLogout }) {
   };
   const fetchSuggestion = async () => {
     if (!selected || loadingSuggest) return; setLoadingSuggest(true); setSuggestion("");
-    try { const r = await fetch(`${API_URL}/conversations/${selected.id}/suggest`, { headers }); const d = await r.json(); setSuggestion(d.suggestion || ""); } catch (e) { setSuggestion("Erro ao buscar sugestão."); }
+    try {
+      if (aiCredits && aiCredits.credits <= 0) {
+        if (aiCredits.plan === "starter") { setShowUpgrade("Co-pilot IA"); return; }
+        setShowBuyCredits(true); return;
+      }
+      const r = await fetch(`${API_URL}/conversations/${selected.id}/suggest?tenant_id=${TENANT_ID}`, { headers });
+      if (r.status === 402) { const e = await r.json(); showToast(e.detail, "#f44336"); fetchCredits(); return; }
+      const d = await r.json();
+      setSuggestion(d.suggestion || "");
+      // Deduct 1 credit optimistically
+      setAiCredits(prev => prev ? { ...prev, credits: Math.max(0, prev.credits - 1), pct: Math.round(Math.max(0, prev.credits - 1) / prev.limit * 100) } : prev);
+    } catch (e) { setSuggestion("Erro ao buscar sugestão."); }
     setLoadingSuggest(false);
   };
 
@@ -2804,7 +2952,8 @@ function AppInner({ auth, onLogout }) {
       if (!lastInbound) return;
       if (autoProcessedRef.current.has(lastInbound.id)) return;
       autoProcessedRef.current.add(lastInbound.id);
-      const sr = await fetch(`${API_URL}/conversations/${conv.id}/suggest`, { headers });
+      const sr = await fetch(`${API_URL}/conversations/${conv.id}/suggest?tenant_id=${TENANT_ID}`, { headers });
+      if (sr.status === 402) { console.warn("Auto-reply: sem créditos"); return; }
       if (!sr.ok) { console.error("Suggest failed:", sr.status); return; }
       const sd = await sr.json();
       const suggestion = (sd.suggestion || "").trim();
@@ -3011,8 +3160,9 @@ function AppInner({ auth, onLogout }) {
                     { id: "always", label: "🔄 Sempre ativo", desc: "Responde tudo automaticamente" },
                     { id: "per_conv", label: "🎛 Por conversa", desc: "Atendente ativa manualmente" },
                   ].map(m => (
-                    <div key={m.id} onClick={() => setCopilotAutoMode(m.id)}
-                      style={{ flex: "1 1 180px", padding: "12px 14px", borderRadius: 10, border: `2px solid ${copilotAutoMode === m.id ? "#7c4dff" : "#252540"}`, background: copilotAutoMode === m.id ? "#7c4dff18" : "#0d0d18", cursor: "pointer" }}>
+                    <div key={m.id} onClick={() => { if (aiCredits?.plan === "starter" && m.id !== "off") { setShowUpgrade("Modo automático do Co-pilot"); return; } setCopilotAutoMode(m.id); }}
+                      style={{ flex: "1 1 180px", padding: "12px 14px", borderRadius: 10, border: `2px solid ${copilotAutoMode === m.id ? "#7c4dff" : "#252540"}`, background: copilotAutoMode === m.id ? "#7c4dff18" : "#0d0d18", cursor: "pointer", position: "relative" }}>
+                      {aiCredits?.plan === "starter" && m.id !== "off" && <span style={{ position: "absolute", top: 6, right: 8, fontSize: 10, color: "#7c4dff" }}>✨ Pro</span>}
                       <div style={{ fontSize: 13, fontWeight: 700, color: copilotAutoMode === m.id ? "#a78bfa" : "#888", marginBottom: 3 }}>{m.label}</div>
                       <div style={{ fontSize: 11, color: "#555" }}>{m.desc}</div>
                     </div>
@@ -3280,6 +3430,8 @@ function AppInner({ auth, onLogout }) {
           onManage={() => { setShowLabelPicker(false); setShowLabelManager(true); }}
         />
       )}
+      {showUpgrade && <UpgradeModal feature={showUpgrade} currentPlan={aiCredits?.plan} onClose={() => setShowUpgrade(null)} />}
+      {showBuyCredits && <BuyCreditsModal tenantId={TENANT_ID} authHeaders={headers} onClose={() => setShowBuyCredits(false)} onSuccess={(n) => { setAiCredits(p => p ? { ...p, credits: p.credits + n } : p); showToast(`✅ +${n} créditos adicionados!`); }} />}
       {showLabelManager && (
         <LabelManagerModal
           labels={labels}
