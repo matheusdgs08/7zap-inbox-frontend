@@ -2794,7 +2794,7 @@ function ReportsView({ auth }) {
                 { label: "Usados no período", value: data.credits.total_used, color: "#e8e8ff" },
                 { label: "Restantes", value: data.credits.credits_remaining, color: "#00c853" },
                 { label: "Limite do plano", value: data.credits.credits_limit, color: "#7c4dff" },
-                { label: "Custo real (API)", value: `R$ ${data.credits.cost_estimate?.toFixed(2)}`, color: "#ff9800" },
+                { label: "Plano", value: (data.credits.plan || "—").toUpperCase(), color: "#7c4dff" },
               ].map(k => (
                 <div key={k.label} style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 12, padding: "14px 16px" }}>
                   <div style={{ fontSize: 10, color: "#444", marginBottom: 6, letterSpacing: 1 }}>{k.label.toUpperCase()}</div>
@@ -3324,13 +3324,14 @@ function CreditsWidget({ credits, limit, plan, onBuyMore, onUpgrade }) {
 }
 
 // ── Buy Credits Modal ─────────────────────────────────────
-function BuyCreditsModal({ tenantId, authHeaders, onClose, onSuccess }) {
+function BuyCreditsModal({ tenantId, authHeaders, onClose, onSuccess, plan }) {
   const [buying, setBuying] = useState(false);
   const PACKS = [
-    { amount: 500,  price: "R$ 29", label: "Pacote Básico" },
-    { amount: 1000, price: "R$ 49", label: "Pacote Pro", highlight: true },
-    { amount: 2000, price: "R$ 89", label: "Pacote Max" },
+    { amount: 500,  price: "R$ 29", label: "Pacote Básico",  perUnit: "R$0,058/cr" },
+    { amount: 1000, price: "R$ 49", label: "Pacote Pro",     perUnit: "R$0,049/cr", highlight: true },
+    { amount: 2000, price: "R$ 89", label: "Pacote Max",     perUnit: "R$0,044/cr" },
   ];
+  const isStarter = plan === "starter";
   const buy = async (amount) => {
     setBuying(amount);
     try {
@@ -3345,9 +3346,20 @@ function BuyCreditsModal({ tenantId, authHeaders, onClose, onSuccess }) {
     <div style={{ position: "fixed", inset: 0, background: "#000000cc", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }} onClick={onClose}>
       <div style={{ background: "#0d0d18", border: "1px solid #ff980044", borderRadius: 18, padding: 28, maxWidth: 380, width: "90%" }}
         onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
-        <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>⚡ Comprar Créditos</div>
-        <div style={{ fontSize: 12, color: "#555", marginBottom: 20 }}>1 crédito = 1 resposta da IA</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+        <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>⚡ Comprar Créditos de IA</div>
+        <div style={{ fontSize: 12, color: "#555", marginBottom: 16 }}>1 crédito = 1 sugestão do Co-pilot</div>
+
+        {isStarter && (
+          <div style={{ padding: "12px 14px", background: "#00c85310", border: "1px solid #00c85333", borderRadius: 10, marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#00c853", marginBottom: 4 }}>💡 Dica — vale mais fazer upgrade</div>
+            <div style={{ fontSize: 11, color: "#555", lineHeight: 1.6 }}>
+              No plano <strong style={{ color: "#888" }}>Pro (R$149/mês)</strong> você já ganha <strong style={{ color: "#00c853" }}>300 créditos todo mês</strong> + todos os modos de IA desbloqueados.<br/>
+              Comprar créditos avulsos no Starter sai mais caro a médio prazo.
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
           {PACKS.map(p => (
             <button key={p.amount} onClick={() => buy(p.amount)} disabled={!!buying}
               style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderRadius: 10,
@@ -3356,9 +3368,9 @@ function BuyCreditsModal({ tenantId, authHeaders, onClose, onSuccess }) {
                 color: "#e8e8f0", cursor: "pointer", fontFamily: "inherit" }}>
               <div style={{ textAlign: "left" }}>
                 <div style={{ fontSize: 13, fontWeight: 700 }}>{p.label}</div>
-                <div style={{ fontSize: 11, color: "#555" }}>+{p.amount.toLocaleString("pt-BR")} créditos</div>
+                <div style={{ fontSize: 11, color: "#444" }}>+{p.amount.toLocaleString("pt-BR")} créditos · {p.perUnit}</div>
               </div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: p.highlight ? "#ff9800" : "#e8e8f0" }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: p.highlight ? "#ff9800" : "#e8e8f0" }}>
                 {buying === p.amount ? "..." : p.price}
               </div>
             </button>
@@ -3941,20 +3953,46 @@ function AppInner({ auth, onLogout }) {
               <div style={{ background: "#13131f", border: "1px solid #252540", borderRadius: 12, padding: 20, marginBottom: 20 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>🤖 Modo Automático</div>
                 <div style={{ fontSize: 12, color: "#555", marginBottom: 14 }}>Quando ativo, o Co-pilot responde sozinho sem precisar de aprovação humana.</div>
+                {/* Starter locked banner */}
+                {aiCredits?.plan === "starter" && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "#7c4dff12", border: "1px solid #7c4dff33", borderRadius: 10, marginBottom: 14 }}>
+                    <span style={{ fontSize: 16 }}>🔒</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "#a78bfa", marginBottom: 2 }}>Modos de IA disponíveis no plano Pro</div>
+                      <div style={{ fontSize: 11, color: "#555" }}>No Starter só o modo Desativado está disponível. Faça upgrade para liberar o Co-pilot completo.</div>
+                    </div>
+                    <button onClick={() => setView("upgrade")}
+                      style={{ padding: "6px 14px", borderRadius: 7, border: "none", background: "linear-gradient(135deg, #7c4dff, #5b21b6)", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+                      Ver planos →
+                    </button>
+                  </div>
+                )}
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
                   {[
-                    { id: "off", label: "⛔ Desativado", desc: "Só sugere resposta" },
-                    { id: "schedule", label: "🕐 Por horário", desc: "Fora do horário comercial" },
-                    { id: "always", label: "🔄 Sempre ativo", desc: "Responde tudo automaticamente" },
-                    { id: "per_conv", label: "🎛 Por conversa", desc: "Atendente ativa manualmente" },
-                  ].map(m => (
-                    <div key={m.id} onClick={() => { if (aiCredits?.plan === "starter" && m.id !== "off") { setShowUpgrade("Modo automático do Co-pilot"); return; } setCopilotAutoMode(m.id); }}
-                      style={{ flex: "1 1 180px", padding: "12px 14px", borderRadius: 10, border: `2px solid ${copilotAutoMode === m.id ? "#7c4dff" : "#252540"}`, background: copilotAutoMode === m.id ? "#7c4dff18" : "#0d0d18", cursor: "pointer", position: "relative" }}>
-                      {aiCredits?.plan === "starter" && m.id !== "off" && <span style={{ position: "absolute", top: 6, right: 8, fontSize: 10, color: "#7c4dff" }}>✨ Pro</span>}
-                      <div style={{ fontSize: 13, fontWeight: 700, color: copilotAutoMode === m.id ? "#a78bfa" : "#888", marginBottom: 3 }}>{m.label}</div>
-                      <div style={{ fontSize: 11, color: "#555" }}>{m.desc}</div>
-                    </div>
-                  ))}
+                    { id: "off",      label: "⛔ Desativado",   desc: "Só sugere resposta",              locked: false },
+                    { id: "schedule", label: "🕐 Por horário",  desc: "Fora do horário comercial",        locked: true  },
+                    { id: "always",   label: "🔄 Sempre ativo", desc: "Responde tudo automaticamente",    locked: true  },
+                    { id: "per_conv", label: "🎛 Por conversa", desc: "Atendente ativa manualmente",      locked: true  },
+                  ].map(m => {
+                    const isStarter = aiCredits?.plan === "starter";
+                    const isLocked = isStarter && m.locked;
+                    const isActive = copilotAutoMode === m.id;
+                    return (
+                      <div key={m.id}
+                        onClick={() => { if (isLocked) { setView("upgrade"); return; } setCopilotAutoMode(m.id); }}
+                        style={{ flex: "1 1 180px", padding: "12px 14px", borderRadius: 10, position: "relative", transition: "all 0.15s",
+                          border: `2px solid ${isActive ? "#7c4dff" : isLocked ? "#1a1a2e" : "#252540"}`,
+                          background: isActive ? "#7c4dff18" : isLocked ? "#0a0a0f" : "#0d0d18",
+                          cursor: isLocked ? "not-allowed" : "pointer",
+                          opacity: isLocked ? 0.5 : 1 }}>
+                        {isLocked && (
+                          <span style={{ position: "absolute", top: 7, right: 8, fontSize: 9, fontWeight: 800, color: "#7c4dff", background: "#7c4dff18", border: "1px solid #7c4dff33", padding: "2px 7px", borderRadius: 20 }}>🔒 PRO</span>
+                        )}
+                        <div style={{ fontSize: 13, fontWeight: 700, color: isActive ? "#a78bfa" : isLocked ? "#333" : "#888", marginBottom: 3 }}>{m.label}</div>
+                        <div style={{ fontSize: 11, color: isLocked ? "#2a2a3a" : "#555" }}>{m.desc}</div>
+                      </div>
+                    );
+                  })}
                 </div>
                 {copilotAutoMode === "schedule" && (
                   <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
@@ -4256,7 +4294,7 @@ function AppInner({ auth, onLogout }) {
         />
       )}
       {showUpgrade && <UpgradeModal feature={showUpgrade} currentPlan={aiCredits?.plan} onClose={() => setShowUpgrade(null)} />}
-      {showBuyCredits && <BuyCreditsModal tenantId={TENANT_ID} authHeaders={headers} onClose={() => setShowBuyCredits(false)} onSuccess={(n) => { setAiCredits(p => p ? { ...p, credits: p.credits + n } : p); showToast(`✅ +${n} créditos adicionados!`); }} />}
+      {showBuyCredits && <BuyCreditsModal tenantId={TENANT_ID} authHeaders={headers} plan={aiCredits?.plan} onClose={() => setShowBuyCredits(false)} onSuccess={(n) => { setAiCredits(p => p ? { ...p, credits: p.credits + n } : p); showToast(`✅ +${n} créditos adicionados!`); }} />}
       {showLabelManager && (
         <LabelManagerModal
           labels={labels}
