@@ -3061,6 +3061,30 @@ function AppInner({ auth, onLogout }) {
               ⏰ {trialInfo.days_left === 0 ? "último dia!" : `${trialInfo.days_left}d restantes`}
             </div>
           )}
+
+          {/* ⚡ Credits pill */}
+          {aiCredits && aiCredits.limit < 99999 && (() => {
+            const pct = aiCredits.limit > 0 ? Math.round(aiCredits.credits / aiCredits.limit * 100) : 100;
+            const color = aiCredits.credits <= 0 ? "#f44336" : pct <= 25 ? "#ff9800" : "#00c853";
+            return (
+              <button onClick={() => setView("config")}
+                title={`${aiCredits.credits.toLocaleString("pt-BR")} / ${aiCredits.limit.toLocaleString("pt-BR")} créditos IA restantes`}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 20, border: `1px solid ${color}44`, background: `${color}12`, cursor: "pointer", fontFamily: "inherit" }}>
+                <span style={{ fontSize: 12 }}>⚡</span>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 60 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color }}>{aiCredits.credits.toLocaleString("pt-BR")}</span>
+                    <span style={{ fontSize: 10, color: "#555" }}>/{aiCredits.limit.toLocaleString("pt-BR")}</span>
+                  </div>
+                  <div style={{ height: 3, background: "#1a1a2e", borderRadius: 2, overflow: "hidden", width: "100%" }}>
+                    <div style={{ height: "100%", width: `${Math.max(3, pct)}%`, background: color, borderRadius: 2, transition: "width 0.5s" }} />
+                  </div>
+                </div>
+                {pct <= 25 && <span style={{ fontSize: 10, color }}>{aiCredits.credits <= 0 ? "Esgotado!" : "Baixo"}</span>}
+              </button>
+            );
+          })()}
+
           <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#444" }}>
             <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#00c853" }} />
             <span style={{ color: "#555" }}>{auth.user.name}</span>
