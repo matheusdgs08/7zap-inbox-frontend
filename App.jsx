@@ -921,7 +921,7 @@ function AdminPanel({ auth, onLogout }) {
 
 
 // ─── Onboarding Inteligente ───────────────────────────────────────────────────
-function OnboardingView({ auth }) {
+function OnboardingView({ auth, aiCredits }) {
   const [step, setStep] = useState("intro"); // intro | analyzing | result | done
   const [days, setDays] = useState(90);
   const [loading, setLoading] = useState(false);
@@ -991,7 +991,7 @@ function OnboardingView({ auth }) {
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {[
                   { n: "1", title: "Seleciona o período", desc: "Escolha quantos dias de histórico a IA vai analisar", icon: "📅" },
-                  { n: "2", title: "IA analisa as conversas", desc: "Nossa IA lê até 200 conversas e identifica padrões do seu negócio", icon: "🔍" },
+                  { n: "2", title: "IA analisa as conversas", desc: `Nossa IA lê até ${aiCredits?.plan === "business" ? "500" : "200"} conversas e identifica padrões do seu negócio`, icon: "🔍" },
                   { n: "3", title: "Prompt gerado automaticamente", desc: "Tom de voz, FAQ, produtos e regras da sua empresa — tudo automatico", icon: "✨" },
                   { n: "4", title: "Revise e ative", desc: "Edite se quiser e salve. Co-pilot começa a usar imediatamente", icon: "🚀" },
                 ].map(s => (
@@ -1023,7 +1023,7 @@ function OnboardingView({ auth }) {
 
             {/* Warning */}
             <div style={{ background: "#7c4dff15", border: "1px solid #7c4dff33", borderRadius: 10, padding: "12px 16px", fontSize: 12, color: "#a78bfa", marginBottom: 20 }}>
-              ⚡ Disponível nos planos <strong>Pro</strong> (200 conversas) e <strong>Business</strong> (500 conversas). Cada análise consome <strong>1.000 créditos</strong> — use quantas vezes quiser enquanto tiver saldo.
+              ⚡ Disponível nos planos <strong>Pro</strong> (200 conversas) e <strong>Business</strong> (500 conversas). Cada análise consome <strong>1.000 créditos</strong> — sem limite mensal, use quantas vezes quiser.
             </div>
 
             <button onClick={analyze} style={{ width: "100%", padding: "14px 0", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #00c853, #00796b)", color: "#000", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
@@ -2481,7 +2481,398 @@ function KanbanBoard({ conversations, columns, onMoveCard, onSelectConv, onManag
   );
 }
 
-// ─── Main App ─────────────────────────────────────────────────────────────────
+// ─── Dashboard de Sócios ───────────────────────────────────────────────────────
+const SOCIOS_EMAILS = ["matheusdgs08@gmail.com", "socio2@email.com", "socio3@email.com"];
+
+function DashboardSocios({ auth, clientes_reais }) {
+  const [activeTab, setActiveTab] = useState("overview");
+  const [clientes, setClientes] = useState(clientes_reais || []);
+  const [showAdd, setShowAdd] = useState(false);
+  const [novoCli, setNovoCli] = useState({ nome: "", plano: "pro", creditos_extras: 0 });
+  const [crescimento, setCrescimento] = useState(4);
+
+  useEffect(() => {
+    if (clientes_reais?.length) setClientes(clientes_reais);
+  }, [clientes_reais]);
+
+  const CONFIG_S = {
+    planos: {
+      starter:  { nome: "Starter",  preco: 99,  cor: "#6b7280", creditos: 0,   atendentes: 2  },
+      pro:      { nome: "Pro",      preco: 149, cor: "#00c853", creditos: 100, atendentes: 5  },
+      business: { nome: "Business", preco: 299, cor: "#7c4dff", creditos: 500, atendentes: 15 },
+    },
+    pacotes: [
+      { nome: "Básico", creditos: 500,  preco: 29 },
+      { nome: "Pro",    creditos: 1000, preco: 49 },
+      { nome: "Max",    creditos: 2000, preco: 89 },
+    ],
+    custo_credito: 0.0007,
+  };
+
+  const fmt = (v) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+  const fmtN = (v) => v.toLocaleString("pt-BR");
+
+  const ativos    = clientes.filter(c => c.status === "ativo");
+  const suspensos = clientes.filter(c => c.status !== "ativo");
+
+  const mrr_base     = ativos.reduce((a, c) => a + (CONFIG_S.planos[c.plano]?.preco || 0), 0);
+  const mrr_creditos = ativos.reduce((a, c) => a + ((c.creditos_extras || 0) / 500) * 29, 0);
+  const mrr_total    = mrr_base + mrr_creditos;
+  const custo_api    = ativos.reduce((a, c) => a + ((CONFIG_S.planos[c.plano]?.creditos || 0) + 200) * CONFIG_S.custo_credito, 0);
+  const infra_fixa   = 200 + ativos.length * 8;
+  const pagarme_fee  = mrr_total * 0.035;
+  const custo_total  = custo_api + infra_fixa + pagarme_fee;
+  const lucro        = mrr_total - custo_total;
+  const margem       = mrr_total > 0 ? (lucro / mrr_total * 100) : 0;
+  const lucro_socio  = lucro / 3;
+  const arr          = mrr_total * 12;
+
+  const planMix = Object.entries(CONFIG_S.planos).map(([k, pl]) => ({
+    name: pl.nome, value: ativos.filter(c => c.plano === k).length, color: pl.cor,
+  })).filter(p => p.value > 0);
+
+  const projection = Array.from({ length: 12 }, (_, i) => {
+    const n    = Math.round(crescimento * (i + 1));
+    const mix  = { starter: Math.round(n*0.25), pro: Math.round(n*0.55), business: Math.round(n*0.20) };
+    let mrr = 0, custo = 0;
+    Object.entries(mix).forEach(([p, q]) => {
+      const pl = CONFIG_S.planos[p];
+      mrr   += pl.preco * q + q * 0.2 * 49;
+      custo += (pl.creditos + 200) * CONFIG_S.custo_credito * q;
+    });
+    const infra   = 200 + n * 8;
+    const pagarme = mrr * 0.035;
+    const luc     = mrr - custo - infra - pagarme;
+    return { mes: `M${i+1}`, clientes: n, MRR: Math.round(mrr), Custos: Math.round(custo+infra+pagarme), Lucro: Math.round(luc) };
+  });
+
+  const KPI = ({ label, value, sub, color="#00c853", big=false }) => (
+    <div style={{ background:"#07070f", border:"1px solid #0f0f1e", borderRadius:12, padding:"16px 18px" }}>
+      <div style={{ fontSize:10, color:"#2a2a4a", fontWeight:700, letterSpacing:1.5, marginBottom:6, textTransform:"uppercase" }}>{label}</div>
+      <div style={{ fontSize: big?26:20, fontWeight:900, color, letterSpacing:-0.5 }}>{value}</div>
+      {sub && <div style={{ fontSize:11, color:"#2a2a4a", marginTop:4 }}>{sub}</div>}
+    </div>
+  );
+
+  const tabs = [
+    { id:"overview",   label:"📊 Visão Geral" },
+    { id:"clientes",   label:"👥 Clientes" },
+    { id:"financeiro", label:"💰 Financeiro" },
+    { id:"projecao",   label:"🚀 Projeção" },
+  ];
+
+  return (
+    <div style={{ flex:1, display:"flex", flexDirection:"column", background:"#06060f", overflowY:"auto" }}>
+      {/* Sub-header */}
+      <div style={{ borderBottom:"1px solid #0f0f1e", padding:"0 28px", display:"flex", gap:4, background:"#07070f", flexShrink:0 }}>
+        {tabs.map(t => (
+          <button key={t.id} onClick={() => setActiveTab(t.id)}
+            style={{ padding:"10px 14px", border:"none", borderBottom:`2px solid ${activeTab===t.id?"#00c853":"transparent"}`,
+              background:"transparent", color:activeTab===t.id?"#00c853":"#333", fontSize:12, fontWeight:600,
+              cursor:"pointer", fontFamily:"inherit" }}>
+            {t.label}
+          </button>
+        ))}
+        <div style={{ flex:1 }} />
+        <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:11, color:"#2a2a4a" }}>
+          🔒 Acesso restrito · Sócios
+        </div>
+      </div>
+
+      <div style={{ padding:"24px 28px", flex:1 }}>
+
+        {/* ── OVERVIEW ── */}
+        {activeTab === "overview" && (
+          <>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10, marginBottom:14 }}>
+              <KPI label="MRR Total"    value={fmt(mrr_total)}   sub={`Base ${fmt(mrr_base)} + IA ${fmt(mrr_creditos)}`} big />
+              <KPI label="Lucro Líquido" value={fmt(lucro)}      sub={`Margem ${margem.toFixed(0)}%`} color={margem>60?"#00c853":margem>35?"#ff9800":"#f44336"} big />
+              <KPI label="ARR"          value={fmt(arr)}         sub="Projeção anual" color="#7c4dff" big />
+              <KPI label="Por sócio/mês" value={fmt(lucro_socio)} sub="33% · 3 sócios" color="#00bcd4" big />
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10, marginBottom:20 }}>
+              <KPI label="Clientes Ativos"  value={ativos.length}    sub={`${suspensos.length} suspensos`} color="#e8e8ff" />
+              <KPI label="Ticket Médio"     value={ativos.length>0?fmt(mrr_total/ativos.length):"—"} sub="por cliente/mês" color="#ff9800" />
+              <KPI label="Custo IA/mês"     value={fmt(custo_api)}   sub={`${fmt(custo_api/Math.max(1,ativos.length))} por cliente`} color="#f44336" />
+              <KPI label="Margem na IA"     value="98.6%"             sub="Custo R$0,07 · Cobra R$4,90" color="#00c853" />
+            </div>
+            {/* Breakdown */}
+            <div style={{ background:"#0a0a14", border:"1px solid #0f0f1e", borderRadius:14, padding:20 }}>
+              <div style={{ fontSize:13, fontWeight:700, marginBottom:16 }}>Receita vs Custos</div>
+              {[
+                { label:"Assinaturas",       value:mrr_base,     color:"#00c853" },
+                { label:"Créditos IA extras", value:mrr_creditos, color:"#7c4dff" },
+                { label:"Infra (Railway/Supabase/Vercel)", value:infra_fixa, color:"#f44336" },
+                { label:"Claude API",        value:custo_api,    color:"#ff6d00" },
+                { label:"Pagar.me 3.5%",     value:pagarme_fee,  color:"#ff9800" },
+              ].map(item => (
+                <div key={item.label} style={{ marginBottom:12 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4, fontSize:12 }}>
+                    <span style={{ color:"#555" }}>{item.label}</span>
+                    <span style={{ fontWeight:700, color:item.color }}>{fmt(item.value)}</span>
+                  </div>
+                  <div style={{ height:4, background:"#12122a", borderRadius:2 }}>
+                    <div style={{ height:"100%", width:`${Math.min(100,item.value/Math.max(1,mrr_total)*100)}%`, background:item.color, borderRadius:2 }} />
+                  </div>
+                </div>
+              ))}
+              <div style={{ marginTop:16, paddingTop:16, borderTop:"1px solid #0f0f1e", display:"flex", justifyContent:"space-between" }}>
+                <span style={{ fontSize:13, color:"#555" }}>Lucro líquido</span>
+                <span style={{ fontSize:20, fontWeight:900, color:lucro>=0?"#00c853":"#f44336" }}>{fmt(lucro)}</span>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ── CLIENTES ── */}
+        {activeTab === "clientes" && (
+          <>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+              <div>
+                <div style={{ fontSize:15, fontWeight:800 }}>Clientes</div>
+                <div style={{ fontSize:12, color:"#333" }}>{ativos.length} ativos · {suspensos.length} suspensos</div>
+              </div>
+              <button onClick={() => setShowAdd(!showAdd)}
+                style={{ padding:"8px 18px", borderRadius:9, border:"none", background:"linear-gradient(135deg,#00c853,#00796b)", color:"#000", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                + Novo cliente
+              </button>
+            </div>
+
+            {showAdd && (
+              <div style={{ background:"#0a0a14", border:"1px solid #00c85333", borderRadius:14, padding:20, marginBottom:16 }}>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12, marginBottom:14 }}>
+                  {[
+                    { label:"NOME DA EMPRESA", key:"nome", type:"text", placeholder:"Ex: Academia FitLife" },
+                    { label:"CRÉDITOS EXTRAS/MÊS", key:"creditos_extras", type:"number", placeholder:"0" },
+                  ].map(f => (
+                    <div key={f.key}>
+                      <div style={{ fontSize:10, color:"#333", marginBottom:6, letterSpacing:1 }}>{f.label}</div>
+                      <input type={f.type} value={novoCli[f.key]} placeholder={f.placeholder}
+                        onChange={e => setNovoCli(p => ({ ...p, [f.key]: f.type==="number"?+e.target.value:e.target.value }))}
+                        style={{ width:"100%", padding:"8px 12px", background:"#13131f", border:"1px solid #1a1a2e", borderRadius:8, color:"#e8e8f0", fontSize:13, outline:"none", fontFamily:"inherit", boxSizing:"border-box" }} />
+                    </div>
+                  ))}
+                  <div>
+                    <div style={{ fontSize:10, color:"#333", marginBottom:6, letterSpacing:1 }}>PLANO</div>
+                    <select value={novoCli.plano} onChange={e => setNovoCli(p => ({ ...p, plano:e.target.value }))}
+                      style={{ width:"100%", padding:"8px 12px", background:"#13131f", border:"1px solid #1a1a2e", borderRadius:8, color:"#e8e8f0", fontSize:13, outline:"none", fontFamily:"inherit", boxSizing:"border-box" }}>
+                      {Object.entries(CONFIG_S.planos).map(([k,pl]) => (
+                        <option key={k} value={k}>{pl.nome} — {fmt(pl.preco)}/mês</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display:"flex", gap:8 }}>
+                  <button onClick={() => {
+                    if (!novoCli.nome.trim()) return;
+                    setClientes(p => [...p, { id:Date.now(), ...novoCli, status:"ativo" }]);
+                    setNovoCli({ nome:"", plano:"pro", creditos_extras:0 });
+                    setShowAdd(false);
+                  }} style={{ padding:"8px 22px", borderRadius:8, border:"none", background:"#00c853", color:"#000", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Salvar</button>
+                  <button onClick={() => setShowAdd(false)} style={{ padding:"8px 14px", borderRadius:8, border:"1px solid #1a1a2e", background:"transparent", color:"#555", fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>Cancelar</button>
+                </div>
+              </div>
+            )}
+
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              {clientes.length === 0 && <div style={{ textAlign:"center", padding:"50px 0", color:"#333", fontSize:13 }}>Nenhum cliente ainda.</div>}
+              {clientes.map(c => {
+                const pl = CONFIG_S.planos[c.plano] || CONFIG_S.planos.pro;
+                const mrr_c = pl.preco + ((c.creditos_extras||0)/500)*29;
+                const custo_c = (pl.creditos+200)*CONFIG_S.custo_credito;
+                return (
+                  <div key={c.id} style={{ background:"#0a0a14", border:"1px solid #0f0f1e", borderRadius:11, padding:"14px 18px", display:"flex", alignItems:"center", gap:14, opacity:c.status==="ativo"?1:0.5 }}>
+                    <div style={{ width:38, height:38, borderRadius:9, background:`${pl.cor}20`, border:`1px solid ${pl.cor}44`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, flexShrink:0 }}>
+                      {c.plano==="business"?"🏢":c.plano==="pro"?"⭐":"🏪"}
+                    </div>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:14, fontWeight:700, color:"#e8e8ff" }}>{c.nome}</div>
+                      <div style={{ fontSize:11, color:"#333" }}>
+                        <span style={{ color:pl.cor, fontWeight:700 }}>{pl.nome}</span>
+                        {c.creditos_extras>0 && <span> · +{fmtN(c.creditos_extras)} créditos/mês</span>}
+                      </div>
+                    </div>
+                    <div style={{ textAlign:"right", marginRight:16 }}>
+                      <div style={{ fontSize:15, fontWeight:800, color:"#00c853" }}>{fmt(mrr_c)}/mês</div>
+                      <div style={{ fontSize:11, color:"#333" }}>Lucro: {fmt(mrr_c-custo_c)}</div>
+                    </div>
+                    <div style={{ display:"flex", gap:6 }}>
+                      <button onClick={() => setClientes(p => p.map(x => x.id===c.id?{...x,status:x.status==="ativo"?"suspenso":"ativo"}:x))}
+                        style={{ padding:"5px 12px", borderRadius:7, border:`1px solid ${c.status==="ativo"?"#f4433333":"#00c85333"}`, background:"transparent", color:c.status==="ativo"?"#f44336":"#00c853", fontSize:11, cursor:"pointer", fontFamily:"inherit" }}>
+                        {c.status==="ativo"?"Suspender":"Reativar"}
+                      </button>
+                      <button onClick={() => setClientes(p => p.filter(x => x.id!==c.id))}
+                        style={{ padding:"5px 10px", borderRadius:7, border:"1px solid #1a1a2e", background:"transparent", color:"#333", fontSize:11, cursor:"pointer", fontFamily:"inherit" }}>✕</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {/* ── FINANCEIRO ── */}
+        {activeTab === "financeiro" && (
+          <>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:14 }}>
+              <div style={{ background:"#0a0a14", border:"1px solid #0f0f1e", borderRadius:14, padding:22 }}>
+                <div style={{ fontSize:13, fontWeight:700, color:"#00c853", marginBottom:16 }}>📈 Receita</div>
+                {[["Assinaturas mensais", mrr_base],["Créditos IA extras", mrr_creditos]].map(([l,v]) => (
+                  <div key={l} style={{ display:"flex", justifyContent:"space-between", padding:"11px 0", borderBottom:"1px solid #0f0f1e" }}>
+                    <span style={{ fontSize:13, color:"#555" }}>{l}</span>
+                    <span style={{ fontSize:14, fontWeight:700, color:"#00c853" }}>{fmt(v)}</span>
+                  </div>
+                ))}
+                <div style={{ display:"flex", justifyContent:"space-between", paddingTop:12 }}>
+                  <span style={{ fontSize:14, fontWeight:700 }}>Total</span>
+                  <span style={{ fontSize:18, fontWeight:900, color:"#00c853" }}>{fmt(mrr_total)}</span>
+                </div>
+              </div>
+              <div style={{ background:"#0a0a14", border:"1px solid #0f0f1e", borderRadius:14, padding:22 }}>
+                <div style={{ fontSize:13, fontWeight:700, color:"#f44336", marginBottom:16 }}>📉 Custos</div>
+                {[
+                  ["Railway + Evolution API", infra_fixa*0.4],
+                  ["Supabase", infra_fixa*0.25],
+                  ["Claude API", custo_api],
+                  ["Vercel", 0],
+                  [`Pagar.me 3.5%`, pagarme_fee],
+                  ["Domínios / Misc", 30],
+                ].map(([l,v]) => (
+                  <div key={l} style={{ display:"flex", justifyContent:"space-between", padding:"9px 0", borderBottom:"1px solid #0f0f1e" }}>
+                    <span style={{ fontSize:12, color:"#555" }}>{l}</span>
+                    <span style={{ fontSize:13, fontWeight:700, color:"#f44336" }}>{fmt(v)}</span>
+                  </div>
+                ))}
+                <div style={{ display:"flex", justifyContent:"space-between", paddingTop:12 }}>
+                  <span style={{ fontSize:14, fontWeight:700 }}>Total</span>
+                  <span style={{ fontSize:18, fontWeight:900, color:"#f44336" }}>{fmt(custo_total)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Divisão entre sócios */}
+            <div style={{ background:"#0a0a14", border:`1px solid ${lucro>=0?"#00c85333":"#f4433333"}`, borderRadius:14, padding:22, marginBottom:14 }}>
+              <div style={{ fontSize:13, fontWeight:700, marginBottom:16 }}>💰 Divisão do Lucro — 3 Sócios</div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr", gap:12 }}>
+                {[
+                  { label:"Lucro Líquido", value:fmt(lucro), color:lucro>=0?"#00c853":"#f44336" },
+                  { label:"Margem", value:`${margem.toFixed(0)}%`, color:margem>60?"#00c853":"#ff9800" },
+                  { label:"Matheus", value:fmt(lucro_socio), color:"#7c4dff" },
+                  { label:"Sócio 2", value:fmt(lucro_socio), color:"#00bcd4" },
+                  { label:"Sócio 3", value:fmt(lucro_socio), color:"#ff9800" },
+                ].map(s => (
+                  <div key={s.label} style={{ background:"#13131f", borderRadius:10, padding:"14px 16px", textAlign:"center" }}>
+                    <div style={{ fontSize:10, color:"#333", marginBottom:6, letterSpacing:1 }}>{s.label.toUpperCase()}</div>
+                    <div style={{ fontSize:20, fontWeight:900, color:s.color }}>{s.value}</div>
+                    {["Matheus","Sócio 2","Sócio 3"].includes(s.label) && <div style={{ fontSize:10, color:"#333", marginTop:4 }}>1/3 do lucro</div>}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Tabela de preços */}
+            <div style={{ background:"#0a0a14", border:"1px solid #0f0f1e", borderRadius:14, padding:22 }}>
+              <div style={{ fontSize:13, fontWeight:700, marginBottom:14 }}>💳 Modelo Híbrido — Preços e Margens</div>
+              <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+                <thead>
+                  <tr>{["Plano","Preço/mês","Créditos inclusos","Atendentes","Custo real","Margem"].map(h=>(
+                    <th key={h} style={{ textAlign:"left", padding:"8px 10px", color:"#333", fontSize:10, letterSpacing:1, borderBottom:"1px solid #0f0f1e" }}>{h}</th>
+                  ))}</tr>
+                </thead>
+                <tbody>
+                  {Object.entries(CONFIG_S.planos).map(([k,pl]) => {
+                    const c = (pl.creditos+200)*CONFIG_S.custo_credito+(infra_fixa/Math.max(1,ativos.length||5));
+                    const mg = (pl.preco-c)/pl.preco*100;
+                    return (
+                      <tr key={k} style={{ borderBottom:"1px solid #0a0a14" }}>
+                        <td style={{ padding:"11px 10px", fontWeight:700, color:pl.cor }}>{pl.nome}</td>
+                        <td style={{ padding:"11px 10px", fontWeight:700, color:"#e8e8ff" }}>{fmt(pl.preco)}</td>
+                        <td style={{ padding:"11px 10px", color:"#555" }}>{pl.creditos===0?"Sem IA":fmtN(pl.creditos)}</td>
+                        <td style={{ padding:"11px 10px", color:"#555" }}>Até {pl.atendentes}</td>
+                        <td style={{ padding:"11px 10px", color:"#f44336" }}>{fmt(c)}</td>
+                        <td style={{ padding:"11px 10px", fontWeight:700, color:mg>70?"#00c853":"#ff9800" }}>{mg.toFixed(0)}%</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        {/* ── PROJEÇÃO ── */}
+        {activeTab === "projecao" && (
+          <>
+            <div style={{ background:"#0a0a14", border:"1px solid #0f0f1e", borderRadius:14, padding:22, marginBottom:14 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+                <div>
+                  <div style={{ fontSize:14, fontWeight:700 }}>🚀 Projeção — 12 meses</div>
+                  <div style={{ fontSize:11, color:"#333" }}>Mix: 25% Starter · 55% Pro · 20% Business</div>
+                </div>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <span style={{ fontSize:12, color:"#333" }}>Novos/mês:</span>
+                  <input type="range" min={1} max={20} value={crescimento} onChange={e => setCrescimento(+e.target.value)} style={{ width:90, accentColor:"#00c853" }} />
+                  <span style={{ fontSize:14, fontWeight:800, color:"#00c853", minWidth:20 }}>{crescimento}</span>
+                </div>
+              </div>
+              <div style={{ overflowX:"auto" }}>
+                <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+                  <thead>
+                    <tr>{["Mês","Clientes","MRR","Custos","Lucro","Matheus","Sócio 2","Sócio 3"].map(h=>(
+                      <th key={h} style={{ textAlign:"left", padding:"8px 10px", color:"#333", fontSize:10, letterSpacing:1, borderBottom:"1px solid #0f0f1e", whiteSpace:"nowrap" }}>{h}</th>
+                    ))}</tr>
+                  </thead>
+                  <tbody>
+                    {projection.map((r,i) => (
+                      <tr key={i} style={{ borderBottom:"1px solid #0a0a14", background:i%2===0?"transparent":"#07070f" }}>
+                        <td style={{ padding:"9px 10px", color:"#555" }}>{r.mes}</td>
+                        <td style={{ padding:"9px 10px", fontWeight:700, color:"#e8e8ff" }}>{r.clientes}</td>
+                        <td style={{ padding:"9px 10px", fontWeight:700, color:"#00c853" }}>{fmt(r.MRR)}</td>
+                        <td style={{ padding:"9px 10px", color:"#f44336" }}>{fmt(r.Custos)}</td>
+                        <td style={{ padding:"9px 10px", fontWeight:700, color:r.Lucro>=0?"#00c853":"#f44336" }}>{fmt(r.Lucro)}</td>
+                        <td style={{ padding:"9px 10px", fontWeight:700, color:"#7c4dff" }}>{fmt(r.Lucro/3)}</td>
+                        <td style={{ padding:"9px 10px", fontWeight:700, color:"#00bcd4" }}>{fmt(r.Lucro/3)}</td>
+                        <td style={{ padding:"9px 10px", fontWeight:700, color:"#ff9800" }}>{fmt(r.Lucro/3)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Milestones */}
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10 }}>
+              {[
+                { n:10, label:"Break-even", icon:"🌱" },
+                { n:25, label:"R$1k/sócio",  icon:"💪" },
+                { n:50, label:"R$5k/sócio",  icon:"🚀" },
+                { n:100,label:"R$10k/sócio", icon:"🏆" },
+              ].map(m => {
+                const mix = { starter:Math.round(m.n*0.25), pro:Math.round(m.n*0.55), business:Math.round(m.n*0.20) };
+                let mrr=0;
+                Object.entries(mix).forEach(([p,q]) => { mrr += CONFIG_S.planos[p].preco*q + q*0.2*49; });
+                const lm = mrr - (200+m.n*8) - mrr*0.035 - m.n*200*CONFIG_S.custo_credito;
+                const atingido = ativos.length >= m.n;
+                return (
+                  <div key={m.n} style={{ background:"#0a0a14", border:`1px solid ${atingido?"#00c85333":"#0f0f1e"}`, borderRadius:12, padding:18 }}>
+                    <div style={{ fontSize:22, marginBottom:6 }}>{atingido?"✅":m.icon}</div>
+                    <div style={{ fontSize:13, fontWeight:700, color:atingido?"#00c853":"#e8e8ff" }}>{m.label}</div>
+                    <div style={{ fontSize:11, color:"#333", marginTop:2 }}>{m.n} clientes</div>
+                    <div style={{ fontSize:16, fontWeight:800, color:"#00c853", marginTop:8 }}>{fmt(mrr)}</div>
+                    <div style={{ fontSize:10, color:"#333" }}>MRR</div>
+                    <div style={{ fontSize:13, fontWeight:700, color:"#7c4dff", marginTop:4 }}>{fmt(lm/3)}/sócio</div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [auth, setAuth] = useState(getStoredAuth);
 
@@ -3019,9 +3410,11 @@ function AppInner({ auth, onLogout }) {
     ...(trialInfo?.status === "trial" ? [{ id: "upgrade", label: "⭐ Assinar" }] : []),
   ];
 
+  const IS_SOCIO = SOCIOS_EMAILS.includes(auth.user?.email);
   const ADMIN_TABS = [
     ...(auth.user.role === "admin" ? [{ id: "whatsapp", label: "📱 WhatsApp" }] : []),
     ...(auth.user.role === "admin" ? [{ id: "admin", label: "🔐 Admin" }] : []),
+    ...(IS_SOCIO ? [{ id: "socios", label: "📊 Sócios" }] : []),
   ];
 
   return (
@@ -3108,9 +3501,14 @@ function AppInner({ auth, onLogout }) {
           <AdminPanel auth={auth} onLogout={onLogout} />
         )}
 
+        {/* Dashboard Sócios */}
+        {view === "socios" && IS_SOCIO && (
+          <DashboardSocios auth={auth} clientes_reais={[]} />
+        )}
+
         {/* Onboarding IA */}
         {view === "onboarding" && auth.user.role === "admin" && (
-          <OnboardingView auth={auth} />
+          <OnboardingView auth={auth} aiCredits={aiCredits} />
         )}
 
         {/* WhatsApp Connection */}
