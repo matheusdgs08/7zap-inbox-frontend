@@ -951,7 +951,6 @@ function OnboardingView({ auth }) {
       setProgress(100);
       setTimeout(() => {
         setResult(d);
-        setEditedPrompt(d.generated_prompt);
         setStep("result");
       }, 500);
     } catch (e) {
@@ -965,10 +964,7 @@ function OnboardingView({ auth }) {
   const savePrompt = async () => {
     setSaving(true);
     try {
-      await fetch(`${API_URL}/onboarding/save-prompt`, {
-        method: "POST", headers,
-        body: JSON.stringify({ tenant_id: TENANT_ID, prompt: editedPrompt })
-      });
+      // Prompt was already saved to DB by the analyze endpoint — just confirm
       setSaved(true);
       setTimeout(() => setStep("done"), 800);
     } catch (e) {}
@@ -1027,7 +1023,7 @@ function OnboardingView({ auth }) {
 
             {/* Warning */}
             <div style={{ background: "#7c4dff15", border: "1px solid #7c4dff33", borderRadius: 10, padding: "12px 16px", fontSize: 12, color: "#a78bfa", marginBottom: 20 }}>
-              ⚡ Disponível apenas nos planos <strong>Pro</strong> (200 conversas) e <strong>Business</strong> (500 conversas). Uso: 1x por mês.
+              ⚡ Disponível nos planos <strong>Pro</strong> (200 conversas) e <strong>Business</strong> (500 conversas). Cada análise consome <strong>1.000 créditos</strong> — use quantas vezes quiser enquanto tiver saldo.
             </div>
 
             <button onClick={analyze} style={{ width: "100%", padding: "14px 0", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #00c853, #00796b)", color: "#000", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
@@ -1089,26 +1085,29 @@ function OnboardingView({ auth }) {
               ))}
             </div>
 
-            {/* Editable prompt */}
-            <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 24, marginBottom: 20 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                <div style={{ fontSize: 14, fontWeight: 700 }}>📝 Prompt gerado pela IA</div>
-                <span style={{ fontSize: 11, background: "#00c85322", color: "#00c853", padding: "2px 10px", borderRadius: 20, fontWeight: 700 }}>editável</span>
+            {/* Summary — protects real prompt */}
+            <div style={{ background: "#0d0d18", border: "1px solid #00c85333", borderRadius: 14, padding: 24, marginBottom: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                <div style={{ fontSize: 14, fontWeight: 700 }}>🧠 O que a IA aprendeu sobre seu negócio</div>
+                <span style={{ fontSize: 11, background: "#00c85322", color: "#00c853", padding: "2px 10px", borderRadius: 20, fontWeight: 700 }}>ativo</span>
               </div>
-              <div style={{ fontSize: 12, color: "#555", marginBottom: 12 }}>Personalize à vontade antes de salvar. Este será o "cérebro" do Co-pilot.</div>
-              <textarea
-                value={editedPrompt}
-                onChange={e => setEditedPrompt(e.target.value)}
-                rows={16}
-                style={{ width: "100%", padding: "14px 16px", background: "#13131f", border: "1px solid #252540", borderRadius: 10, color: "#e8e8f0", fontSize: 13, outline: "none", resize: "vertical", fontFamily: "monospace", lineHeight: 1.6, boxSizing: "border-box" }}
-              />
-              <div style={{ fontSize: 11, color: "#444", marginTop: 6 }}>{editedPrompt.length} caracteres</div>
+              <div style={{ fontSize: 12, color: "#555", marginBottom: 16 }}>
+                Seu Co-pilot foi configurado com base nas suas conversas. Abaixo um resumo do que ele aprendeu:
+              </div>
+              <div style={{ background: "#13131f", border: "1px solid #1a1a2e", borderRadius: 10, padding: "16px 18px" }}>
+                {(result.summary || "").split("\n").filter(l => l.trim()).map((line, i) => (
+                  <div key={i} style={{ fontSize: 13, color: "#c8c8e0", marginBottom: 8, lineHeight: 1.5 }}>{line}</div>
+                ))}
+              </div>
+              <div style={{ marginTop: 12, fontSize: 11, color: "#333", display: "flex", alignItems: "center", gap: 6 }}>
+                🔒 O prompt completo é mantido de forma segura pela plataforma.
+              </div>
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setStep("intro")} style={{ padding: "12px 20px", borderRadius: 10, border: "1px solid #252540", background: "transparent", color: "#555", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>← Refazer</button>
-              <button onClick={savePrompt} disabled={saving || !editedPrompt.trim()} style={{ flex: 1, padding: "12px 0", borderRadius: 10, border: "none", background: saved ? "#00c853" : "linear-gradient(135deg,#00c853,#00796b)", color: "#000", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
-                {saving ? "Salvando..." : saved ? "✓ Salvo!" : "🚀 Salvar e ativar Co-pilot →"}
+              <button onClick={() => setStep("intro")} style={{ padding: "12px 20px", borderRadius: 10, border: "1px solid #252540", background: "transparent", color: "#555", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>← Refazer análise</button>
+              <button onClick={savePrompt} disabled={saving} style={{ flex: 1, padding: "12px 0", borderRadius: 10, border: "none", background: saved ? "#00c853" : "linear-gradient(135deg,#00c853,#00796b)", color: "#000", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
+                {saving ? "Ativando..." : saved ? "✓ Co-pilot ativado!" : "🚀 Ativar Co-pilot com este aprendizado →"}
               </button>
             </div>
           </>
@@ -2782,7 +2781,7 @@ function AppInner({ auth, onLogout }) {
   }, []);
   const fetchTenant = useCallback(async () => {
     try { const r = await fetch(`${API_URL}/tenant?tenant_id=${TENANT_ID}`, { headers }); const d = await r.json();
-      setCopilotPrompt(d.copilot_prompt || "");
+      setCopilotPrompt(d.copilot_prompt_summary || "");
       setCopilotAutoMode(d.copilot_auto_mode || "off");
       setCopilotScheduleStart(d.copilot_schedule_start || "18:00");
       setCopilotScheduleEnd(d.copilot_schedule_end || "09:00");
@@ -3220,10 +3219,27 @@ function AppInner({ auth, onLogout }) {
                 )}
               </div>
 
-              {/* Prompt */}
+              {/* Prompt — summary only, real prompt protected */}
               <div style={{ fontSize: 12, fontWeight: 700, color: "#666", marginBottom: 8 }}>PROMPT DO CO-PILOT</div>
-              <textarea value={copilotPrompt} onChange={e => setCopilotPrompt(e.target.value)} rows={10} placeholder="Você é um atendente da academia Estúdio Se7e..." style={{ width: "100%", padding: "14px 16px", background: "#13131f", border: "1px solid #252540", borderRadius: 10, color: "#e8e8f0", fontSize: 13, outline: "none", resize: "vertical", fontFamily: "inherit", lineHeight: 1.6, boxSizing: "border-box", minHeight: 200 }} />
-              <div style={{ fontSize: 11, color: "#444", marginTop: 6, marginBottom: 16 }}>{copilotPrompt.length} caracteres</div>
+              {copilotPrompt ? (
+                <div style={{ background: "#13131f", border: "1px solid #1a1a2e", borderRadius: 10, padding: "14px 16px", marginBottom: 16 }}>
+                  <div style={{ fontSize: 11, color: "#444", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+                    🔒 Configurado via Onboarding Inteligente — mantido de forma segura pela plataforma.
+                  </div>
+                  {copilotPrompt.split("\n").filter(l => l.trim()).map((line, i) => (
+                    <div key={i} style={{ fontSize: 13, color: "#c8c8e0", marginBottom: 6, lineHeight: 1.5 }}>{line}</div>
+                  ))}
+                  <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid #1a1a2e", fontSize: 11, color: "#444" }}>
+                    Para atualizar: use <strong style={{ color: "#a78bfa" }}>🧠 Onboarding Inteligente</strong> e refaça a análise.
+                  </div>
+                </div>
+              ) : (
+                <div style={{ background: "#13131f", border: "1px dashed #252540", borderRadius: 10, padding: "24px 16px", textAlign: "center", marginBottom: 16 }}>
+                  <div style={{ fontSize: 20, marginBottom: 8 }}>🧠</div>
+                  <div style={{ fontSize: 13, color: "#555", marginBottom: 6 }}>Nenhum prompt configurado ainda.</div>
+                  <div style={{ fontSize: 12, color: "#333" }}>Use o <strong style={{ color: "#a78bfa" }}>Onboarding Inteligente</strong> para gerar um prompt baseado no histórico real da sua empresa.</div>
+                </div>
+              )}
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 <button onClick={savePrompt} disabled={savingPrompt} style={{ padding: "10px 28px", borderRadius: 9, border: "none", background: savingPrompt ? "#1a1a2e" : "linear-gradient(135deg, #7c4dff, #5b21b6)", color: savingPrompt ? "#444" : "#fff", fontSize: 14, fontWeight: 700, cursor: savingPrompt ? "not-allowed" : "pointer", fontFamily: "inherit" }}>{savingPrompt ? "Salvando..." : "💾 Salvar configurações"}</button>
                 {promptSaved && <span style={{ fontSize: 13, color: "#00c853", fontWeight: 600 }}>✓ Salvo!</span>}
