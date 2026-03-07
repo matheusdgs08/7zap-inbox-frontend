@@ -1137,299 +1137,340 @@ function OnboardingView({ auth, aiCredits }) {
 
 // ─── WhatsApp Connection Screen ───────────────────────────────────────────────
 function WhatsAppScreen({ auth }) {
-  const [status, setStatus] = useState(null);
+  const [instances, setInstances] = useState([]);
+  const [maxNumbers, setMaxNumbers] = useState(1);
+  const [plan, setPlan] = useState("starter");
+  const [activeInst, setActiveInst] = useState(null); // instance object being managed
   const [qrCode, setQrCode] = useState("");
-  const [instance, setInstance] = useState("default");
   const [loadingQr, setLoadingQr] = useState(false);
-  const [disconnecting, setDisconnecting] = useState(false);
-  const [lastCheck, setLastCheck] = useState(null);
-  const [phone, setPhone] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [newLabel, setNewLabel] = useState("");
+  const [showNewForm, setShowNewForm] = useState(false);
+  const [deleting, setDeleting] = useState(null);
+
+  // Sync state
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
   const [syncProgress, setSyncProgress] = useState(0);
-  const pollRef = useRef(null);
-
   const syncJobRef = useRef(null);
 
-  const syncHistory = async (auto = false) => {
+  const fetchInstances = async () => {
+    try {
+      const r = await fetch(`${API_URL}/whatsapp/tenant-instances?tenant_id=${TENANT_ID}`, { headers });
+      const d = await r.json();
+      setInstances(d.instances || []);
+      setMaxNumbers(d.max_numbers || 1);
+      setPlan(d.plan || "starter");
+    } catch(e) {}
+  };
+
+  useEffect(() => {
+    fetchInstances();
+    const t = setInterval(fetchInstances, 12000);
+    return () => clearInterval(t);
+  }, []);
+
+  // QR code for active instance
+  useEffect(() => {
+    if (activeInst && !activeInst.connected) {
+      fetchQr(activeInst.instance_name);
+    } else {
+      setQrCode("");
+    }
+  }, [activeInst?.id]);
+
+  const fetchQr = async (instName) => {
+    setLoadingQr(true); setQrCode("");
+    try {
+      const r = await fetch(`${API_URL}/whatsapp/qrcode?instance=${instName}`, { headers });
+      const d = await r.json();
+      if (d.connected) {
+        fetchInstances();
+        setActiveInst(prev => prev ? { ...prev, connected: true, phone: d.phone } : prev);
+      } else if (d.qr_code) {
+        setQrCode(d.qr_code);
+      }
+    } catch(e) {}
+    setLoadingQr(false);
+  };
+
+  const createInstance = async () => {
+    if (!newLabel.trim()) return;
+    setCreating(true);
+    try {
+      const r = await fetch(`${API_URL}/whatsapp/create-instance`, {
+        method: "POST", headers,
+        body: JSON.stringify({ tenant_id: TENANT_ID, label: newLabel.trim() })
+      });
+      const d = await r.json();
+      if (d.ok) {
+        setShowNewForm(false); setNewLabel("");
+        await fetchInstances();
+        setActiveInst(d.instance);
+      }
+    } catch(e) {}
+    setCreating(false);
+  };
+
+  const deleteInstance = async (inst) => {
+    if (!window.confirm(`Remover "${inst.label}"? O número será desconectado.`)) return;
+    setDeleting(inst.id);
+    try {
+      await fetch(`${API_URL}/whatsapp/delete-instance`, {
+        method: "DELETE", headers,
+        body: JSON.stringify({ tenant_id: TENANT_ID, instance_id: inst.id, instance_name: inst.instance_name })
+      });
+      if (activeInst?.id === inst.id) setActiveInst(null);
+      fetchInstances();
+    } catch(e) {}
+    setDeleting(null);
+  };
+
+  const disconnect = async (inst) => {
+    if (!window.confirm(`Desconectar "${inst.label}"?`)) return;
+    try {
+      await fetch(`${API_URL}/whatsapp/disconnect`, {
+        method: "POST", headers,
+        body: JSON.stringify({ instance: inst.instance_name })
+      });
+      fetchInstances();
+      setActiveInst(prev => prev?.id === inst.id ? { ...prev, connected: false, phone: "" } : prev);
+    } catch(e) {}
+  };
+
+  const syncHistory = async (inst) => {
     setSyncing(true); setSyncResult(null); setSyncProgress(5);
-    // Fire-and-forget: POST returns immediately with job_id
-    // Frontend polls /whatsapp/sync/status?job_id=xxx until done
     try {
       const r = await fetch(`${API_URL}/whatsapp/sync`, {
         method: "POST", headers,
-        body: JSON.stringify({ tenant_id: TENANT_ID, instance, async: true })
+        body: JSON.stringify({ tenant_id: TENANT_ID, instance: inst.instance_name, async: true })
       });
       const d = await r.json();
-      // If backend returned a job_id → poll for status
       if (d.job_id) {
-        syncJobRef.current = d.job_id;
         setSyncProgress(10);
         const poll = setInterval(async () => {
           try {
             const sr = await fetch(`${API_URL}/whatsapp/sync/status?job_id=${d.job_id}`, { headers });
             const sd = await sr.json();
             if (sd.progress) setSyncProgress(Math.min(sd.progress, 95));
-            if (sd.status === "done" || sd.status === "error" || sr.ok && sd.stats) {
-              clearInterval(poll);
-              setSyncProgress(100);
-              setSyncResult({ ok: sd.status !== "error", auto, ...sd });
+            if (sd.status === "done" || sd.status === "error") {
+              clearInterval(poll); setSyncProgress(100);
+              setSyncResult({ ok: sd.status !== "error", ...sd });
               setSyncing(false);
             }
-          } catch (e) { clearInterval(poll); setSyncing(false); }
+          } catch(e) { clearInterval(poll); setSyncing(false); }
         }, 2000);
-        // Timeout safety: stop polling after 5 minutes
         setTimeout(() => { clearInterval(poll); setSyncing(false); }, 300000);
       } else {
-        // Backend is synchronous (old behavior) — still works
-        setSyncProgress(100);
-        setSyncResult({ ok: r.ok, auto, ...d });
-        setSyncing(false);
+        setSyncProgress(100); setSyncResult({ ok: r.ok, ...d }); setSyncing(false);
       }
-    } catch (e) {
-      if (!auto) setSyncResult({ ok: false, message: "Erro de conexão. Tente novamente." });
-      setSyncing(false);
-    }
+    } catch(e) { setSyncing(false); }
   };
 
-  const prevStatusRef = useRef(null);
-
-  const checkStatus = async () => {
-    try {
-      const r = await fetch(`${API_URL}/whatsapp/status?instance=${instance}`, { headers });
-      if (!r.ok) { setStatus("error"); return; }
-      const d = await r.json();
-      const newStatus = d.connected ? "connected" : "disconnected";
-      setStatus(newStatus);
-      setPhone(d.phone || "");
-      setLastCheck(new Date());
-      if (d.connected) setQrCode("");
-      // auto-sync removido — evita travar workers ao conectar
-      prevStatusRef.current = newStatus;
-    } catch (e) {
-      setStatus("error");
-    }
-  };
-
-  const fetchQrCode = async () => {
-    setLoadingQr(true); setQrCode("");
-    try {
-      const r = await fetch(`${API_URL}/whatsapp/qrcode?instance=${instance}`, { headers });
-      const d = await r.json();
-      if (d.connected === true || d.state === "open") {
-        setStatus("connected");
-        setPhone(d.phone || "");
-      } else if (d.qr_code) {
-        setQrCode(d.qr_code);
-      }
-    } catch (e) {}
-    setLoadingQr(false);
-  };
-
-  const disconnect = async () => {
-    if (!window.confirm("Deseja desconectar o WhatsApp? Nenhuma mensagem será recebida até reconectar.")) return;
-    setDisconnecting(true);
-    try {
-      await fetch(`${API_URL}/whatsapp/disconnect`, { method: "POST", headers, body: JSON.stringify({ instance }) });
-      setStatus("disconnected"); setQrCode(""); setPhone("");
-    } catch (e) {}
-    setDisconnecting(false);
-  };
-
-  useEffect(() => {
-    checkStatus();
-    pollRef.current = setInterval(checkStatus, 15000);
-    return () => clearInterval(pollRef.current);
-  }, [instance]);
-
-  useEffect(() => {
-    if (status === "disconnected" && !qrCode && !loadingQr) fetchQrCode();
-  }, [status]);
-
-  const isConnected = status === "connected";
-  const statusColor = isConnected ? "#00c853" : status === "error" ? "#ff6d00" : "#f44336";
-  const statusLabel = isConnected ? "Conectado" : status === "error" ? "Erro de conexão" : status === "disconnected" ? "Desconectado" : "Verificando...";
-  const statusIcon = isConnected ? "🟢" : status === "error" ? "🟠" : status === "disconnected" ? "🔴" : "⏳";
+  const canAdd = instances.length < maxNumbers;
+  const PLAN_LABELS = { starter: "Starter", pro: "Pro", business: "Business", trial: "Trial", enterprise: "Enterprise" };
 
   return (
-    <div style={{ flex: 1, overflowY: "auto", padding: 40 }}>
-      <div style={{ maxWidth: 680, margin: "0 auto" }}>
+    <div style={{ flex: 1, overflowY: "auto", padding: 32 }}>
+      <div style={{ maxWidth: 760, margin: "0 auto" }}>
 
         {/* Header */}
-        <div style={{ marginBottom: 32 }}>
-          <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>📱 Conexão WhatsApp</div>
-          <div style={{ fontSize: 13, color: "#555" }}>Gerencie a conexão do seu número com o 7CRM</div>
-        </div>
-
-        {/* Status Card */}
-        <div style={{ background: "#0d0d18", border: `1px solid ${statusColor}44`, borderRadius: 16, padding: 24, marginBottom: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
-            <div style={{ width: 52, height: 52, borderRadius: 14, background: `${statusColor}15`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>
-              {isConnected ? "📱" : "📵"}
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>
-                {isConnected ? (phone ? `+${phone}` : "Número conectado") : "Número da recepção"}
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ fontSize: 12 }}>{statusIcon}</span>
-                <span style={{ fontSize: 13, color: statusColor, fontWeight: 600 }}>{statusLabel}</span>
-                {lastCheck && <span style={{ fontSize: 11, color: "#333" }}>· {timeAgo(lastCheck.toISOString())}</span>}
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={checkStatus} style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid #252540", background: "transparent", color: "#555", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>🔄 Atualizar</button>
-              {isConnected && (
-                <button onClick={disconnect} disabled={disconnecting} style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid #f4433344", background: "transparent", color: "#f44336", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
-                  {disconnecting ? "..." : "Desconectar"}
-                </button>
-              )}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>📱 Números WhatsApp</div>
+            <div style={{ fontSize: 13, color: "#555" }}>
+              {instances.length} de {maxNumbers} números usados · plano <span style={{ color: "#7c4dff", fontWeight: 700 }}>{PLAN_LABELS[plan]}</span>
             </div>
           </div>
+          {canAdd ? (
+            <button onClick={() => setShowNewForm(true)}
+              style={{ padding: "9px 20px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#00c853,#00796b)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+              + Adicionar número
+            </button>
+          ) : (
+            <div style={{ padding: "9px 16px", borderRadius: 10, background: "#7c4dff15", border: "1px solid #7c4dff33", fontSize: 12, color: "#a78bfa", fontWeight: 600 }}>
+              🔒 Limite atingido · <span style={{ textDecoration: "underline", cursor: "pointer" }}>Fazer upgrade</span>
+            </div>
+          )}
+        </div>
 
-          {/* Instance input */}
-          <div style={{ padding: "10px 14px", background: "#13131f", border: "1px solid #1a1a2e", borderRadius: 10, display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 11, color: "#555", fontWeight: 700, whiteSpace: "nowrap" }}>INSTÂNCIA</span>
-            <input value={instance} onChange={e => { setInstance(e.target.value); setStatus(null); setQrCode(""); }} style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: "#e8e8f0", fontSize: 13, fontFamily: "inherit" }} placeholder="default" />
-            <span style={{ fontSize: 11, color: "#333" }}>nome da instância na Evolution API</span>
+        {/* Slot limit bar */}
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ height: 4, background: "#1a1a2e", borderRadius: 4, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${(instances.length/maxNumbers)*100}%`, background: instances.length >= maxNumbers ? "#f44336" : "#00c853", borderRadius: 4, transition: "width 0.4s" }} />
           </div>
         </div>
 
-        {/* QR Code Card — só quando desconectado */}
-        {(status === "disconnected" || status === "error") && (
-          <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 16, padding: 28, marginBottom: 20 }}>
-            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>📷 Conectar via QR Code</div>
-            <div style={{ fontSize: 13, color: "#555", marginBottom: 24 }}>
-              Abra o WhatsApp no celular → <strong style={{ color: "#e8e8f0" }}>Menu (⋮)</strong> → <strong style={{ color: "#e8e8f0" }}>Dispositivos conectados</strong> → <strong style={{ color: "#e8e8f0" }}>Adicionar dispositivo</strong>
-            </div>
-
-            {/* QR grande e centralizado */}
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-              {loadingQr ? (
-                <div style={{ width: 320, height: 320, background: "#13131f", borderRadius: 16, border: "2px solid #1a1a2e", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14 }}>
-                  <div style={{ width: 40, height: 40, border: "4px solid #1a1a2e", borderTop: "4px solid #00c853", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
-                  <span style={{ fontSize: 13, color: "#555" }}>Gerando QR Code...</span>
-                </div>
-              ) : qrCode ? (
-                <div style={{ background: "#fff", borderRadius: 16, padding: 16, boxShadow: "0 0 40px #00c85330" }}>
-                  <img src={qrCode} alt="QR Code" style={{ width: 300, height: 300, display: "block" }} />
-                </div>
-              ) : (
-                <div style={{ width: 320, height: 320, background: "#13131f", border: "2px dashed #252540", borderRadius: 16, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
-                  <span style={{ fontSize: 40 }}>📷</span>
-                  <span style={{ fontSize: 13, color: "#555" }}>Clique em Gerar QR Code</span>
-                </div>
-              )}
-
-              <button onClick={fetchQrCode} disabled={loadingQr} style={{ width: 320, padding: "14px 0", borderRadius: 12, border: "none", background: loadingQr ? "#1a1a2e" : "linear-gradient(135deg,#00c853,#00796b)", color: loadingQr ? "#444" : "#000", fontSize: 15, fontWeight: 700, cursor: loadingQr ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
-                {loadingQr ? "Gerando..." : qrCode ? "🔄 Novo QR Code" : "📷 Gerar QR Code"}
+        {/* New instance form */}
+        {showNewForm && (
+          <div style={{ background: "#0d0d18", border: "1px solid #00c85333", borderRadius: 14, padding: 20, marginBottom: 20 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>➕ Novo número</div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <input value={newLabel} onChange={e => setNewLabel(e.target.value)}
+                placeholder="Ex: Recepção, Vendas, Suporte..."
+                onKeyDown={e => e.key === "Enter" && createInstance()}
+                style={{ flex: 1, padding: "10px 14px", background: "#13131f", border: "1px solid #252540", borderRadius: 9, color: "#e8e8f0", fontSize: 13, outline: "none", fontFamily: "inherit" }} />
+              <button onClick={createInstance} disabled={creating || !newLabel.trim()}
+                style={{ padding: "10px 20px", borderRadius: 9, border: "none", background: creating || !newLabel.trim() ? "#1a1a2e" : "linear-gradient(135deg,#00c853,#00796b)", color: creating || !newLabel.trim() ? "#444" : "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                {creating ? "Criando..." : "Criar"}
               </button>
+              <button onClick={() => { setShowNewForm(false); setNewLabel(""); }}
+                style={{ padding: "10px 14px", borderRadius: 9, border: "1px solid #252540", background: "transparent", color: "#555", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
 
-              {/* Steps compactos abaixo */}
-              <div style={{ width: 320, marginTop: 4 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 10, color: "#666" }}>Como escanear:</div>
-                {[
-                  "Abra o WhatsApp no celular",
-                  "Menu (⋮) → Dispositivos conectados",
-                  "Adicionar dispositivo",
-                  "Aponte a câmera para o QR acima ✅",
-                ].map((step, i) => (
-                  <div key={i} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
-                    <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#00c85320", border: "1px solid #00c85340", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#00c853", flexShrink: 0 }}>{i + 1}</div>
-                    <span style={{ fontSize: 12, color: "#555" }}>{step}</span>
+        {/* Instances grid */}
+        {instances.length === 0 && !showNewForm && (
+          <div style={{ textAlign: "center", padding: "60px 20px", background: "#0d0d18", border: "1px dashed #252540", borderRadius: 16 }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>📵</div>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>Nenhum número conectado</div>
+            <div style={{ fontSize: 13, color: "#555", marginBottom: 20 }}>Adicione um número de WhatsApp para começar a receber mensagens no Inbox.</div>
+            <button onClick={() => setShowNewForm(true)}
+              style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#00c853,#00796b)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+              + Adicionar primeiro número
+            </button>
+          </div>
+        )}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
+          {instances.map(inst => {
+            const isActive = activeInst?.id === inst.id;
+            const statusColor = inst.connected ? "#00c853" : "#f44336";
+            return (
+              <div key={inst.id} style={{ background: "#0d0d18", border: `1px solid ${isActive ? "#00c85344" : "#1a1a2e"}`, borderRadius: 14, overflow: "hidden" }}>
+                {/* Instance header row */}
+                <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 20px" }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: `${statusColor}15`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>
+                    {inst.connected ? "📱" : "📵"}
                   </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Connected state info */}
-        {isConnected && (
-          <div style={{ background: "#00c85310", border: "1px solid #00c85330", borderRadius: 14, padding: 20, marginBottom: 20, display: "flex", gap: 14, alignItems: "center" }}>
-            <span style={{ fontSize: 32 }}>✅</span>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#00c853", marginBottom: 4 }}>WhatsApp conectado e recebendo mensagens</div>
-              <div style={{ fontSize: 12, color: "#555" }}>Todas as mensagens recebidas nesse número aparecem automaticamente no Inbox. O status é verificado a cada 8 segundos.</div>
-            </div>
-          </div>
-        )}
-
-        {/* Sync Card */}
-        <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 16, padding: 24, marginBottom: 20 }}>
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 16 }}>
-            <div style={{ fontSize: 28 }}>📲</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Sincronizar histórico</div>
-              <div style={{ fontSize: 12, color: "#555" }}>Importa as conversas e mensagens que já estão no seu WhatsApp para o Inbox do 7CRM.</div>
-            </div>
-          </div>
-
-          {/* Progress bar */}
-          {syncing && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 12, color: "#00c853", marginBottom: 6 }}>⏳ Importando mensagens... isso pode levar alguns segundos</div>
-              <div style={{ background: "#1a1a2e", borderRadius: 20, height: 6, overflow: "hidden" }}>
-                <div style={{ height: "100%", borderRadius: 20, background: "linear-gradient(90deg, #00c853, #00bcd4)", width: `${syncProgress}%`, transition: "width 1s ease" }} />
-              </div>
-            </div>
-          )}
-
-          {/* Result */}
-          {syncResult && (
-            <div style={{ marginBottom: 16, padding: "12px 16px", borderRadius: 10, background: syncResult.ok ? "#00c85315" : "#f4433315", border: `1px solid ${syncResult.ok ? "#00c85333" : "#f4433333"}` }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: syncResult.ok ? "#00c853" : "#f44336", marginBottom: 6 }}>
-                {syncResult.ok ? (syncResult.auto ? "✅ Sincronização automática concluída!" : "✅ Sincronização concluída!") : "❌ Erro"}
-              </div>
-              <div style={{ fontSize: 12, color: "#888" }}>{syncResult.message}</div>
-              {syncResult.ok && syncResult.stats && (
-                <div style={{ display: "flex", gap: 16, marginTop: 10 }}>
-                  {[
-                    { label: "Chats encontrados", value: syncResult.stats.chats },
-                    { label: "Contatos criados", value: syncResult.stats.contacts_created },
-                    { label: "Conversas novas", value: syncResult.stats.conversations_created },
-                    { label: "Mensagens salvas", value: syncResult.stats.messages_saved },
-                  ].map(s => (
-                    <div key={s.label} style={{ textAlign: "center" }}>
-                      <div style={{ fontSize: 18, fontWeight: 800, color: "#00c853" }}>{s.value}</div>
-                      <div style={{ fontSize: 10, color: "#555" }}>{s.label}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700 }}>{inst.label || "Número"}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+                      <span style={{ width: 7, height: 7, borderRadius: "50%", background: statusColor, display: "inline-block" }} />
+                      <span style={{ fontSize: 12, color: statusColor, fontWeight: 600 }}>
+                        {inst.connected ? (inst.phone ? `+${inst.phone}` : "Conectado") : "Desconectado"}
+                      </span>
                     </div>
-                  ))}
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    {inst.connected && (
+                      <button onClick={() => disconnect(inst)}
+                        style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #f4433344", background: "#f4433315", color: "#f44336", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                        Desconectar
+                      </button>
+                    )}
+                    <button onClick={() => setActiveInst(isActive ? null : inst)}
+                      style={{ padding: "6px 14px", borderRadius: 8, border: `1px solid ${isActive?"#00c85344":"#252540"}`, background: isActive?"#00c85315":"transparent", color: isActive?"#00c853":"#888", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                      {inst.connected ? (isActive ? "▲ Fechar" : "▼ Sincronizar") : (isActive ? "▲ Fechar" : "▼ Conectar")}
+                    </button>
+                    <button onClick={() => deleteInstance(inst)} disabled={deleting === inst.id}
+                      style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #252540", background: "transparent", color: "#333", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                      🗑
+                    </button>
+                  </div>
                 </div>
-              )}
-            </div>
-          )}
 
-          <div style={{ background: "#ff6d0012", border: "1px solid #ff6d0033", borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 12, color: "#ff6d00" }}>
-            ⚠️ <strong>Atenção:</strong> A sincronização roda em background no servidor. Com alto volume pode demorar. Não clique múltiplas vezes.
-          </div>
-          <button onClick={() => { if(window.confirm("Iniciar sincronização em background? O processo pode demorar alguns minutos dependendo do volume.")) syncHistory(); }} disabled={syncing || !isConnected} style={{ width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: !isConnected ? "#1a1a2e" : syncing ? "#1a1a2e" : "linear-gradient(135deg,#00c853,#00796b)", color: !isConnected || syncing ? "#444" : "#000", fontSize: 14, fontWeight: 800, cursor: !isConnected || syncing ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
-            {syncing ? "⏳ Sincronizando em background..." : !isConnected ? "Conecte o WhatsApp primeiro" : "📲 Sincronizar histórico"}
-          </button>
-          {!isConnected && <div style={{ fontSize: 11, color: "#444", textAlign: "center", marginTop: 6 }}>O número precisa estar conectado para sincronizar</div>}
+                {/* Expanded panel */}
+                {isActive && (
+                  <div style={{ borderTop: "1px solid #1a1a2e", padding: 20 }}>
+                    {!inst.connected ? (
+                      /* QR Code panel */
+                      <div style={{ display: "flex", gap: 32, alignItems: "flex-start", flexWrap: "wrap" }}>
+                        <div>
+                          {qrCode ? (
+                            <img src={qrCode} alt="QR Code" style={{ width: 260, height: 260, borderRadius: 12, border: "2px solid #252540" }} />
+                          ) : (
+                            <div style={{ width: 260, height: 260, background: "#13131f", border: "2px dashed #252540", borderRadius: 12, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                              <span style={{ fontSize: 36 }}>📷</span>
+                              <span style={{ fontSize: 12, color: "#555" }}>{loadingQr ? "Gerando..." : "Clique em Gerar QR"}</span>
+                            </div>
+                          )}
+                          <button onClick={() => fetchQr(inst.instance_name)} disabled={loadingQr}
+                            style={{ width: 260, marginTop: 10, padding: "12px 0", borderRadius: 10, border: "none", background: loadingQr?"#1a1a2e":"linear-gradient(135deg,#00c853,#00796b)", color: loadingQr?"#444":"#000", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                            {loadingQr ? "Gerando..." : qrCode ? "🔄 Novo QR Code" : "📷 Gerar QR Code"}
+                          </button>
+                        </div>
+                        <div style={{ flex: 1, minWidth: 200 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: "#888" }}>Como conectar:</div>
+                          {["Abra o WhatsApp no celular", "Menu (⋮) → Dispositivos conectados", "Adicionar dispositivo", "Aponte a câmera para o QR Code ✅"].map((step, i) => (
+                            <div key={i} style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 10 }}>
+                              <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#00c85320", border: "1px solid #00c85340", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "#00c853", flexShrink: 0 }}>{i+1}</div>
+                              <span style={{ fontSize: 12, color: "#555" }}>{step}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      /* Sync panel when connected */
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>📲 Sincronizar histórico de mensagens</div>
+                        {syncing && (
+                          <div style={{ marginBottom: 12 }}>
+                            <div style={{ fontSize: 12, color: "#00c853", marginBottom: 6 }}>⏳ Importando... pode levar alguns segundos</div>
+                            <div style={{ background: "#1a1a2e", borderRadius: 20, height: 6, overflow: "hidden" }}>
+                              <div style={{ height: "100%", borderRadius: 20, background: "linear-gradient(90deg,#00c853,#00bcd4)", width: `${syncProgress}%`, transition: "width 1s" }} />
+                            </div>
+                          </div>
+                        )}
+                        {syncResult && (
+                          <div style={{ padding: "12px 16px", borderRadius: 10, background: syncResult.ok?"#00c85315":"#f4433315", border: `1px solid ${syncResult.ok?"#00c85333":"#f4433333"}`, marginBottom: 12 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: syncResult.ok?"#00c853":"#f44336", marginBottom: 4 }}>
+                              {syncResult.ok ? "✅ Sincronização concluída!" : "❌ Erro na sincronização"}
+                            </div>
+                            {syncResult.message && <div style={{ fontSize: 12, color: "#888" }}>{syncResult.message}</div>}
+                            {syncResult.stats && (
+                              <div style={{ display: "flex", gap: 16, marginTop: 10 }}>
+                                {[
+                                  { label: "Chats", value: syncResult.stats.chats },
+                                  { label: "Contatos", value: syncResult.stats.contacts_created },
+                                  { label: "Conversas", value: syncResult.stats.conversations_created },
+                                  { label: "Mensagens", value: syncResult.stats.messages_saved },
+                                ].map(s => (
+                                  <div key={s.label} style={{ textAlign: "center" }}>
+                                    <div style={{ fontSize: 18, fontWeight: 800, color: "#00c853" }}>{s.value}</div>
+                                    <div style={{ fontSize: 10, color: "#555" }}>{s.label}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        <button onClick={() => { if(window.confirm("Sincronizar histórico deste número?")) syncHistory(inst); }}
+                          disabled={syncing}
+                          style={{ padding: "11px 24px", borderRadius: 10, border: "none", background: syncing?"#1a1a2e":"linear-gradient(135deg,#00c853,#00796b)", color: syncing?"#444":"#000", fontSize: 13, fontWeight: 700, cursor: syncing?"not-allowed":"pointer", fontFamily: "inherit" }}>
+                          {syncing ? "⏳ Sincronizando..." : "📲 Sincronizar histórico"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         {/* Info cards */}
         <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 20 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#555", marginBottom: 14 }}>ℹ️ Informações importantes</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#444", marginBottom: 12, letterSpacing: 1 }}>ℹ️ INFORMAÇÕES IMPORTANTES</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {[
-              { icon: "⚠️", title: "API não oficial", desc: "Usa WhatsApp Web. Pode desconectar 2-3x por ano — basta gerar novo QR Code.", color: "#ff6d00" },
-              { icon: "💾", title: "Dados seguros", desc: "Mensagens salvas no banco mesmo quando desconectado. Nenhum dado é perdido.", color: "#00c853" },
-              { icon: "⚡", title: "Reconexão em 2 min", desc: "Se desconectar, clique em 'Gerar QR Code' e escaneie novamente. Rápido e simples.", color: "#00bcd4" },
-              { icon: "🔄", title: "Monitoramento automático", desc: "O painel verifica o status a cada 8 segundos e avisa se cair.", color: "#7c4dff" },
+              { icon: "⚠️", title: "API não oficial", desc: "Pode desconectar 2-3x por ano — basta gerar novo QR Code.", color: "#ff6d00" },
+              { icon: "💾", title: "Dados seguros", desc: "Mensagens salvas mesmo quando desconectado. Nenhum dado é perdido.", color: "#00c853" },
+              { icon: "⚡", title: "Reconexão rápida", desc: "Menos de 2 minutos para reconectar — só gerar novo QR Code.", color: "#00bcd4" },
             ].map(item => (
               <div key={item.title} style={{ display: "flex", gap: 12, padding: "10px 14px", background: "#13131f", borderRadius: 10 }}>
                 <span style={{ fontSize: 16, flexShrink: 0 }}>{item.icon}</span>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: item.color, marginBottom: 2 }}>{item.title}</div>
-                  <div style={{ fontSize: 12, color: "#555" }}>{item.desc}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: item.color, marginBottom: 2 }}>{item.title}</div>
+                  <div style={{ fontSize: 11, color: "#555" }}>{item.desc}</div>
                 </div>
               </div>
             ))}
           </div>
         </div>
-
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
@@ -3946,7 +3987,7 @@ function AppInner({ auth, onLogout }) {
           <div style={{ flex: 1, overflowY: "auto", padding: 40, maxWidth: 720 }}>
             <div style={{ marginBottom: 32 }}><div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>⚙️ Configurações</div><div style={{ fontSize: 13, color: "#555" }}>Personalize o comportamento do 7zap para sua empresa</div></div>
             <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 28, marginBottom: 24 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><span style={{ fontSize: 18 }}>✨</span><span style={{ fontSize: 16, fontWeight: 700 }}>Co-pilot IA</span><span style={{ background: "#7c4dff22", color: "#a78bfa", fontSize: 11, fontWeight: 700, padding: "2px 10px", borderRadius: 20 }}>Claude (Anthropic)</span></div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><span style={{ fontSize: 18 }}>✨</span><span style={{ fontSize: 16, fontWeight: 700 }}>Co-pilot IA</span><span style={{ background: "#7c4dff22", color: "#a78bfa", fontSize: 11, fontWeight: 700, padding: "2px 10px", borderRadius: 20 }}>Co-pilot IA</span></div>
               <div style={{ fontSize: 13, color: "#555", marginBottom: 20 }}>Prompt + modo automático do Co-pilot para sua empresa.</div>
 
               {/* Auto mode */}
