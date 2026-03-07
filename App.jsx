@@ -2831,7 +2831,7 @@ function AppInner({ auth, onLogout }) {
     return () => clearInterval(t);
   }, [selected, fetchMessages]);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
-  useEffect(() => { fetchAgents(); fetchTenant(); fetchPendingTasks(); fetchLabels(); const t = setInterval(fetchPendingTasks, 30000); return () => clearInterval(t); }, [fetchAgents, fetchTenant, fetchPendingTasks, fetchLabels]);
+  useEffect(() => { fetchAgents(); fetchTenant(); fetchCredits(); fetchPendingTasks(); fetchLabels(); const t = setInterval(fetchPendingTasks, 30000); const t2 = setInterval(fetchCredits, 60000); return () => { clearInterval(t); clearInterval(t2); }; }, [fetchAgents, fetchTenant, fetchCredits, fetchPendingTasks, fetchLabels]);
 
   const sendMessage = async () => {
     if (!input.trim() || !selected || sending) return;
@@ -3062,7 +3062,7 @@ function AppInner({ auth, onLogout }) {
           )}
 
           {/* ⚡ Credits pill */}
-          {aiCredits && aiCredits.limit < 99999 && (() => {
+          {aiCredits && aiCredits.limit > 0 && (() => {
             const pct = aiCredits.limit > 0 ? Math.round(aiCredits.credits / aiCredits.limit * 100) : 100;
             const color = aiCredits.credits <= 0 ? "#f44336" : pct <= 25 ? "#ff9800" : "#00c853";
             return (
