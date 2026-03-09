@@ -3814,6 +3814,13 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       if (name) sessionStorage.setItem("7crm_instance", name);
       else sessionStorage.removeItem("7crm_instance");
     } catch {}
+    // Save to server so preference persists across devices
+    if (auth?.user?.id) {
+      fetch(`${API_URL}/users/me/preferences?user_id=${auth.user.id}`, {
+        method: "PUT", headers,
+        body: JSON.stringify({ instance_filter: name || null })
+      }).catch(() => {});
+    }
   };
 
   useEffect(() => {
@@ -4018,6 +4025,19 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const fetchAgents = useCallback(async () => {
     try { const r = await fetch(`${API_URL}/users?tenant_id=${TENANT_ID}`, { headers }); const d = await r.json(); setAgents(d.users || []); } catch (e) {}
   }, []);
+  const loadUserPreferences = useCallback(async () => {
+    try {
+      const r = await fetch(`${API_URL}/users/me/preferences?user_id=${auth.user.id}`, { headers });
+      if (!r.ok) return;
+      const d = await r.json();
+      const prefs = d.preferences || {};
+      if (prefs.instance_filter) {
+        setInstanceFilter(prefs.instance_filter);
+        try { sessionStorage.setItem("7crm_instance", prefs.instance_filter); } catch {}
+      }
+    } catch (e) {}
+  }, []);
+
   const fetchTenant = useCallback(async () => {
     try { const r = await fetch(`${API_URL}/tenant?tenant_id=${TENANT_ID}`, { headers }); const d = await r.json();
       setCopilotPrompt(d.copilot_prompt_summary || "");
@@ -4103,7 +4123,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     }
     prevMsgCountRef.current = count;
   }, [messages]);
-  useEffect(() => { fetchAgents(); fetchTenant(); fetchCredits(); fetchPendingTasks(); fetchLabels(); const t = setInterval(fetchPendingTasks, 30000); const t2 = setInterval(fetchCredits, 60000); return () => { clearInterval(t); clearInterval(t2); }; }, [fetchAgents, fetchTenant, fetchCredits, fetchPendingTasks, fetchLabels]);
+  useEffect(() => { fetchAgents(); fetchTenant(); fetchCredits(); fetchPendingTasks(); fetchLabels(); loadUserPreferences(); const t = setInterval(fetchPendingTasks, 30000); const t2 = setInterval(fetchCredits, 60000); return () => { clearInterval(t); clearInterval(t2); }; }, [fetchAgents, fetchTenant, fetchCredits, fetchPendingTasks, fetchLabels, loadUserPreferences]);
 
   const resumeConversation = async (conv) => {
     if (resumingConv) return;
