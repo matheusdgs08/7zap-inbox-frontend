@@ -1312,6 +1312,9 @@ function WhatsAppScreen({ auth }) {
     }
   }, [activeInst?.id]);
 
+  const activeInstRef = useRef(activeInst);
+  useEffect(() => { activeInstRef.current = activeInst; }, [activeInst]);
+
   const startAutoSync = (inst) => {
     setAutoSyncInst(inst);
     setSyncing(true); setSyncResult(null); setSyncProgress(5);
@@ -1340,6 +1343,13 @@ function WhatsAppScreen({ auth }) {
     }).catch(() => setSyncing(false));
   };
 
+  const triggerAutoSync = (instName, phone) => {
+    // Use ref to get fresh activeInst — avoids stale closure
+    const inst = activeInstRef.current;
+    const syncInst = { instance_name: instName, phone, id: inst?.id, label: inst?.label || instName };
+    startAutoSync(syncInst);
+  };
+
   const fetchQr = async (instName) => {
     setLoadingQr(true); setQrCode("");
     // Clear any existing QR poll
@@ -1350,29 +1360,25 @@ function WhatsAppScreen({ auth }) {
       if (d.connected) {
         setQrCode("");
         fetchInstances();
-        const freshInst = instances.find(i => i.instance_name === instName) || activeInst;
         setActiveInst(prev => prev ? { ...prev, connected: true, phone: d.phone } : prev);
-        // 🚀 AUTO-SYNC: start importing history automatically
-        if (freshInst) startAutoSync({ ...freshInst, instance_name: instName });
+        triggerAutoSync(instName, d.phone);
       } else if (d.qr_code) {
         setQrCode(d.qr_code);
-        // Start polling every 5s to detect when user scans QR
+        // Poll every 4s using lightweight endpoint — just checks WORKING status
         if (qrPollRef.current) clearInterval(qrPollRef.current);
         qrPollRef.current = setInterval(async () => {
           try {
-            const pr = await fetch(`${API_URL}/whatsapp/qrcode?instance=${instName}`, { headers });
+            const pr = await fetch(`${API_URL}/whatsapp/check-connected?instance=${instName}`, { headers });
             const pd = await pr.json();
             if (pd.connected) {
               clearInterval(qrPollRef.current); qrPollRef.current = null;
               setQrCode("");
               fetchInstances();
-              const freshInst = instances.find(i => i.instance_name === instName) || activeInst;
               setActiveInst(prev => prev ? { ...prev, connected: true, phone: pd.phone } : prev);
-              // 🚀 AUTO-SYNC on QR scan detection
-              if (freshInst) startAutoSync({ ...freshInst, instance_name: instName });
+              triggerAutoSync(instName, pd.phone);
             }
           } catch(e) {}
-        }, 5000);
+        }, 4000);
       }
     } catch(e) {}
     setLoadingQr(false);
