@@ -277,8 +277,11 @@ function LoginScreen({ onLogin }) {
 
   // campos forgot
   const [fEmail, setFEmail] = useState("");
+  const [fPhone, setFPhone] = useState("");
+  const [fMode, setFMode] = useState("email"); // "email" | "whatsapp"
   const [fDone, setFDone] = useState(false);
   const [fResetUrl, setFResetUrl] = useState("");
+  const [fWappSent, setFWappSent] = useState(false);
 
   // campos reset
   const [rToken] = useState(resetToken || "");
@@ -367,6 +370,25 @@ function LoginScreen({ onLogin }) {
       const r = await fetch(`${API_URL}/auth/forgot-password`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: fEmail.trim() }) });
       const d = await r.json();
       setFDone(true);
+      if (d.reset_url) setFResetUrl(d.reset_url);
+    } catch (e) { setError("Erro de conexão."); }
+    setLoading(false);
+  };
+
+  // ── FORGOT via WHATSAPP ──
+  const submitForgotWhatsApp = async () => {
+    const phoneClean = fPhone.replace(/\D/g, "");
+    if (phoneClean.length < 10) { setError("Digite um telefone válido com DDD"); return; }
+    setLoading(true); setError("");
+    try {
+      const r = await fetch(`${API_URL}/auth/forgot-password-whatsapp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: phoneClean })
+      });
+      const d = await r.json();
+      setFDone(true);
+      setFWappSent(d.whatsapp_sent || false);
       if (d.reset_url) setFResetUrl(d.reset_url);
     } catch (e) { setError("Erro de conexão."); }
     setLoading(false);
@@ -478,26 +500,63 @@ function LoginScreen({ onLogin }) {
       <Logo />
       {fDone ? (
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>📧</div>
-          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Verifique seu email</div>
-          <div style={{ fontSize: 13, color: "#667781", marginBottom: 24 }}>Se o email estiver cadastrado, você receberá um link para redefinir a senha.</div>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>{fWappSent ? "📲" : "📧"}</div>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
+            {fWappSent ? "Link enviado pelo WhatsApp!" : "Verifique seu email"}
+          </div>
+          <div style={{ fontSize: 13, color: "#667781", marginBottom: 24 }}>
+            {fWappSent
+              ? "Enviamos o link de redefinição via WhatsApp. Verifique seu celular."
+              : "Se o email estiver cadastrado, você receberá um link para redefinir a senha."}
+          </div>
           {fResetUrl && (
             <div style={{ background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 10, padding: 16, marginBottom: 20, wordBreak: "break-all" }}>
-              <div style={{ fontSize: 11, color: "#667781", marginBottom: 6 }}>📋 SMTP não configurado — compartilhe este link:</div>
+              <div style={{ fontSize: 11, color: "#667781", marginBottom: 6 }}>📋 Link de recuperação (compartilhe manualmente):</div>
               <a href={fResetUrl} style={{ fontSize: 12, color: "#00a884" }}>{fResetUrl}</a>
             </div>
           )}
-          <button onClick={() => setScreen("login")} style={btn(true)}>Voltar ao login</button>
+          <button onClick={() => { setScreen("login"); setFDone(false); setFEmail(""); setFPhone(""); setFResetUrl(""); setFWappSent(false); }} style={btn(true)}>Voltar ao login</button>
         </div>
       ) : (
         <>
           <div style={{ fontSize: 20, fontWeight: 700, textAlign: "center", marginBottom: 4 }}>🔑 Recuperar senha</div>
-          <div style={{ fontSize: 13, color: "#667781", textAlign: "center", marginBottom: 28 }}>Digite seu email para receber o link</div>
+          <div style={{ fontSize: 13, color: "#667781", textAlign: "center", marginBottom: 20 }}>Escolha como receber o link</div>
+
+          {/* Toggle email / whatsapp */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 24, background: "#f0f2f5", borderRadius: 12, padding: 4 }}>
+            {[["email", "📧 Email"], ["whatsapp", "📲 WhatsApp"]].map(([m, label]) => (
+              <button key={m} onClick={() => { setFMode(m); setError(""); }}
+                style={{ flex: 1, padding: "10px 0", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700, fontSize: 13,
+                  background: fMode === m ? "#00a884" : "transparent",
+                  color: fMode === m ? "#fff" : "#667781",
+                  transition: "all .2s" }}>
+                {label}
+              </button>
+            ))}
+          </div>
+
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div><label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 6 }}>EMAIL</label>
-              <input type="email" value={fEmail} onChange={e => setFEmail(e.target.value)} onKeyDown={e => e.key === "Enter" && submitForgot()} placeholder="seu@email.com.br" autoFocus style={inp()} /></div>
+            {fMode === "email" ? (
+              <div><label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 6 }}>EMAIL</label>
+                <input type="email" value={fEmail} onChange={e => setFEmail(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && submitForgot()}
+                  placeholder="seu@email.com.br" autoFocus style={inp()} /></div>
+            ) : (
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 6 }}>CELULAR (com DDD)</label>
+                <input type="tel" value={fPhone} onChange={e => setFPhone(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && submitForgotWhatsApp()}
+                  placeholder="11 99999-9999" autoFocus style={inp()} />
+                <div style={{ fontSize: 11, color: "#667781", marginTop: 5 }}>
+                  📱 Você receberá o link no WhatsApp deste número
+                </div>
+              </div>
+            )}
             {error && <div style={{ background: "#f4433315", border: "1px solid #f4433333", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#f44336" }}>❌ {error}</div>}
-            <button onClick={submitForgot} disabled={loading || !fEmail.trim()} style={btn(!loading && fEmail.trim())}>{loading ? "Enviando..." : "Enviar link →"}</button>
+            {fMode === "email"
+              ? <button onClick={submitForgot} disabled={loading || !fEmail.trim()} style={btn(!loading && fEmail.trim())}>{loading ? "Enviando..." : "Enviar por email →"}</button>
+              : <button onClick={submitForgotWhatsApp} disabled={loading || fPhone.replace(/\D/g,"").length < 10} style={btn(!loading && fPhone.replace(/\D/g,"").length >= 10)}>{loading ? "Enviando..." : "Enviar no WhatsApp →"}</button>
+            }
           </div>
           <div style={{ marginTop: 20, textAlign: "center" }}>
             <span onClick={() => setScreen("login")} style={{ fontSize: 12, color: "#667781", cursor: "pointer" }}>← Voltar ao login</span>
