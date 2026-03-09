@@ -3902,6 +3902,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   };
 
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", handler);
@@ -4391,23 +4392,42 @@ A mensagem deve:
   return (
     <div style={{ display: "flex", height: "100dvh", width: "100vw", flexDirection: "column", background: T.app, color: T.text, fontFamily: "'DM Sans', 'Segoe UI', sans-serif", overflow: "hidden" }}>
       {/* TopBar */}
-      <div style={{ height: isMobile ? 52 : 48, flexShrink: 0, borderBottom: "1px solid #e9edef", background: T.topbar, display: "flex", alignItems: "center", padding: isMobile ? "0 12px" : "0 20px", gap: isMobile ? 4 : 24 }}>
+      <div style={{ height: isMobile ? 52 : 48, flexShrink: 0, borderBottom: `1px solid ${T.border}`, background: T.topbar, display: "flex", alignItems: "center", padding: isMobile ? "0 12px" : "0 20px", gap: isMobile ? 8 : 24 }}>
         {/* Logo */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
           <div style={{ width: 26, height: 26, borderRadius: 7, background: "linear-gradient(135deg, #00a884, #017561)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>⚡</div>
           {!isMobile && <span style={{ fontWeight: 700, fontSize: 15 }}>7CRM</span>}
         </div>
-        {/* Work tabs */}
-        <div style={{ display: "flex", gap: isMobile ? 0 : 2, flex: isMobile ? 1 : "unset", justifyContent: isMobile ? "space-around" : "flex-start" }}>
+
+        {/* Global number selector — shown when 2+ instances */}
+        {waInstances.length >= 2 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+            {[null, ...waInstances].map(inst => {
+              const isActive = inst === null ? instanceFilter === null : instanceFilter === inst.instance_name;
+              const label = inst === null ? "Todos" : (inst.label || inst.instance_name);
+              const isOnline = inst === null ? true : inst.connected;
+              return (
+                <button key={inst?.id ?? "all"}
+                  onClick={() => setInstanceFilter(inst === null ? null : inst.instance_name)}
+                  style={{ display: "flex", alignItems: "center", gap: 4, padding: isMobile ? "3px 8px" : "3px 10px", borderRadius: 20, border: `1px solid ${isActive ? "#00a88466" : T.border}`, background: isActive ? "#00a88418" : "transparent", color: isActive ? "#00a884" : T.text2, fontSize: isMobile ? 11 : 12, fontWeight: isActive ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", transition: "all 0.15s" }}>
+                  {inst !== null && <span style={{ width: 6, height: 6, borderRadius: "50%", background: isOnline ? "#00a884" : "#f44336", flexShrink: 0, display: "inline-block" }} />}
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Work tabs — desktop only; mobile uses bottom nav */}
+        {!isMobile && <div style={{ display: "flex", gap: 2 }}>
           {WORK_TABS.map(tab => (
-            <button key={tab.id} onClick={() => setView(tab.id)} style={{ display: "inline-flex", alignItems: "center", flexDirection: isMobile ? "column" : "row", gap: isMobile ? 1 : 5, padding: isMobile ? "4px 8px" : "5px 12px", borderRadius: 6, border: "none", background: view === tab.id ? "#00a88420" : "transparent", color: view === tab.id ? "#00a884" : T.text2, fontSize: isMobile ? 10 : 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", position: "relative" }}>
-              <span style={{ fontSize: isMobile ? 18 : 13 }}>{tab.label.split(" ")[0]}</span>
-              {!isMobile && <span>{tab.label.split(" ").slice(1).join(" ")}</span>}
-              {isMobile && tab.label.split(" ").length > 1 && <span style={{ fontSize: 9, lineHeight: 1 }}>{tab.label.split(" ").slice(1).join(" ")}</span>}
-              {tab.id === "tasks_global" && totalPendingTasks > 0 && <span style={{ position: isMobile ? "absolute" : "static", top: isMobile ? 2 : "auto", right: isMobile ? 4 : "auto", background: "#ff6d00", color: "#000", fontSize: 9, fontWeight: 800, padding: "1px 5px", borderRadius: 10, lineHeight: 1.4 }}>{totalPendingTasks}</span>}
+            <button key={tab.id} onClick={() => setView(tab.id)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 6, border: "none", background: view === tab.id ? "#00a88420" : "transparent", color: view === tab.id ? "#00a884" : T.text2, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", position: "relative" }}>
+              <span>{tab.label.split(" ")[0]}</span>
+              <span>{tab.label.split(" ").slice(1).join(" ")}</span>
+              {tab.id === "tasks_global" && totalPendingTasks > 0 && <span style={{ background: "#ff6d00", color: "#000", fontSize: 9, fontWeight: 800, padding: "1px 5px", borderRadius: 10, lineHeight: 1.4 }}>{totalPendingTasks}</span>}
             </button>
           ))}
-        </div>
+        </div>}
 
         {/* Spacer — only on desktop */}
         {!isMobile && <div style={{ flex: 1 }} />}
@@ -4973,6 +4993,78 @@ A mensagem deve:
         />
       )}
       {showColManager && <ColumnManagerModal columns={kanbanCols} onChange={setKanbanCols} onClose={() => setShowColManager(false)} />}
+
+      {/* ── Mobile Bottom Navigation ──────────────────────── */}
+      {isMobile && (
+        <div style={{ height: 58, flexShrink: 0, borderTop: `1px solid ${T.border}`, background: T.topbar, display: "flex", alignItems: "center", justifyContent: "space-around", paddingBottom: "env(safe-area-inset-bottom, 0px)", zIndex: 100 }}>
+          {[
+            { id: "inbox",        icon: "💬", label: "Inbox" },
+            { id: "kanban",       icon: "🗂",  label: "Kanban" },
+            { id: "tasks_global", icon: "✅",  label: "Tarefas", badge: totalPendingTasks },
+            { id: "disparos",     icon: "📢",  label: "Disparos" },
+            { id: "__more__",     icon: "⋯",   label: "Mais" },
+          ].map(tab => {
+            if (tab.id === "__more__") {
+              return (
+                <button key="more" onClick={() => setShowMobileMenu(v => !v)}
+                  style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, padding: "6px 12px", border: "none", background: "transparent", color: showMobileMenu ? "#00a884" : T.text2, fontSize: 20, cursor: "pointer", fontFamily: "inherit", minWidth: 52 }}>
+                  <span style={{ lineHeight: 1, fontSize: 22, fontWeight: 700 }}>⋯</span>
+                  <span style={{ fontSize: 10, fontWeight: 600 }}>Mais</span>
+                </button>
+              );
+            }
+            const isActive = view === tab.id;
+            return (
+              <button key={tab.id} onClick={() => { setView(tab.id); setShowMobileMenu(false); }}
+                style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, padding: "6px 12px", border: "none", background: "transparent", color: isActive ? "#00a884" : T.text2, cursor: "pointer", fontFamily: "inherit", minWidth: 52, position: "relative" }}>
+                <span style={{ fontSize: 20, lineHeight: 1 }}>{tab.icon}</span>
+                <span style={{ fontSize: 10, fontWeight: isActive ? 700 : 500 }}>{tab.label}</span>
+                {isActive && <span style={{ position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)", width: 24, height: 2, background: "#00a884", borderRadius: 2 }} />}
+                {(tab.badge || 0) > 0 && <span style={{ position: "absolute", top: 4, right: 6, background: "#ff6d00", color: "#fff", fontSize: 9, fontWeight: 800, padding: "1px 5px", borderRadius: 10, lineHeight: 1.4 }}>{tab.badge}</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Mobile "Mais" slide-up menu ───────────────────── */}
+      {isMobile && showMobileMenu && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 8000, background: "#00000044" }} onClick={() => setShowMobileMenu(false)}>
+          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: T.card, borderRadius: "20px 20px 0 0", padding: "20px 16px 32px", boxShadow: "0 -8px 32px #00000033" }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ width: 40, height: 4, background: T.border, borderRadius: 2, margin: "0 auto 20px" }} />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+              {[
+                { id: "leads",      icon: "🏷",  label: "Leads" },
+                { id: "config",     icon: "⚙️",   label: "Config IA" },
+                { id: "relatorios", icon: "📈",   label: "Relatórios" },
+                { id: "whatsapp",   icon: "📱",   label: "WhatsApp" },
+                { id: "admin",      icon: "🔐",   label: "Admin" },
+                ...(trialInfo?.status === "trial" ? [{ id: "upgrade", icon: "⭐", label: "Assinar" }] : []),
+              ].filter(t => {
+                if (["whatsapp","admin","relatorios"].includes(t.id) && auth.user.role !== "admin") return false;
+                return true;
+              }).map(tab => (
+                <button key={tab.id} onClick={() => { setView(tab.id); setShowMobileMenu(false); }}
+                  style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "14px 8px", borderRadius: 14, border: "none", background: view === tab.id ? "#00a88418" : T.hover, color: view === tab.id ? "#00a884" : T.text, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                  <span style={{ fontSize: 24 }}>{tab.icon}</span>
+                  <span style={{ textAlign: "center", lineHeight: 1.2, fontSize: 10 }}>{tab.label}</span>
+                </button>
+              ))}
+            </div>
+            <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ fontSize: 13, color: T.text2 }}>👤 {auth.user.name}</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={toggleTheme} style={{ padding: "6px 10px", borderRadius: 8, border: `1px solid ${T.border}`, background: "transparent", fontSize: 16, cursor: "pointer" }}>
+                  {theme === "light" ? "🌙" : "☀️"}
+                </button>
+                <button onClick={onLogout} style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #f4433333", background: "transparent", color: "#f44336", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Sair</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
