@@ -4854,7 +4854,6 @@ A mensagem deve:
                 </div>
                 {showTasks && <TasksPanel convId={selected.id} agents={agents} onClose={() => { setShowTasks(false); fetchPendingTasks(); }} onTaskDone={fetchPendingTasks} />}
               </div>
-              </div>{/* end chat outer */}
             ) : (
               <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 14, color: "#54656f" }}>
                 <div style={{ fontSize: 44 }}>💬</div>
