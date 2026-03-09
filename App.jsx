@@ -3933,50 +3933,24 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const PAGE_SIZE = 50;
   const fetchMessages = useCallback(async (convId) => {
     try {
-      // Try with pagination params first; backend may or may not support them
-      const r = await fetch(`${API_URL}/conversations/${convId}/messages`, { headers });
+      const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=50`, { headers });
       const d = await r.json();
-      const allMsgs = d.messages || [];
-      // Show last PAGE_SIZE messages; store the rest for "load more"
-      if (allMsgs.length > PAGE_SIZE) {
-        setMessages(allMsgs.slice(-PAGE_SIZE));
-        setMessagesOffset(allMsgs.length - PAGE_SIZE);
-        setHasMoreMessages(true);
-        // Cache full list for "load more" without extra requests
-        fetchMessages._cache = fetchMessages._cache || {};
-        fetchMessages._cache[convId] = allMsgs;
-      } else {
-        setMessages(allMsgs);
-        setMessagesOffset(0);
-        setHasMoreMessages(false);
-        if (fetchMessages._cache) delete fetchMessages._cache[convId];
-      }
+      const msgs = d.messages || [];
+      setMessages(msgs);
+      setHasMoreMessages(d.has_more === true);
+      setMessagesOffset(0);
     } catch (e) {}
   }, []);
-  const fetchMoreMessages = useCallback(async (convId, currentOffset) => {
+  const fetchMoreMessages = useCallback(async (convId, currentMessages) => {
     setLoadingMoreMsgs(true);
     try {
-      // Use cached full list if available (avoids extra API call)
-      const cached = fetchMessages._cache?.[convId];
-      if (cached) {
-        const start = Math.max(0, currentOffset - PAGE_SIZE);
-        const older = cached.slice(start, currentOffset);
-        setMessages(prev => [...older, ...prev]);
-        setMessagesOffset(start);
-        setHasMoreMessages(start > 0);
-      } else {
-        // Fallback: re-fetch and slice
-        const r = await fetch(`${API_URL}/conversations/${convId}/messages`, { headers });
-        const d = await r.json();
-        const allMsgs = d.messages || [];
-        fetchMessages._cache = fetchMessages._cache || {};
-        fetchMessages._cache[convId] = allMsgs;
-        const start = Math.max(0, currentOffset - PAGE_SIZE);
-        const older = allMsgs.slice(start, currentOffset);
-        setMessages(prev => [...older, ...prev]);
-        setMessagesOffset(start);
-        setHasMoreMessages(start > 0);
-      }
+      const oldest = currentMessages[0]?.created_at;
+      if (!oldest) return;
+      const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=50&before=${encodeURIComponent(oldest)}`, { headers });
+      const d = await r.json();
+      const older = d.messages || [];
+      setMessages(prev => [...older, ...prev]);
+      setHasMoreMessages(d.has_more === true);
     } catch (e) {}
     setLoadingMoreMsgs(false);
   }, []);
@@ -4808,7 +4782,7 @@ A mensagem deve:
                           onClick={async () => {
                             const scrollEl = chatScrollRef.current;
                             const prevScrollHeight = scrollEl?.scrollHeight || 0;
-                            await fetchMoreMessages(selected.id, messagesOffset);
+                            await fetchMoreMessages(selected.id, messages);
                             // Preserve scroll position after prepending older messages
                             if (scrollEl) {
                               requestAnimationFrame(() => {
