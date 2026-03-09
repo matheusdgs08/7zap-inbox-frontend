@@ -363,6 +363,16 @@ function LoginScreen({ onLogin }) {
   const [regPw, setRegPw] = useState("");
   const [regDone, setRegDone] = useState(false);
 
+  // campos trial (auto-cadastro)
+  const [trialCompany, setTrialCompany] = useState("");
+  const [trialName, setTrialName] = useState("");
+  const [trialEmail, setTrialEmail] = useState("");
+  const [trialPhone, setTrialPhone] = useState("");
+  const [trialPw, setTrialPw] = useState("");
+  const [trialSegment, setTrialSegment] = useState("academia");
+  const [trialDone, setTrialDone] = useState(false);
+  const [trialResult, setTrialResult] = useState(null);
+
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -428,6 +438,46 @@ function LoginScreen({ onLogin }) {
     }).catch(() => setError("Erro de conexão."))
     .finally(() => setLoading(false));
   }, []);
+
+  // ── TRIAL REGISTRATION ──
+  const submitTrial = async () => {
+    if (!trialCompany.trim() || !trialName.trim() || !trialEmail.trim() || !trialPw.trim()) {
+      setError("Preencha todos os campos obrigatórios."); return;
+    }
+    if (trialPw.length < 6) { setError("Senha deve ter pelo menos 6 caracteres."); return; }
+    setLoading(true); setError("");
+    try {
+      const r = await fetch(`${API_URL}/auth/register-trial`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          company: trialCompany.trim(),
+          name: trialName.trim(),
+          email: trialEmail.trim().toLowerCase(),
+          password: trialPw,
+          phone: trialPhone.trim(),
+          segment: trialSegment,
+        })
+      });
+      const d = await r.json();
+      if (!r.ok) { setError(d.detail || "Erro ao criar conta."); setLoading(false); return; }
+      setTrialResult(d);
+      setTrialDone(true);
+      // Auto-login after trial registration
+      setTimeout(async () => {
+        try {
+          const lr = await fetch(`${API_URL}/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: trialEmail.trim().toLowerCase(), password: trialPw })
+          });
+          const ld = await lr.json();
+          if (lr.ok && ld.token) onLogin(ld);
+        } catch (e) {}
+      }, 2000);
+    } catch (e) { setError("Erro de conexão. Tente novamente."); }
+    setLoading(false);
+  };
 
   // ── FORGOT PASSWORD ──
   const submitForgot = async () => {
@@ -520,6 +570,85 @@ function LoginScreen({ onLogin }) {
   );
 
   // ── TELA REGISTER ──
+  // ── TELA TRIAL (auto-cadastro) ──
+  if (screen === "trial") return (
+    <div style={wrap}><div style={{ ...box, maxWidth: 460 }}>
+      <Logo />
+      {trialDone ? (
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 52, marginBottom: 12 }}>🚀</div>
+          <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 8 }}>Conta criada!</div>
+          <div style={{ fontSize: 14, color: "#667781", marginBottom: 8 }}>
+            Seu trial de <strong>7 dias grátis</strong> começou agora.
+          </div>
+          <div style={{ background: "#00a88415", border: "1px solid #00a88433", borderRadius: 10, padding: "12px 16px", marginBottom: 24, fontSize: 13, color: "#00a884" }}>
+            ✅ Entrando automaticamente...
+          </div>
+        </div>
+      ) : (
+        <>
+          <div style={{ fontSize: 22, fontWeight: 800, textAlign: "center", marginBottom: 4 }}>
+            7 dias grátis 🎉
+          </div>
+          <div style={{ fontSize: 13, color: "#667781", textAlign: "center", marginBottom: 24 }}>
+            Sem cartão de crédito. Cancele quando quiser.
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 5 }}>EMPRESA *</label>
+                <input value={trialCompany} onChange={e => setTrialCompany(e.target.value)} placeholder="Nome da empresa" style={inp()} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 5 }}>SEU NOME *</label>
+                <input value={trialName} onChange={e => setTrialName(e.target.value)} placeholder="João Silva" style={inp()} />
+              </div>
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 5 }}>EMAIL *</label>
+              <input type="email" value={trialEmail} onChange={e => setTrialEmail(e.target.value)} placeholder="joao@empresa.com" style={inp()} />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 5 }}>CELULAR</label>
+                <input value={trialPhone} onChange={e => setTrialPhone(e.target.value)} placeholder="(11) 9xxxx-xxxx" style={inp()} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 5 }}>SEGMENTO</label>
+                <select value={trialSegment} onChange={e => setTrialSegment(e.target.value)} style={{ ...inp(), paddingRight: 8 }}>
+                  <option value="academia">Academia / Fitness</option>
+                  <option value="clinica">Clínica / Saúde</option>
+                  <option value="comercio">Comércio</option>
+                  <option value="servicos">Serviços</option>
+                  <option value="agencia">Agência</option>
+                  <option value="outros">Outros</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 5 }}>SENHA *</label>
+              <input type="password" value={trialPw} onChange={e => setTrialPw(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && submitTrial()}
+                placeholder="Mínimo 6 caracteres" style={inp()} />
+            </div>
+            {error && <div style={{ background: "#f4433315", border: "1px solid #f4433333", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#f44336" }}>❌ {error}</div>}
+            <button onClick={submitTrial}
+              disabled={loading || !trialCompany.trim() || !trialName.trim() || !trialEmail.trim() || trialPw.length < 6}
+              style={btn(!loading && trialCompany.trim() && trialName.trim() && trialEmail.trim() && trialPw.length >= 6)}>
+              {loading ? "Criando conta..." : "Começar trial grátis →"}
+            </button>
+            <div style={{ background: "#f0f9f7", border: "1px solid #00a88420", borderRadius: 10, padding: "10px 14px", fontSize: 12, color: "#555" }}>
+              🔒 <strong>7 dias grátis</strong> com acesso completo · Co-pilot IA incluído · Sem cartão de crédito
+            </div>
+          </div>
+          <div style={{ marginTop: 18, textAlign: "center" }}>
+            <span onClick={() => { setScreen("login"); setError(""); }} style={{ fontSize: 12, color: "#667781", cursor: "pointer" }}>Já tem conta? Entrar →</span>
+          </div>
+        </>
+      )}
+    </div></div>
+  );
+
   if (screen === "register") return (
     <div style={wrap}><div style={box}>
       <Logo />
@@ -658,6 +787,18 @@ function LoginScreen({ onLogin }) {
           {error && <div style={{ background: "#f4433315", border: "1px solid #f4433333", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#f44336" }}>❌ {error}</div>}
           <button onClick={submitLogin} disabled={loading || !email.trim() || !password.trim()} style={btn(!loading && email.trim() && password.trim())}>
             {loading ? "Entrando..." : "Entrar →"}
+          </button>
+        </div>
+
+        {/* Trial CTA */}
+        <div style={{ marginTop: 20, background: "linear-gradient(135deg,#00a88410,#00a88425)", border: "1px solid #00a88433", borderRadius: 12, padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#00a884" }}>Novo por aqui?</div>
+            <div style={{ fontSize: 11, color: "#667781", marginTop: 2 }}>7 dias grátis · Sem cartão</div>
+          </div>
+          <button onClick={() => { setError(""); setScreen("trial"); }}
+            style={{ padding: "8px 16px", background: "#00a884", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "inherit" }}>
+            Testar grátis →
           </button>
         </div>
 
