@@ -4079,23 +4079,50 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const PAGE_SIZE = 50;
   const fetchMessages = useCallback(async (convId) => {
     try {
-      const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=${PAGE_SIZE}&offset=0`, { headers });
+      // Try with pagination params first; backend may or may not support them
+      const r = await fetch(`${API_URL}/conversations/${convId}/messages`, { headers });
       const d = await r.json();
-      const msgs = d.messages || [];
-      setMessages(msgs);
-      setMessagesOffset(msgs.length);
-      setHasMoreMessages(msgs.length >= PAGE_SIZE);
+      const allMsgs = d.messages || [];
+      // Show last PAGE_SIZE messages; store the rest for "load more"
+      if (allMsgs.length > PAGE_SIZE) {
+        setMessages(allMsgs.slice(-PAGE_SIZE));
+        setMessagesOffset(allMsgs.length - PAGE_SIZE);
+        setHasMoreMessages(true);
+        // Cache full list for "load more" without extra requests
+        fetchMessages._cache = fetchMessages._cache || {};
+        fetchMessages._cache[convId] = allMsgs;
+      } else {
+        setMessages(allMsgs);
+        setMessagesOffset(0);
+        setHasMoreMessages(false);
+        if (fetchMessages._cache) delete fetchMessages._cache[convId];
+      }
     } catch (e) {}
   }, []);
   const fetchMoreMessages = useCallback(async (convId, currentOffset) => {
     setLoadingMoreMsgs(true);
     try {
-      const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=${PAGE_SIZE}&offset=${currentOffset}`, { headers });
-      const d = await r.json();
-      const older = d.messages || [];
-      setMessages(prev => [...older, ...prev]);
-      setMessagesOffset(currentOffset + older.length);
-      setHasMoreMessages(older.length >= PAGE_SIZE);
+      // Use cached full list if available (avoids extra API call)
+      const cached = fetchMessages._cache?.[convId];
+      if (cached) {
+        const start = Math.max(0, currentOffset - PAGE_SIZE);
+        const older = cached.slice(start, currentOffset);
+        setMessages(prev => [...older, ...prev]);
+        setMessagesOffset(start);
+        setHasMoreMessages(start > 0);
+      } else {
+        // Fallback: re-fetch and slice
+        const r = await fetch(`${API_URL}/conversations/${convId}/messages`, { headers });
+        const d = await r.json();
+        const allMsgs = d.messages || [];
+        fetchMessages._cache = fetchMessages._cache || {};
+        fetchMessages._cache[convId] = allMsgs;
+        const start = Math.max(0, currentOffset - PAGE_SIZE);
+        const older = allMsgs.slice(start, currentOffset);
+        setMessages(prev => [...older, ...prev]);
+        setMessagesOffset(start);
+        setHasMoreMessages(start > 0);
+      }
     } catch (e) {}
     setLoadingMoreMsgs(false);
   }, []);
@@ -4388,7 +4415,11 @@ A mensagem deve:
 
   const unreadCount = conversations.filter(c => c.unread_count > 0).length;
   const filtered = conversations.filter(c => {
-    const matchSearch = (c.contacts?.name || c.contacts?.phone || "").toLowerCase().includes(search.toLowerCase());
+    const name = (c.contacts?.name || "").toLowerCase();
+    const phone = (c.contacts?.phone || "").replace(/\D/g, "");
+    const q = search.toLowerCase().trim();
+    const qDigits = q.replace(/\D/g, "");
+    const matchSearch = !q || name.includes(q) || (qDigits && phone.includes(qDigits)) || phone.includes(q);
     const matchUnread = unreadFilter === "all" || c.unread_count > 0;
     let matchInactive = true;
     if (inactiveDays) {
