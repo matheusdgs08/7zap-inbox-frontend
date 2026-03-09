@@ -40,21 +40,21 @@ function uid() { return Math.random().toString(36).slice(2, 10); }
 
 const DEFAULT_COLUMNS = [
   { id: "new", label: "Nova", color: "#7c4dff" },
-  { id: "attending", label: "Em Atendimento", color: "#00c853" },
+  { id: "attending", label: "Em Atendimento", color: "#00a884" },
   { id: "waiting", label: "Aguardando", color: "#ffd600" },
   { id: "resolved", label: "Resolvida", color: "#555555" },
 ];
-const PALETTE = ["#00c853","#00bcd4","#7c4dff","#ff6d00","#e91e63","#3d5afe","#f44336","#8bc34a","#ffd600","#ff5722","#9c27b0","#555555"];
+const PALETTE = ["#00a884","#00a884","#7c4dff","#ff6d00","#e91e63","#3d5afe","#f44336","#8bc34a","#ffd600","#ff5722","#9c27b0","#555555"];
 
 const STATUS_OPTIONS = [
-  { id: "open",     label: "Aberto",    color: "#00c853", icon: "▶" },
+  { id: "open",     label: "Aberto",    color: "#00a884", icon: "▶" },
   { id: "pending",  label: "Pendente",  color: "#ffd600", icon: "⏸" },
-  { id: "resolved", label: "Resolvido", color: "#555",    icon: "✓" },
+  { id: "resolved", label: "Resolvido", color: "#667781",    icon: "✓" },
 ];
 
 const DEFAULT_LABELS_INIT = [
-  { id: "lead",      name: "Lead quente", color: "#00c853" },
-  { id: "doubt",     name: "Dúvida",      color: "#00bcd4" },
+  { id: "lead",      name: "Lead quente", color: "#00a884" },
+  { id: "doubt",     name: "Dúvida",      color: "#00a884" },
   { id: "complaint", name: "Reclamação",  color: "#f44336" },
   { id: "renewal",   name: "Renovação",   color: "#ff6d00" },
   { id: "financial", name: "Financeiro",  color: "#7c4dff" },
@@ -72,13 +72,13 @@ function loadColumns() {
 function saveColumns(cols) { try { localStorage.setItem("7zap_kanban_columns", JSON.stringify(cols)); } catch (e) {} }
 
 function Avatar({ name, size = 36 }) {
-  const colors = ["#00c853","#00bcd4","#7c4dff","#ff6d00","#e91e63","#3d5afe"];
+  const colors = ["#00a884","#00a884","#7c4dff","#ff6d00","#e91e63","#3d5afe"];
   const color = colors[(name || "").charCodeAt(0) % colors.length];
   return <div style={{ width: size, height: size, borderRadius: "50%", background: color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.38, fontWeight: 700, color: "#fff", flexShrink: 0, fontFamily: "inherit" }}>{initials(name)}</div>;
 }
 function StatusDot({ status }) {
-  const colors = { open: "#00c853", pending: "#ffd600", resolved: "#555" };
-  return <span style={{ width: 8, height: 8, borderRadius: "50%", background: colors[status] || "#555", display: "inline-block", flexShrink: 0 }} />;
+  const colors = { open: "#00a884", pending: "#ffd600", resolved: "#667781" };
+  return <span style={{ width: 8, height: 8, borderRadius: "50%", background: colors[status] || "#667781", display: "inline-block", flexShrink: 0 }} />;
 }
 function LabelChip({ label, onRemove }) {
   return <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 20, background: label.color + "22", border: `1px solid ${label.color}44`, color: label.color, fontSize: 11, fontWeight: 600 }}>{label.name}{onRemove && <span onClick={onRemove} style={{ cursor: "pointer", opacity: 0.7, marginLeft: 2 }}>×</span>}</span>;
@@ -113,8 +113,8 @@ function StatusDropdown({ status, onChange }) {
         <span style={{ fontSize: 10, opacity: 0.7 }}>{open ? "▲" : "▼"}</span>
       </button>
       {open && (
-        <div style={{ position: "absolute", top: "110%", right: 0, background: "#13131f", border: "1px solid #252540", borderRadius: 10, padding: 6, minWidth: 160, zIndex: 200, boxShadow: "0 12px 32px #00000070" }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: "#444", padding: "4px 10px 6px", letterSpacing: 1 }}>ALTERAR STATUS</div>
+        <div style={{ position: "absolute", top: "110%", right: 0, background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 10, padding: 6, minWidth: 160, zIndex: 200, boxShadow: "0 1px 3px #0000001a, 0 4px 12px #0000000f" }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "#667781", padding: "4px 10px 6px", letterSpacing: 1 }}>ALTERAR STATUS</div>
           {STATUS_OPTIONS.map(opt => (
             <div
               key={opt.id}
@@ -124,7 +124,7 @@ function StatusDropdown({ status, onChange }) {
               onMouseLeave={e => e.currentTarget.style.background = status === opt.id ? opt.color + "18" : "transparent"}
             >
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: opt.color, flexShrink: 0 }} />
-              <span style={{ fontSize: 13, fontWeight: 600, color: status === opt.id ? opt.color : "#ccc" }}>{opt.label}</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: status === opt.id ? opt.color : "#54656f" }}>{opt.label}</span>
               {status === opt.id && <span style={{ marginLeft: "auto", color: opt.color, fontSize: 12 }}>✓</span>}
             </div>
           ))}
@@ -202,10 +202,10 @@ function LabelManagerModal({ labels, onChange, onClose, tenantId, authHeaders, l
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "#00000090", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200 }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} onMouseDown={e => e.preventDefault()} style={{ background: "#13131f", border: "1px solid #252540", borderRadius: 14, padding: 24, width: 420, maxHeight: "85vh", overflowY: "auto", boxShadow: "0 24px 64px #00000080" }}>
+    <div style={{ position: "fixed", inset: 0, background: "#00000055", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200 }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} onMouseDown={e => e.preventDefault()} style={{ background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 14, padding: 24, width: 420, maxHeight: "85vh", overflowY: "auto", boxShadow: "0 2px 5px #0000001a, 0 8px 20px #00000012" }}>
         <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>🏷 Gerenciar Etiquetas</div>
-        <div style={{ fontSize: 12, color: "#555", marginBottom: 12 }}>Crie, renomeie, recolora ou remova etiquetas</div>
+        <div style={{ fontSize: 12, color: "#667781", marginBottom: 12 }}>Crie, renomeie, recolora ou remova etiquetas</div>
         {labelsApiError === "backend_not_deployed" && (
           <div style={{ background: "#ff6d0015", border: "1px solid #ff6d0033", borderRadius: 8, padding: "8px 12px", marginBottom: 12, fontSize: 11, color: "#ff6d00" }}>
             ⚠️ Endpoint <code>/labels</code> não encontrado no backend. Suba o <strong>main.py</strong> atualizado no Railway. Usando etiquetas locais por enquanto.
@@ -215,20 +215,20 @@ function LabelManagerModal({ labels, onChange, onClose, tenantId, authHeaders, l
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
           {items.map(label => (
             <div key={label.id} style={{ position: "relative" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#0d0d18", border: "1px solid #252540", borderRadius: 10, padding: "10px 14px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#ffffff", border: "1px solid #e9edef", borderRadius: 10, padding: "10px 14px" }}>
                 <div
                   onClick={() => setPickingColorFor(pickingColorFor === label.id ? null : label.id)}
-                  style={{ width: 22, height: 22, borderRadius: "50%", background: label.color, cursor: "pointer", flexShrink: 0, border: "2px solid #252540" }}
+                  style={{ width: 22, height: 22, borderRadius: "50%", background: label.color, cursor: "pointer", flexShrink: 0, border: "1px solid #e9edef" }}
                 />
                 {editingId === label.id
-                  ? <input autoFocus value={label.name} onChange={e => update(label.id, { name: e.target.value })} onBlur={() => setEditingId(null)} onKeyDown={e => e.key === "Enter" && setEditingId(null)} style={{ flex: 1, background: "#1a1a2e", border: `1px solid ${label.color}66`, borderRadius: 6, color: "#e8e8f0", fontSize: 13, padding: "4px 10px", outline: "none", fontFamily: "inherit" }} />
+                  ? <input autoFocus value={label.name} onChange={e => update(label.id, { name: e.target.value })} onBlur={() => setEditingId(null)} onKeyDown={e => e.key === "Enter" && setEditingId(null)} style={{ flex: 1, background: "#e9edef", border: `1px solid ${label.color}66`, borderRadius: 6, color: "#111b21", fontSize: 13, padding: "4px 10px", outline: "none", fontFamily: "inherit" }} />
                   : <span onClick={() => setEditingId(label.id)} style={{ flex: 1, fontSize: 13, fontWeight: 600, cursor: "text", color: label.color }}>{label.name}</span>
                 }
                 <span onClick={() => setEditingId(label.id)} style={{ fontSize: 14, cursor: "pointer", opacity: 0.4 }}>✏️</span>
                 <span onClick={() => remove(label.id)} style={{ fontSize: 14, cursor: "pointer", opacity: 0.4 }}>🗑</span>
               </div>
               {pickingColorFor === label.id && (
-                <div style={{ position: "absolute", top: "110%", left: 0, zIndex: 300, background: "#1a1a2e", border: "1px solid #252540", borderRadius: 10, padding: 12, display: "flex", flexWrap: "wrap", gap: 8, width: 200, boxShadow: "0 8px 24px #00000060" }}>
+                <div style={{ position: "absolute", top: "110%", left: 0, zIndex: 300, background: "#e9edef", border: "1px solid #e9edef", borderRadius: 10, padding: 12, display: "flex", flexWrap: "wrap", gap: 8, width: 200, boxShadow: "0 1px 3px #0000001a, 0 4px 12px #0000000f" }}>
                   {PALETTE.map(c => (
                     <div key={c} onClick={() => { update(label.id, { color: c }); setPickingColorFor(null); }} style={{ width: 28, height: 28, borderRadius: "50%", background: c, cursor: "pointer", border: label.color === c ? "3px solid #fff" : "2px solid transparent" }} />
                   ))}
@@ -239,17 +239,17 @@ function LabelManagerModal({ labels, onChange, onClose, tenantId, authHeaders, l
         </div>
 
         <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "#666", marginBottom: 8 }}>Nova etiqueta</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#667781", marginBottom: 8 }}>Nova etiqueta</div>
           <div style={{ display: "flex", gap: 8 }}>
-            <input value={newName} onChange={e => setNewName(e.target.value)} onKeyDown={e => e.key === "Enter" && addLabel()} placeholder="Nome da etiqueta..." style={{ flex: 1, padding: "8px 12px", background: "#0d0d18", border: "1px solid #252540", borderRadius: 8, color: "#e8e8f0", fontSize: 13, outline: "none", fontFamily: "inherit" }} />
-            <button onClick={addLabel} disabled={!newName.trim()} style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: newName.trim() ? "linear-gradient(135deg, #00c853, #00796b)" : "#1a1a2e", color: newName.trim() ? "#000" : "#444", fontSize: 13, fontWeight: 700, cursor: newName.trim() ? "pointer" : "not-allowed", fontFamily: "inherit" }}>+ Criar</button>
+            <input value={newName} onChange={e => setNewName(e.target.value)} onKeyDown={e => e.key === "Enter" && addLabel()} placeholder="Nome da etiqueta..." style={{ flex: 1, padding: "8px 12px", background: "#ffffff", border: "1px solid #e9edef", borderRadius: 8, color: "#111b21", fontSize: 13, outline: "none", fontFamily: "inherit" }} />
+            <button onClick={addLabel} disabled={!newName.trim()} style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: newName.trim() ? "linear-gradient(135deg, #00a884, #017561)" : "#e9edef", color: newName.trim() ? "#000" : "#667781", fontSize: 13, fontWeight: 700, cursor: newName.trim() ? "pointer" : "not-allowed", fontFamily: "inherit" }}>+ Criar</button>
           </div>
         </div>
 
         {error && <div style={{ background: "#f4433315", border: "1px solid #f4433333", borderRadius: 8, padding: "8px 12px", marginBottom: 12, fontSize: 12, color: "#f44336" }}>❌ {error}</div>}
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={onClose} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: "1px solid #252540", background: "transparent", color: "#666", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
-          <button onClick={save} disabled={saving} style={{ flex: 2, padding: "9px 0", borderRadius: 8, border: "none", background: saving ? "#1a1a2e" : "linear-gradient(135deg, #00c853, #00796b)", color: saving ? "#444" : "#000", fontSize: 13, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit" }}>{saving ? "Salvando..." : "💾 Salvar etiquetas"}</button>
+          <button onClick={onClose} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
+          <button onClick={save} disabled={saving} style={{ flex: 2, padding: "9px 0", borderRadius: 8, border: "none", background: saving ? "#e9edef" : "linear-gradient(135deg, #00a884, #017561)", color: saving ? "#667781" : "#000", fontSize: 13, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit" }}>{saving ? "Salvando..." : "💾 Salvar etiquetas"}</button>
         </div>
       </div>
     </div>
@@ -305,18 +305,18 @@ function LoginScreen({ onLogin }) {
     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 32, justifyContent: "center" }}>
       <svg width="36" height="36" viewBox="0 0 28 28" fill="none">
         <rect width="28" height="28" rx="7" fill="url(#glogin)"/>
-        <defs><linearGradient id="glogin" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor="#00c853"/><stop offset="100%" stopColor="#00695c"/></linearGradient></defs>
+        <defs><linearGradient id="glogin" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor="#00a884"/><stop offset="100%" stopColor="#00695c"/></linearGradient></defs>
         <text x="4" y="20" fontSize="14" fontWeight="900" fill="white" fontFamily="sans-serif">7</text>
         <circle cx="19" cy="14" r="5" fill="none" stroke="white" strokeWidth="2"/>
         <line x1="19" y1="9" x2="19" y2="19" stroke="white" strokeWidth="1.5"/>
         <line x1="14" y1="14" x2="24" y2="14" stroke="white" strokeWidth="1.5"/>
       </svg>
-      <span style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.5px", color: "#e8e8f0" }}>7<span style={{ color: "#00c853" }}>CRM</span></span>
+      <span style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.5px", color: "#111b21" }}>7<span style={{ color: "#00a884" }}>CRM</span></span>
     </div>
   );
 
-  const inp = (extra={}) => ({ width: "100%", padding: "11px 14px", background: "#13131f", border: "1px solid #252540", borderRadius: 10, color: "#e8e8f0", fontSize: 14, outline: "none", fontFamily: "inherit", boxSizing: "border-box", ...extra });
-  const btn = (active) => ({ marginTop: 4, padding: "13px 0", borderRadius: 10, border: "none", background: active ? "linear-gradient(135deg,#00c853,#00796b)" : "#1a1a2e", color: active ? "#000" : "#444", fontSize: 15, fontWeight: 700, cursor: active ? "pointer" : "default", fontFamily: "inherit", width: "100%" });
+  const inp = (extra={}) => ({ width: "100%", padding: "11px 14px", background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 10, color: "#111b21", fontSize: 14, outline: "none", fontFamily: "inherit", boxSizing: "border-box", ...extra });
+  const btn = (active) => ({ marginTop: 4, padding: "13px 0", borderRadius: 10, border: "none", background: active ? "linear-gradient(135deg,#00a884,#017561)" : "#e9edef", color: active ? "#000" : "#667781", fontSize: 15, fontWeight: 700, cursor: active ? "pointer" : "default", fontFamily: "inherit", width: "100%" });
 
   // ── LOGIN ──
   const submitLogin = async () => {
@@ -412,8 +412,8 @@ function LoginScreen({ onLogin }) {
     setLoading(false);
   };
 
-  const box = { width: 400, padding: "40px 36px", background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 20, boxShadow: "0 32px 80px #00000080" };
-  const wrap = { display: "flex", height: "100vh", width: "100vw", background: "#0a0a0f", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans','Segoe UI',sans-serif" };
+  const box = { width: 400, padding: "40px 36px", background: "#ffffff", border: "1px solid #e9edef", borderRadius: 20, boxShadow: "0 2px 5px #0000001a, 0 8px 20px #00000012" };
+  const wrap = { display: "flex", height: "100vh", width: "100vw", background: "#f0f2f5", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans','Segoe UI',sans-serif" };
 
   // ── TELA RESET ──
   if (screen === "reset") return (
@@ -423,17 +423,17 @@ function LoginScreen({ onLogin }) {
         <div style={{ textAlign: "center" }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Senha redefinida!</div>
-          <div style={{ fontSize: 13, color: "#555", marginBottom: 24 }}>Agora você pode entrar com sua nova senha.</div>
+          <div style={{ fontSize: 13, color: "#667781", marginBottom: 24 }}>Agora você pode entrar com sua nova senha.</div>
           <button onClick={() => { setScreen("login"); window.history.replaceState({}, "", "/"); }} style={btn(true)}>Ir para o login →</button>
         </div>
       ) : (
         <>
           <div style={{ fontSize: 20, fontWeight: 700, textAlign: "center", marginBottom: 4 }}>🔐 Nova senha</div>
-          <div style={{ fontSize: 13, color: "#555", textAlign: "center", marginBottom: 28 }}>Digite sua nova senha</div>
+          <div style={{ fontSize: 13, color: "#667781", textAlign: "center", marginBottom: 28 }}>Digite sua nova senha</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 6 }}>NOVA SENHA</label>
+            <div><label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 6 }}>NOVA SENHA</label>
               <input type="password" value={rPw} onChange={e => setRPw(e.target.value)} placeholder="Mínimo 6 caracteres" style={inp()} /></div>
-            <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 6 }}>CONFIRMAR SENHA</label>
+            <div><label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 6 }}>CONFIRMAR SENHA</label>
               <input type="password" value={rPw2} onChange={e => setRPw2(e.target.value)} onKeyDown={e => e.key === "Enter" && submitReset()} placeholder="Repita a senha" style={inp()} /></div>
             {error && <div style={{ background: "#f4433315", border: "1px solid #f4433333", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#f44336" }}>❌ {error}</div>}
             <button onClick={submitReset} disabled={loading || !rPw || !rPw2} style={btn(!loading && rPw && rPw2)}>{loading ? "Salvando..." : "Redefinir senha →"}</button>
@@ -457,28 +457,28 @@ function LoginScreen({ onLogin }) {
         <div style={{ textAlign: "center" }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Conta criada!</div>
-          <div style={{ fontSize: 13, color: "#555", marginBottom: 24 }}>Bem-vindo ao 7CRM. Faça login para começar.</div>
+          <div style={{ fontSize: 13, color: "#667781", marginBottom: 24 }}>Bem-vindo ao 7CRM. Faça login para começar.</div>
           <button onClick={() => { setScreen("login"); window.history.replaceState({}, "", "/"); }} style={btn(true)}>Fazer login →</button>
         </div>
       ) : (
         <>
           <div style={{ fontSize: 20, fontWeight: 700, textAlign: "center", marginBottom: 4 }}>🎟️ Criar conta</div>
-          <div style={{ fontSize: 13, color: "#555", textAlign: "center", marginBottom: 4 }}>
-            {invInfo ? <>Você foi convidado para <strong style={{ color: "#00c853" }}>{invInfo.tenant_name}</strong></> : "Carregando convite..."}
+          <div style={{ fontSize: 13, color: "#667781", textAlign: "center", marginBottom: 4 }}>
+            {invInfo ? <>Você foi convidado para <strong style={{ color: "#00a884" }}>{invInfo.tenant_name}</strong></> : "Carregando convite..."}
           </div>
           <div style={{ marginBottom: 24 }}/>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 6 }}>SEU NOME</label>
+            <div><label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 6 }}>SEU NOME</label>
               <input value={regName} onChange={e => setRegName(e.target.value)} placeholder="João Silva" style={inp()} /></div>
-            <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 6 }}>EMAIL</label>
+            <div><label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 6 }}>EMAIL</label>
               <input type="email" value={regEmail} onChange={e => setRegEmail(e.target.value)} placeholder="seu@email.com" style={inp()} /></div>
-            <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 6 }}>SENHA</label>
+            <div><label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 6 }}>SENHA</label>
               <input type="password" value={regPw} onChange={e => setRegPw(e.target.value)} onKeyDown={e => e.key === "Enter" && submitRegister()} placeholder="Mínimo 6 caracteres" style={inp()} /></div>
             {error && <div style={{ background: "#f4433315", border: "1px solid #f4433333", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#f44336" }}>❌ {error}</div>}
             <button onClick={submitRegister} disabled={loading || !regName.trim() || !regEmail.trim() || regPw.length < 6 || !invInfo} style={btn(!loading && regName.trim() && regEmail.trim() && regPw.length >= 6 && invInfo)}>{loading ? "Criando..." : "Criar conta →"}</button>
           </div>
           <div style={{ marginTop: 20, textAlign: "center" }}>
-            <span onClick={() => setScreen("login")} style={{ fontSize: 12, color: "#555", cursor: "pointer" }}>Já tem conta? Entrar</span>
+            <span onClick={() => setScreen("login")} style={{ fontSize: 12, color: "#667781", cursor: "pointer" }}>Já tem conta? Entrar</span>
           </div>
         </>
       )}
@@ -493,11 +493,11 @@ function LoginScreen({ onLogin }) {
         <div style={{ textAlign: "center" }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>📧</div>
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Verifique seu email</div>
-          <div style={{ fontSize: 13, color: "#555", marginBottom: 24 }}>Se o email estiver cadastrado, você receberá um link para redefinir a senha.</div>
+          <div style={{ fontSize: 13, color: "#667781", marginBottom: 24 }}>Se o email estiver cadastrado, você receberá um link para redefinir a senha.</div>
           {fResetUrl && (
-            <div style={{ background: "#0a0a0f", border: "1px solid #252540", borderRadius: 10, padding: 16, marginBottom: 20, wordBreak: "break-all" }}>
-              <div style={{ fontSize: 11, color: "#555", marginBottom: 6 }}>📋 SMTP não configurado — compartilhe este link:</div>
-              <a href={fResetUrl} style={{ fontSize: 12, color: "#00c853" }}>{fResetUrl}</a>
+            <div style={{ background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 10, padding: 16, marginBottom: 20, wordBreak: "break-all" }}>
+              <div style={{ fontSize: 11, color: "#667781", marginBottom: 6 }}>📋 SMTP não configurado — compartilhe este link:</div>
+              <a href={fResetUrl} style={{ fontSize: 12, color: "#00a884" }}>{fResetUrl}</a>
             </div>
           )}
           <button onClick={() => setScreen("login")} style={btn(true)}>Voltar ao login</button>
@@ -505,15 +505,15 @@ function LoginScreen({ onLogin }) {
       ) : (
         <>
           <div style={{ fontSize: 20, fontWeight: 700, textAlign: "center", marginBottom: 4 }}>🔑 Recuperar senha</div>
-          <div style={{ fontSize: 13, color: "#555", textAlign: "center", marginBottom: 28 }}>Digite seu email para receber o link</div>
+          <div style={{ fontSize: 13, color: "#667781", textAlign: "center", marginBottom: 28 }}>Digite seu email para receber o link</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 6 }}>EMAIL</label>
+            <div><label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 6 }}>EMAIL</label>
               <input type="email" value={fEmail} onChange={e => setFEmail(e.target.value)} onKeyDown={e => e.key === "Enter" && submitForgot()} placeholder="seu@email.com.br" autoFocus style={inp()} /></div>
             {error && <div style={{ background: "#f4433315", border: "1px solid #f4433333", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#f44336" }}>❌ {error}</div>}
             <button onClick={submitForgot} disabled={loading || !fEmail.trim()} style={btn(!loading && fEmail.trim())}>{loading ? "Enviando..." : "Enviar link →"}</button>
           </div>
           <div style={{ marginTop: 20, textAlign: "center" }}>
-            <span onClick={() => setScreen("login")} style={{ fontSize: 12, color: "#555", cursor: "pointer" }}>← Voltar ao login</span>
+            <span onClick={() => setScreen("login")} style={{ fontSize: 12, color: "#667781", cursor: "pointer" }}>← Voltar ao login</span>
           </div>
         </>
       )}
@@ -525,22 +525,22 @@ function LoginScreen({ onLogin }) {
     <div style={wrap}>
       <div style={box}>
         <Logo />
-        <div style={{ fontSize: 20, fontWeight: 700, textAlign: "center", marginBottom: 4, color: "#e8e8f0" }}>Bem-vindo de volta</div>
-        <div style={{ fontSize: 13, color: "#555", textAlign: "center", marginBottom: 28 }}>Entre com seu email e senha</div>
+        <div style={{ fontSize: 20, fontWeight: 700, textAlign: "center", marginBottom: 4, color: "#111b21" }}>Bem-vindo de volta</div>
+        <div style={{ fontSize: 13, color: "#667781", textAlign: "center", marginBottom: 28 }}>Entre com seu email e senha</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
-            <label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 6 }}>EMAIL</label>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 6 }}>EMAIL</label>
             <input type="email" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === "Enter" && submitLogin()} placeholder="seu@email.com.br" autoFocus style={inp()} />
           </div>
           <div>
-            <label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 6 }}>SENHA</label>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 6 }}>SENHA</label>
             <div style={{ position: "relative" }}>
               <input type={showPw ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === "Enter" && submitLogin()} placeholder="••••••••" style={inp({ paddingRight: 40 })} />
-              <span onClick={() => setShowPw(p => !p)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", cursor: "pointer", color: "#555", fontSize: 16 }}>{showPw ? "🙈" : "👁"}</span>
+              <span onClick={() => setShowPw(p => !p)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", cursor: "pointer", color: "#667781", fontSize: 16 }}>{showPw ? "🙈" : "👁"}</span>
             </div>
           </div>
           <div style={{ textAlign: "right", marginTop: -8 }}>
-            <span onClick={() => setScreen("forgot")} style={{ fontSize: 12, color: "#555", cursor: "pointer" }}>Esqueci minha senha</span>
+            <span onClick={() => setScreen("forgot")} style={{ fontSize: 12, color: "#667781", cursor: "pointer" }}>Esqueci minha senha</span>
           </div>
           {error && <div style={{ background: "#f4433315", border: "1px solid #f4433333", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#f44336" }}>❌ {error}</div>}
           <button onClick={submitLogin} disabled={loading || !email.trim() || !password.trim()} style={btn(!loading && email.trim() && password.trim())}>
@@ -550,9 +550,9 @@ function LoginScreen({ onLogin }) {
 
         {/* Divisor */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "20px 0 16px" }}>
-          <div style={{ flex: 1, height: 1, background: "#1a1a2e" }} />
-          <span style={{ fontSize: 11, color: "#333", fontWeight: 600, whiteSpace: "nowrap" }}>ou continue com</span>
-          <div style={{ flex: 1, height: 1, background: "#1a1a2e" }} />
+          <div style={{ flex: 1, height: 1, background: "#e9edef" }} />
+          <span style={{ fontSize: 11, color: "#54656f", fontWeight: 600, whiteSpace: "nowrap" }}>ou continue com</span>
+          <div style={{ flex: 1, height: 1, background: "#e9edef" }} />
         </div>
 
         {/* Social buttons */}
@@ -561,13 +561,13 @@ function LoginScreen({ onLogin }) {
             { provider: "google",   label: "Google",    icon: "G", color: "#ea4335" },
             { provider: "facebook", label: "Facebook",  icon: "f", color: "#1877f2" },
             { provider: "azure",    label: "Microsoft", icon: "M", color: "#00a4ef" },
-            { provider: "apple",    label: "Apple",     icon: "🍎", color: "#e8e8f0" },
+            { provider: "apple",    label: "Apple",     icon: "🍎", color: "#111b21" },
           ].map(({ provider, label, icon, color }) => (
             <button key={provider} onClick={() => socialLogin(provider)} disabled={!!socialLoading}
               style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                 padding: "11px 0", borderRadius: 10, border: `1px solid ${color}44`,
-                background: socialLoading === provider ? color + "20" : "#13131f",
-                color: "#e8e8f0", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                background: socialLoading === provider ? color + "20" : "#f0f2f5",
+                color: "#111b21", fontSize: 13, fontWeight: 600, cursor: "pointer",
                 fontFamily: "inherit", opacity: socialLoading && socialLoading !== provider ? 0.4 : 1,
                 transition: "opacity 0.2s" }}>
               <span style={{ fontSize: 14, fontWeight: 900, color }}>{icon}</span>
@@ -576,7 +576,7 @@ function LoginScreen({ onLogin }) {
           ))}
         </div>
 
-        <div style={{ textAlign: "center", fontSize: 12, color: "#333" }}>7CRM v1.0 · Estúdio Se7e</div>
+        <div style={{ textAlign: "center", fontSize: 12, color: "#54656f" }}>7CRM v1.0 · Estúdio Se7e</div>
       </div>
     </div>
   );
@@ -596,8 +596,8 @@ function LicensesPanel({ aHeaders, showToast }) {
 
   const PLANS = [
     { id: "trial",    label: "Trial",    color: "#ff9800", price: "Grátis 7d",  features: ["3 atendentes","1 número","Sem IA"] },
-    { id: "starter",  label: "Starter",  color: "#00bcd4", price: "R$ 149/mês", features: ["3 atendentes","1 número","Sem IA"] },
-    { id: "pro",      label: "Pro",      color: "#00c853", price: "R$ 299/mês", features: ["8 atendentes","2 números","Co-pilot IA","Checkout PIX"] },
+    { id: "starter",  label: "Starter",  color: "#00a884", price: "R$ 149/mês", features: ["3 atendentes","1 número","Sem IA"] },
+    { id: "pro",      label: "Pro",      color: "#00a884", price: "R$ 299/mês", features: ["8 atendentes","2 números","Co-pilot IA","Checkout PIX"] },
     { id: "business", label: "Business", color: "#7c4dff", price: "R$ 599/mês", features: ["Ilimitado","White-label","API própria"] },
   ];
   const planInfo = (id) => PLANS.find(p => p.id === id) || PLANS[1];
@@ -624,7 +624,7 @@ function LicensesPanel({ aHeaders, showToast }) {
     const block = !tenant.is_blocked;
     await fetch(`${API_URL}/admin/tenants/${tenant.id}/block`, { method: "PUT", headers: aHeaders, body: JSON.stringify({ blocked: block }) });
     setTenants(prev => prev.map(t => t.id === tenant.id ? { ...t, is_blocked: block } : t));
-    showToast(block ? "🔴 Cliente suspenso" : "✅ Cliente reativado", block ? "#f44336" : "#00c853");
+    showToast(block ? "🔴 Cliente suspenso" : "✅ Cliente reativado", block ? "#f44336" : "#00a884");
   };
 
   const resendInvite = async (tenantId) => {
@@ -650,7 +650,7 @@ function LicensesPanel({ aHeaders, showToast }) {
     fetchTenants();
   };
 
-  const inp = { width: "100%", padding: "9px 12px", background: "#13131f", border: "1px solid #252540", borderRadius: 8, color: "#e8e8f0", fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box" };
+  const inp = { width: "100%", padding: "9px 12px", background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 8, color: "#111b21", fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box" };
   const active = tenants.filter(t => !t.is_blocked);
   const blocked = tenants.filter(t => t.is_blocked);
 
@@ -659,15 +659,15 @@ function LicensesPanel({ aHeaders, showToast }) {
       {/* MRR Header */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 24 }}>
         {[
-          { label: "MRR Total", value: `R$ ${totalMrr.toLocaleString("pt-BR")}`, color: "#00c853", icon: "💰" },
-          { label: "Clientes ativos", value: active.length, color: "#00bcd4", icon: "✅" },
+          { label: "MRR Total", value: `R$ ${totalMrr.toLocaleString("pt-BR")}`, color: "#00a884", icon: "💰" },
+          { label: "Clientes ativos", value: active.length, color: "#00a884", icon: "✅" },
           { label: "Suspensos", value: blocked.length, color: "#f44336", icon: "🔴" },
           { label: "Total clientes", value: tenants.length, color: "#7c4dff", icon: "🏢" },
         ].map(c => (
-          <div key={c.label} style={{ background: "#0d0d18", border: `1px solid ${c.color}22`, borderRadius: 12, padding: "16px 18px" }}>
+          <div key={c.label} style={{ background: "#ffffff", border: `1px solid ${c.color}22`, borderRadius: 12, padding: "16px 18px" }}>
             <div style={{ fontSize: 20, marginBottom: 4 }}>{c.icon}</div>
             <div style={{ fontSize: 22, fontWeight: 800, color: c.color }}>{c.value}</div>
-            <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>{c.label}</div>
+            <div style={{ fontSize: 11, color: "#667781", marginTop: 2 }}>{c.label}</div>
           </div>
         ))}
       </div>
@@ -675,13 +675,13 @@ function LicensesPanel({ aHeaders, showToast }) {
       {/* Plan cards info */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 24 }}>
         {PLANS.map(p => (
-          <div key={p.id} style={{ background: "#0d0d18", border: `1px solid ${p.color}33`, borderRadius: 12, padding: "14px 16px" }}>
+          <div key={p.id} style={{ background: "#ffffff", border: `1px solid ${p.color}33`, borderRadius: 12, padding: "14px 16px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: p.color }}>{p.label}</span>
-              <span style={{ fontSize: 11, color: "#555" }}>{p.price}</span>
+              <span style={{ fontSize: 11, color: "#667781" }}>{p.price}</span>
             </div>
-            {p.features.map(f => <div key={f} style={{ fontSize: 11, color: "#666", marginBottom: 2 }}>· {f}</div>)}
-            <div style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: "#444" }}>
+            {p.features.map(f => <div key={f} style={{ fontSize: 11, color: "#667781", marginBottom: 2 }}>· {f}</div>)}
+            <div style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: "#667781" }}>
               {tenants.filter(t => t.plan === p.id && !t.is_blocked).length} cliente(s)
             </div>
           </div>
@@ -691,55 +691,55 @@ function LicensesPanel({ aHeaders, showToast }) {
       <div style={{ display: "flex", alignItems: "center", marginBottom: 16 }}>
         <div style={{ fontSize: 16, fontWeight: 700 }}>🏢 Clientes</div>
         <button onClick={() => { setShowCreate(s => !s); setCreateResult(null); }}
-          style={{ marginLeft: "auto", padding: "9px 20px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#00c853,#00796b)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+          style={{ marginLeft: "auto", padding: "9px 20px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
           + Novo cliente
         </button>
       </div>
 
       {/* Create form */}
       {showCreate && (
-        <div style={{ background: "#0d0d18", border: "1px solid #00c85333", borderRadius: 14, padding: 24, marginBottom: 20 }}>
+        <div style={{ background: "#ffffff", border: "1px solid #00a88433", borderRadius: 14, padding: 24, marginBottom: 20 }}>
           {createResult ? (
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 32, marginBottom: 8 }}>🎉</div>
               <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Cliente criado com sucesso!</div>
-              <div style={{ fontSize: 12, color: "#555", marginBottom: 16 }}>{createResult.whatsapp_sent ? "✅ Link enviado via WhatsApp!" : "📋 Link copiado para área de transferência"}</div>
-              <div style={{ background: "#13131f", border: "1px solid #252540", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#a78bfa", marginBottom: 16, wordBreak: "break-all" }}>{createResult.invite_url}</div>
-              <div style={{ fontSize: 12, color: "#555", marginBottom: 16 }}>Senha temporária: <strong style={{ color: "#e8e8f0" }}>{createResult.temp_password}</strong></div>
+              <div style={{ fontSize: 12, color: "#667781", marginBottom: 16 }}>{createResult.whatsapp_sent ? "✅ Link enviado via WhatsApp!" : "📋 Link copiado para área de transferência"}</div>
+              <div style={{ background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#a78bfa", marginBottom: 16, wordBreak: "break-all" }}>{createResult.invite_url}</div>
+              <div style={{ fontSize: 12, color: "#667781", marginBottom: 16 }}>Senha temporária: <strong style={{ color: "#111b21" }}>{createResult.temp_password}</strong></div>
               <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
                 <button onClick={() => navigator.clipboard.writeText(createResult.invite_url).then(() => showToast("Copiado!"))}
                   style={{ padding: "8px 20px", borderRadius: 8, border: "1px solid #7c4dff44", background: "#7c4dff18", color: "#a78bfa", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>📋 Copiar link</button>
                 <button onClick={() => { setShowCreate(false); setCreateResult(null); setCName(""); setCEmail(""); setCPhone(""); setCPlan("starter"); }}
-                  style={{ padding: "8px 20px", borderRadius: 8, border: "none", background: "#252540", color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Fechar</button>
+                  style={{ padding: "8px 20px", borderRadius: 8, border: "none", background: "#d1d7db", color: "#8696a0", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Fechar</button>
               </div>
             </div>
           ) : (
             <>
               <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Cadastrar novo cliente</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
-                <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 5 }}>NOME DA EMPRESA *</label>
+                <div><label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 5 }}>NOME DA EMPRESA *</label>
                   <input value={cName} onChange={e => setCName(e.target.value)} placeholder="Academia Fitness XYZ" style={inp} /></div>
-                <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 5 }}>EMAIL DO ADMIN *</label>
+                <div><label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 5 }}>EMAIL DO ADMIN *</label>
                   <input type="email" value={cEmail} onChange={e => setCEmail(e.target.value)} placeholder="dono@empresa.com" style={inp} /></div>
-                <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 5 }}>WHATSAPP (com DDD)</label>
+                <div><label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 5 }}>WHATSAPP (com DDD)</label>
                   <input value={cPhone} onChange={e => setCPhone(e.target.value)} placeholder="11999998888" style={inp} /></div>
               </div>
               <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 8 }}>PLANO</label>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 8 }}>PLANO</label>
                 <div style={{ display: "flex", gap: 8 }}>
                   {PLANS.map(p => (
                     <div key={p.id} onClick={() => setCPlan(p.id)}
-                      style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: `2px solid ${cPlan === p.id ? p.color : "#252540"}`, background: cPlan === p.id ? p.color + "18" : "#13131f", cursor: "pointer" }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: cPlan === p.id ? p.color : "#888" }}>{p.label}</div>
-                      <div style={{ fontSize: 11, color: "#555" }}>{p.price}</div>
+                      style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: `2px solid ${cPlan === p.id ? p.color : "#d1d7db"}`, background: cPlan === p.id ? p.color + "18" : "#f0f2f5", cursor: "pointer" }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: cPlan === p.id ? p.color : "#8696a0" }}>{p.label}</div>
+                      <div style={{ fontSize: 11, color: "#667781" }}>{p.price}</div>
                     </div>
                   ))}
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => setShowCreate(false)} style={{ padding: "9px 20px", borderRadius: 8, border: "1px solid #252540", background: "transparent", color: "#666", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
+                <button onClick={() => setShowCreate(false)} style={{ padding: "9px 20px", borderRadius: 8, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
                 <button onClick={createTenant} disabled={creating || !cName.trim() || !cEmail.trim()}
-                  style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: "none", background: (!creating && cName && cEmail) ? "linear-gradient(135deg,#00c853,#00796b)" : "#1a1a2e", color: (!creating && cName && cEmail) ? "#000" : "#444", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                  style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: "none", background: (!creating && cName && cEmail) ? "linear-gradient(135deg,#00a884,#017561)" : "#e9edef", color: (!creating && cName && cEmail) ? "#000" : "#667781", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
                   {creating ? "Criando..." : "🚀 Criar cliente" + (cPhone ? " + enviar WhatsApp" : " + copiar link")}
                 </button>
               </div>
@@ -749,31 +749,31 @@ function LicensesPanel({ aHeaders, showToast }) {
       )}
 
       {/* Tenant list */}
-      {loading ? <div style={{ color: "#555", padding: 40, textAlign: "center" }}>Carregando...</div>
+      {loading ? <div style={{ color: "#667781", padding: 40, textAlign: "center" }}>Carregando...</div>
         : tenants.length === 0 ? (
-          <div style={{ textAlign: "center", padding: 60, color: "#444" }}>Nenhum cliente ainda. Crie o primeiro acima.</div>
+          <div style={{ textAlign: "center", padding: 60, color: "#667781" }}>Nenhum cliente ainda. Crie o primeiro acima.</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {tenants.map(t => {
               const pi = planInfo(t.plan);
               const [showResend, setShowResend] = useState(false);
               return (
-                <div key={t.id} style={{ background: "#0d0d18", border: `1px solid ${t.is_blocked ? "#f4433322" : "#1a1a2e"}`, borderRadius: 12, padding: "14px 18px", opacity: t.is_blocked ? 0.7 : 1 }}>
+                <div key={t.id} style={{ background: "#ffffff", border: `1px solid ${t.is_blocked ? "#f4433322" : "#e9edef"}`, borderRadius: 12, padding: "14px 18px", opacity: t.is_blocked ? 0.7 : 1 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <div style={{ width: 38, height: 38, borderRadius: 10, background: pi.color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>🏢</div>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                         <span style={{ fontSize: 14, fontWeight: 700 }}>{t.name}</span>
                         <span style={{ fontSize: 11, background: pi.color + "22", color: pi.color, padding: "1px 8px", borderRadius: 20, fontWeight: 700 }}>{pi.label}</span>
-                        <span style={{ fontSize: 12, color: "#00c853", fontWeight: 700 }}>R$ {pi.price.replace("R$ ","").replace("/mês","")}<span style={{ color: "#555", fontWeight: 400 }}>/mês</span></span>
+                        <span style={{ fontSize: 12, color: "#00a884", fontWeight: 700 }}>R$ {pi.price.replace("R$ ","").replace("/mês","")}<span style={{ color: "#667781", fontWeight: 400 }}>/mês</span></span>
                         {t.is_blocked && <span style={{ fontSize: 11, background: "#f4433322", color: "#f44336", padding: "1px 8px", borderRadius: 20 }}>🔴 Suspenso</span>}
-                        <span style={{ fontSize: 11, color: "#555" }}>{t.user_count || 0} usuário(s)</span>
+                        <span style={{ fontSize: 11, color: "#667781" }}>{t.user_count || 0} usuário(s)</span>
                       </div>
-                      <div style={{ fontSize: 11, color: "#444", marginTop: 3 }}>Desde {new Date(t.created_at).toLocaleDateString("pt-BR")}</div>
+                      <div style={{ fontSize: 11, color: "#667781", marginTop: 3 }}>Desde {new Date(t.created_at).toLocaleDateString("pt-BR")}</div>
                     </div>
                     <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                       <select value={t.plan || "starter"} onChange={e => changePlan(t.id, e.target.value)}
-                        style={{ padding: "5px 8px", background: "#13131f", border: "1px solid #252540", borderRadius: 7, color: "#e8e8f0", fontSize: 12, outline: "none", fontFamily: "inherit", cursor: "pointer" }}>
+                        style={{ padding: "5px 8px", background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 7, color: "#111b21", fontSize: 12, outline: "none", fontFamily: "inherit", cursor: "pointer" }}>
                         {PLANS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
                       </select>
                       <button onClick={() => setShowResend(s => !s)}
@@ -781,7 +781,7 @@ function LicensesPanel({ aHeaders, showToast }) {
                         📱 Convite
                       </button>
                       <button onClick={() => toggleBlock(t)}
-                        style={{ padding: "5px 10px", borderRadius: 7, border: `1px solid ${t.is_blocked ? "#00c85333" : "#f4433333"}`, background: "transparent", color: t.is_blocked ? "#00c853" : "#f44336", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                        style={{ padding: "5px 10px", borderRadius: 7, border: `1px solid ${t.is_blocked ? "#00a88433" : "#f4433333"}`, background: "transparent", color: t.is_blocked ? "#00a884" : "#f44336", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
                         {t.is_blocked ? "Reativar" : "Suspender"}
                       </button>
                     </div>
@@ -790,7 +790,7 @@ function LicensesPanel({ aHeaders, showToast }) {
                     <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}>
                       <input value={resendPhone[t.id] || ""} onChange={e => setResendPhone(p => ({ ...p, [t.id]: e.target.value }))}
                         placeholder="WhatsApp do cliente (com DDD)"
-                        style={{ flex: 1, padding: "7px 12px", background: "#13131f", border: "1px solid #252540", borderRadius: 7, color: "#e8e8f0", fontSize: 12, outline: "none", fontFamily: "inherit" }} />
+                        style={{ flex: 1, padding: "7px 12px", background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 7, color: "#111b21", fontSize: 12, outline: "none", fontFamily: "inherit" }} />
                       <button onClick={() => resendInvite(t.id)} disabled={sendingInvite[t.id]}
                         style={{ padding: "7px 16px", borderRadius: 7, border: "none", background: "linear-gradient(135deg,#7c4dff,#5b21b6)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
                         {sendingInvite[t.id] ? "Enviando..." : "📱 Enviar"}
@@ -814,7 +814,7 @@ function AdminPanel({ auth, onLogout }) {
   const [showForm, setShowForm] = useState(false);
   const [editUser, setEditUser] = useState(null);
   const [toast, setToast] = useState(null);
-  const [fName, setFName] = useState(""); const [fEmail, setFEmail] = useState(""); const [fPw, setFPw] = useState(""); const [fRole, setFRole] = useState("agent"); const [fColor, setFColor] = useState("#00c853"); const [fPerms, setFPerms] = useState("read_write"); const [saving, setSaving] = useState(false);
+  const [fName, setFName] = useState(""); const [fEmail, setFEmail] = useState(""); const [fPw, setFPw] = useState(""); const [fRole, setFRole] = useState("agent"); const [fColor, setFColor] = useState("#00a884"); const [fPerms, setFPerms] = useState("read_write"); const [saving, setSaving] = useState(false);
   const [fInstances, setFInstances] = useState([]); // allowed instance IDs — empty = all
   const [availableInstances, setAvailableInstances] = useState([]);
 
@@ -825,7 +825,7 @@ function AdminPanel({ auth, onLogout }) {
   const [showChangePw, setShowChangePw] = useState(false); const [curPw, setCurPw] = useState(""); const [newPw, setNewPw] = useState(""); const [changingPw, setChangingPw] = useState(false);
 
   const aHeaders = { ...headers, "Authorization": `Bearer ${auth.token}` };
-  const showToast = (msg, color = "#00c853") => { setToast({ msg, color }); setTimeout(() => setToast(null), 3500); };
+  const showToast = (msg, color = "#00a884") => { setToast({ msg, color }); setTimeout(() => setToast(null), 3500); };
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -834,8 +834,8 @@ function AdminPanel({ auth, onLogout }) {
   };
   useEffect(() => { fetchUsers(); }, []);
 
-  const openCreate = () => { setEditUser(null); setFName(""); setFEmail(""); setFPw(""); setFRole("agent"); setFColor("#00c853"); setFPerms("read_write"); setFInstances([]); setShowForm(true); };
-  const openEdit = (u) => { setEditUser(u); setFName(u.name); setFEmail(u.email); setFPw(""); setFRole(u.role); setFColor(u.avatar_color || "#00c853"); setFPerms(u.permissions || "read_write"); setFInstances(u.allowed_instances || []); setShowForm(true); };
+  const openCreate = () => { setEditUser(null); setFName(""); setFEmail(""); setFPw(""); setFRole("agent"); setFColor("#00a884"); setFPerms("read_write"); setFInstances([]); setShowForm(true); };
+  const openEdit = (u) => { setEditUser(u); setFName(u.name); setFEmail(u.email); setFPw(""); setFRole(u.role); setFColor(u.avatar_color || "#00a884"); setFPerms(u.permissions || "read_write"); setFInstances(u.allowed_instances || []); setShowForm(true); };
 
   const saveUser = async () => {
     if (!fName.trim() || !fEmail.trim() || (!editUser && !fPw.trim())) return;
@@ -857,7 +857,7 @@ function AdminPanel({ auth, onLogout }) {
 
   const toggleActive = async (u) => {
     await fetch(`${API_URL}/admin/users/${u.id}`, { method: "PUT", headers: aHeaders, body: JSON.stringify({ is_active: !u.is_active }) });
-    showToast(u.is_active ? "Usuário desativado" : "Usuário reativado", u.is_active ? "#f44336" : "#00c853");
+    showToast(u.is_active ? "Usuário desativado" : "Usuário reativado", u.is_active ? "#f44336" : "#00a884");
     fetchUsers();
   };
 
@@ -872,16 +872,16 @@ function AdminPanel({ auth, onLogout }) {
     setChangingPw(false);
   };
 
-  const COLORS = ["#00c853","#7c4dff","#00bcd4","#ff6d00","#f44336","#e91e63","#ffd600","#8bc34a"];
-  const inp = { width: "100%", padding: "9px 12px", background: "#13131f", border: "1px solid #252540", borderRadius: 8, color: "#e8e8f0", fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box" };
+  const COLORS = ["#00a884","#7c4dff","#00a884","#ff6d00","#f44336","#e91e63","#ffd600","#8bc34a"];
+  const inp = { width: "100%", padding: "9px 12px", background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 8, color: "#111b21", fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box" };
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
-      {toast && <div style={{ position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)", zIndex: 9999, background: toast.color, color: "#000", padding: "11px 22px", borderRadius: 12, fontSize: 13, fontWeight: 700, boxShadow: "0 8px 32px #00000060" }}>{toast.msg}</div>}
-      <div style={{ padding: "10px 24px", borderBottom: "1px solid #1a1a2e", display: "flex", alignItems: "center", gap: 8 }}>
-        <div style={{ display: "flex", gap: 3, background: "#0a0a0f", border: "1px solid #1a1a2e", borderRadius: 8, padding: 3 }}>
+      {toast && <div style={{ position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)", zIndex: 9999, background: toast.color, color: "#000", padding: "11px 22px", borderRadius: 12, fontSize: 13, fontWeight: 700, boxShadow: "0 1px 3px #0000001a, 0 4px 12px #0000000f" }}>{toast.msg}</div>}
+      <div style={{ padding: "10px 24px", borderBottom: "1px solid #e9edef", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ display: "flex", gap: 3, background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 8, padding: 3 }}>
           {[["users","👥 Usuários"],["licenses","🏢 Licenças"],["account","👤 Minha conta"]].map(([id, label]) => (
-            <button key={id} onClick={() => setTab(id)} style={{ padding: "5px 14px", borderRadius: 6, border: "none", background: tab === id ? "#1a1a2e" : "transparent", color: tab === id ? "#e8e8f0" : "#555", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{label}</button>
+            <button key={id} onClick={() => setTab(id)} style={{ padding: "5px 14px", borderRadius: 6, border: "none", background: tab === id ? "#e9edef" : "transparent", color: tab === id ? "#111b21" : "#667781", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{label}</button>
           ))}
         </div>
       </div>
@@ -889,7 +889,7 @@ function AdminPanel({ auth, onLogout }) {
         {tab === "users" && (
           <div style={{ maxWidth: 860 }}>
             <div style={{ display: "flex", alignItems: "center", marginBottom: 20 }}>
-              <div><div style={{ fontSize: 18, fontWeight: 700 }}>👥 Usuários</div><div style={{ fontSize: 12, color: "#555", marginTop: 2 }}>Gerencie quem tem acesso ao 7CRM</div></div>
+              <div><div style={{ fontSize: 18, fontWeight: 700 }}>👥 Usuários</div><div style={{ fontSize: 12, color: "#667781", marginTop: 2 }}>Gerencie quem tem acesso ao 7CRM</div></div>
               <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
                 <button onClick={async () => {
                   const r = await fetch(`${API_URL}/auth/invite`, { method: "POST", headers: aHeaders, body: JSON.stringify({}) });
@@ -898,30 +898,30 @@ function AdminPanel({ auth, onLogout }) {
                     navigator.clipboard.writeText(d.invite_url).catch(() => {});
                     showToast("🎟️ Link copiado! " + d.code);
                   }
-                }} style={{ padding: "9px 20px", borderRadius: 9, border: "1px solid #252540", background: "transparent", color: "#00c853", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🎟️ Gerar convite</button>
-                <button onClick={openCreate} style={{ padding: "9px 20px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#00c853,#00796b)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>+ Novo usuário</button>
+                }} style={{ padding: "9px 20px", borderRadius: 9, border: "1px solid #e9edef", background: "transparent", color: "#00a884", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🎟️ Gerar convite</button>
+                <button onClick={openCreate} style={{ padding: "9px 20px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>+ Novo usuário</button>
               </div>
             </div>
-            {loading ? <div style={{ color: "#555", padding: 40, textAlign: "center" }}>Carregando...</div> : (
+            {loading ? <div style={{ color: "#667781", padding: 40, textAlign: "center" }}>Carregando...</div> : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {users.map(u => (
-                  <div key={u.id} style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 12, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, opacity: u.is_active ? 1 : 0.5 }}>
+                  <div key={u.id} style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 12, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, opacity: u.is_active ? 1 : 0.5 }}>
                     <Avatar name={u.name} size={40} color={u.avatar_color} />
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
                         <span style={{ fontSize: 14, fontWeight: 700 }}>{u.name}</span>
-                        <span style={{ fontSize: 11, background: u.role === "admin" ? "#7c4dff22" : "#00c85322", color: u.role === "admin" ? "#a78bfa" : "#00c853", padding: "1px 8px", borderRadius: 20, fontWeight: 700 }}>{u.role === "admin" ? "Admin" : "Atendente"}</span>
-                        {u.permissions && u.permissions !== "read_write" && <span style={{ fontSize: 10, background: "#1a1a2e", color: "#555", padding: "1px 8px", borderRadius: 20 }}>{u.permissions === "read" ? "👁 Leitura" : u.permissions === "read_write_manage" ? "⚙️ Gestão" : u.permissions === "full" ? "🔑 Full" : ""}</span>}
+                        <span style={{ fontSize: 11, background: u.role === "admin" ? "#7c4dff22" : "#00a88422", color: u.role === "admin" ? "#a78bfa" : "#00a884", padding: "1px 8px", borderRadius: 20, fontWeight: 700 }}>{u.role === "admin" ? "Admin" : "Atendente"}</span>
+                        {u.permissions && u.permissions !== "read_write" && <span style={{ fontSize: 10, background: "#e9edef", color: "#667781", padding: "1px 8px", borderRadius: 20 }}>{u.permissions === "read" ? "👁 Leitura" : u.permissions === "read_write_manage" ? "⚙️ Gestão" : u.permissions === "full" ? "🔑 Full" : ""}</span>}
                         {!u.is_active && <span style={{ fontSize: 11, background: "#f4433322", color: "#f44336", padding: "1px 8px", borderRadius: 20 }}>Inativo</span>}
                       </div>
-                      <div style={{ fontSize: 12, color: "#555" }}>{u.email}</div>
-                      {u.last_login && <div style={{ fontSize: 11, color: "#333", marginTop: 2 }}>Último acesso: {new Date(u.last_login).toLocaleString("pt-BR")}</div>}
+                      <div style={{ fontSize: 12, color: "#667781" }}>{u.email}</div>
+                      {u.last_login && <div style={{ fontSize: 11, color: "#54656f", marginTop: 2 }}>Último acesso: {new Date(u.last_login).toLocaleString("pt-BR")}</div>}
                       {u.allowed_instances?.length > 0 && (
                         <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 4 }}>
                           {u.allowed_instances.map(iid => {
                             const inst = availableInstances.find(i => i.id === iid);
                             return inst ? (
-                              <span key={iid} style={{ fontSize: 10, background: "#00c85315", color: "#00c853", border: "1px solid #00c85333", padding: "1px 7px", borderRadius: 10, fontWeight: 700 }}>
+                              <span key={iid} style={{ fontSize: 10, background: "#00a88415", color: "#00a884", border: "1px solid #00a88433", padding: "1px 7px", borderRadius: 10, fontWeight: 700 }}>
                                 📱 {inst.label || inst.phone}
                               </span>
                             ) : null;
@@ -930,8 +930,8 @@ function AdminPanel({ auth, onLogout }) {
                       )}
                     </div>
                     <div style={{ display: "flex", gap: 6 }}>
-                      <button onClick={() => openEdit(u)} style={{ padding: "6px 14px", borderRadius: 7, border: "1px solid #252540", background: "transparent", color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>✏️ Editar</button>
-                      {u.id !== auth.user.id && <button onClick={() => toggleActive(u)} style={{ padding: "6px 14px", borderRadius: 7, border: `1px solid ${u.is_active ? "#f4433333" : "#00c85333"}`, background: "transparent", color: u.is_active ? "#f44336" : "#00c853", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>{u.is_active ? "Desativar" : "Reativar"}</button>}
+                      <button onClick={() => openEdit(u)} style={{ padding: "6px 14px", borderRadius: 7, border: "1px solid #e9edef", background: "transparent", color: "#8696a0", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>✏️ Editar</button>
+                      {u.id !== auth.user.id && <button onClick={() => toggleActive(u)} style={{ padding: "6px 14px", borderRadius: 7, border: `1px solid ${u.is_active ? "#f4433333" : "#00a88433"}`, background: "transparent", color: u.is_active ? "#f44336" : "#00a884", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>{u.is_active ? "Desativar" : "Reativar"}</button>}
                     </div>
                   </div>
                 ))}
@@ -945,21 +945,21 @@ function AdminPanel({ auth, onLogout }) {
         {tab === "account" && (
           <div style={{ maxWidth: 480 }}>
             <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 20 }}>👤 Minha conta</div>
-            <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 24, marginBottom: 16 }}>
+            <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 14, padding: 24, marginBottom: 16 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
                 <Avatar name={auth.user.name} size={52} color={auth.user.avatar_color} />
                 <div>
                   <div style={{ fontSize: 17, fontWeight: 700 }}>{auth.user.name}</div>
-                  <div style={{ fontSize: 13, color: "#555" }}>{auth.user.email}</div>
-                  <span style={{ fontSize: 11, background: auth.user.role === "admin" ? "#7c4dff22" : "#00c85522", color: auth.user.role === "admin" ? "#a78bfa" : "#00c853", display: "inline-block", padding: "2px 10px", borderRadius: 20, marginTop: 4, fontWeight: 700 }}>{auth.user.role === "admin" ? "Administrador" : "Atendente"}</span>
+                  <div style={{ fontSize: 13, color: "#667781" }}>{auth.user.email}</div>
+                  <span style={{ fontSize: 11, background: auth.user.role === "admin" ? "#7c4dff22" : "#00c85522", color: auth.user.role === "admin" ? "#a78bfa" : "#00a884", display: "inline-block", padding: "2px 10px", borderRadius: 20, marginTop: 4, fontWeight: 700 }}>{auth.user.role === "admin" ? "Administrador" : "Atendente"}</span>
                 </div>
               </div>
-              <button onClick={() => setShowChangePw(p => !p)} style={{ padding: "9px 20px", borderRadius: 8, border: "1px solid #252540", background: "transparent", color: "#888", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>🔑 Alterar senha</button>
+              <button onClick={() => setShowChangePw(p => !p)} style={{ padding: "9px 20px", borderRadius: 8, border: "1px solid #e9edef", background: "transparent", color: "#8696a0", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>🔑 Alterar senha</button>
               {showChangePw && (
                 <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 10 }}>
                   <input type="password" value={curPw} onChange={e => setCurPw(e.target.value)} placeholder="Senha atual" style={inp} />
                   <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} placeholder="Nova senha (mín. 6 caracteres)" style={inp} />
-                  <button onClick={changePw} disabled={changingPw || !curPw || newPw.length < 6} style={{ padding: "9px 0", borderRadius: 8, border: "none", background: (!changingPw && curPw && newPw.length >= 6) ? "linear-gradient(135deg,#00c853,#00796b)" : "#1a1a2e", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{changingPw ? "Salvando..." : "Salvar nova senha"}</button>
+                  <button onClick={changePw} disabled={changingPw || !curPw || newPw.length < 6} style={{ padding: "9px 0", borderRadius: 8, border: "none", background: (!changingPw && curPw && newPw.length >= 6) ? "linear-gradient(135deg,#00a884,#017561)" : "#e9edef", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{changingPw ? "Salvando..." : "Salvar nova senha"}</button>
                 </div>
               )}
             </div>
@@ -968,24 +968,24 @@ function AdminPanel({ auth, onLogout }) {
         )}
       </div>
       {showForm && (
-        <div style={{ position: "fixed", inset: 0, background: "#00000090", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 16, padding: 28, width: 420, maxWidth: "90vw" }}>
+        <div style={{ position: "fixed", inset: 0, background: "#00000055", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 16, padding: 28, width: 420, maxWidth: "90vw" }}>
             <div style={{ display: "flex", alignItems: "center", marginBottom: 20 }}>
               <span style={{ fontSize: 16, fontWeight: 700 }}>{editUser ? "Editar usuário" : "Novo usuário"}</span>
-              <span onClick={() => setShowForm(false)} style={{ marginLeft: "auto", cursor: "pointer", color: "#555", fontSize: 20 }}>×</span>
+              <span onClick={() => setShowForm(false)} style={{ marginLeft: "auto", cursor: "pointer", color: "#667781", fontSize: 20 }}>×</span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 5 }}>NOME</label><input value={fName} onChange={e => setFName(e.target.value)} placeholder="Nome completo" style={inp} /></div>
-              <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 5 }}>EMAIL</label><input type="email" value={fEmail} onChange={e => setFEmail(e.target.value)} placeholder="email@empresa.com" style={inp} /></div>
-              <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 5 }}>{editUser ? "NOVA SENHA (vazio = não alterar)" : "SENHA"}</label><input type="password" value={fPw} onChange={e => setFPw(e.target.value)} placeholder="••••••••" style={inp} /></div>
-              <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 5 }}>PAPEL</label>
+              <div><label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 5 }}>NOME</label><input value={fName} onChange={e => setFName(e.target.value)} placeholder="Nome completo" style={inp} /></div>
+              <div><label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 5 }}>EMAIL</label><input type="email" value={fEmail} onChange={e => setFEmail(e.target.value)} placeholder="email@empresa.com" style={inp} /></div>
+              <div><label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 5 }}>{editUser ? "NOVA SENHA (vazio = não alterar)" : "SENHA"}</label><input type="password" value={fPw} onChange={e => setFPw(e.target.value)} placeholder="••••••••" style={inp} /></div>
+              <div><label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 5 }}>PAPEL</label>
                 <select value={fRole} onChange={e => setFRole(e.target.value)} style={{ ...inp, cursor: "pointer" }}>
                   <option value="agent">Atendente</option>
                   <option value="admin">Administrador</option>
                 </select>
               </div>
               <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 8 }}>PERMISSÕES</label>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 8 }}>PERMISSÕES</label>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {[
                     { id: "read", label: "👁 Somente leitura", desc: "Visualiza conversas e mensagens" },
@@ -994,36 +994,36 @@ function AdminPanel({ auth, onLogout }) {
                     { id: "full", label: "🔑 Acesso total", desc: "Tudo + deleta conversas e contatos" },
                   ].map(p => (
                     <div key={p.id} onClick={() => setFPerms(p.id)}
-                      style={{ display: "flex", gap: 10, padding: "8px 12px", borderRadius: 8, border: `1px solid ${fPerms === p.id ? "#00c85344" : "#252540"}`, background: fPerms === p.id ? "#00c85310" : "transparent", cursor: "pointer" }}>
+                      style={{ display: "flex", gap: 10, padding: "8px 12px", borderRadius: 8, border: `1px solid ${fPerms === p.id ? "#00a88444" : "#d1d7db"}`, background: fPerms === p.id ? "#00a88410" : "transparent", cursor: "pointer" }}>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: fPerms === p.id ? "#00c853" : "#ccc" }}>{p.label}</div>
-                        <div style={{ fontSize: 11, color: "#555" }}>{p.desc}</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: fPerms === p.id ? "#00a884" : "#54656f" }}>{p.label}</div>
+                        <div style={{ fontSize: 11, color: "#667781" }}>{p.desc}</div>
                       </div>
-                      {fPerms === p.id && <span style={{ color: "#00c853", fontSize: 14, alignSelf: "center" }}>✓</span>}
+                      {fPerms === p.id && <span style={{ color: "#00a884", fontSize: 14, alignSelf: "center" }}>✓</span>}
                     </div>
                   ))}
                 </div>
               </div>
-              <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 8 }}>COR DO AVATAR</label>
+              <div><label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 8 }}>COR DO AVATAR</label>
                 <div style={{ display: "flex", gap: 8 }}>{COLORS.map(c => <div key={c} onClick={() => setFColor(c)} style={{ width: 28, height: 28, borderRadius: "50%", background: c, cursor: "pointer", border: fColor === c ? "3px solid #fff" : "3px solid transparent", boxSizing: "border-box" }} />)}</div>
               </div>
               {/* Instance access — only show if there are instances */}
               {availableInstances.length > 0 && fRole !== "admin" && (
                 <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 4 }}>ACESSO AOS NÚMEROS</label>
-                  <div style={{ fontSize: 11, color: "#333", marginBottom: 8 }}>Vazio = acesso a todos os números. Selecione para restringir.</div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 4 }}>ACESSO AOS NÚMEROS</label>
+                  <div style={{ fontSize: 11, color: "#54656f", marginBottom: 8 }}>Vazio = acesso a todos os números. Selecione para restringir.</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     {availableInstances.map(inst => {
                       const isSelected = fInstances.includes(inst.id);
                       return (
                         <div key={inst.id} onClick={() => setFInstances(prev => isSelected ? prev.filter(id => id !== inst.id) : [...prev, inst.id])}
-                          style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 8, border: `1px solid ${isSelected ? "#00c85344" : "#252540"}`, background: isSelected ? "#00c85310" : "transparent", cursor: "pointer" }}>
+                          style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 8, border: `1px solid ${isSelected ? "#00a88444" : "#d1d7db"}`, background: isSelected ? "#00a88410" : "transparent", cursor: "pointer" }}>
                           <span style={{ fontSize: 16 }}>{inst.connected ? "📱" : "📵"}</span>
                           <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: isSelected ? "#00c853" : "#ccc" }}>{inst.label || "Número"}</div>
-                            <div style={{ fontSize: 11, color: "#555" }}>{inst.phone ? `+${inst.phone}` : inst.instance_name}</div>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: isSelected ? "#00a884" : "#54656f" }}>{inst.label || "Número"}</div>
+                            <div style={{ fontSize: 11, color: "#667781" }}>{inst.phone ? `+${inst.phone}` : inst.instance_name}</div>
                           </div>
-                          <div style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${isSelected ? "#00c853" : "#333"}`, background: isSelected ? "#00c853" : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <div style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${isSelected ? "#00a884" : "#54656f"}`, background: isSelected ? "#00a884" : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
                             {isSelected && <span style={{ fontSize: 10, color: "#000", fontWeight: 900 }}>✓</span>}
                           </div>
                         </div>
@@ -1031,15 +1031,15 @@ function AdminPanel({ auth, onLogout }) {
                     })}
                   </div>
                   {fInstances.length > 0 && (
-                    <div style={{ fontSize: 11, color: "#00c853", marginTop: 6 }}>
+                    <div style={{ fontSize: 11, color: "#00a884", marginTop: 6 }}>
                       ✓ Acesso restrito a {fInstances.length} número{fInstances.length > 1 ? "s" : ""}
                     </div>
                   )}
                 </div>
               )}
               <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-                <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: "1px solid #252540", background: "transparent", color: "#666", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
-                <button onClick={saveUser} disabled={saving} style={{ flex: 2, padding: "10px 0", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#00c853,#00796b)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{saving ? "Salvando..." : (editUser ? "Salvar" : "Criar usuário")}</button>
+                <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
+                <button onClick={saveUser} disabled={saving} style={{ flex: 2, padding: "10px 0", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{saving ? "Salvando..." : (editUser ? "Salvar" : "Criar usuário")}</button>
               </div>
             </div>
           </div>
@@ -1101,7 +1101,7 @@ function OnboardingView({ auth, aiCredits }) {
     setSaving(false);
   };
 
-  const inp = { width: "100%", padding: "9px 12px", background: "#13131f", border: "1px solid #252540", borderRadius: 8, color: "#e8e8f0", fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box" };
+  const inp = { width: "100%", padding: "9px 12px", background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 8, color: "#111b21", fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box" };
 
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: 40 }}>
@@ -1112,11 +1112,11 @@ function OnboardingView({ auth, aiCredits }) {
           <>
             <div style={{ marginBottom: 32 }}>
               <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>🧠 Onboarding Inteligente</div>
-              <div style={{ fontSize: 13, color: "#555" }}>A IA lê seu histórico do WhatsApp e aprende como sua empresa funciona</div>
+              <div style={{ fontSize: 13, color: "#667781" }}>A IA lê seu histórico do WhatsApp e aprende como sua empresa funciona</div>
             </div>
 
             {/* How it works */}
-            <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 24, marginBottom: 20 }}>
+            <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 14, padding: 24, marginBottom: 20 }}>
               <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Como funciona</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {[
@@ -1126,10 +1126,10 @@ function OnboardingView({ auth, aiCredits }) {
                   { n: "4", title: "Revise e ative", desc: "Edite se quiser e salve. Co-pilot começa a usar imediatamente", icon: "🚀" },
                 ].map(s => (
                   <div key={s.n} style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
-                    <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#00c85320", border: "1px solid #00c85340", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>{s.icon}</div>
+                    <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#00a88420", border: "1px solid #00a88440", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>{s.icon}</div>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#e8e8f0", marginBottom: 2 }}>{s.title}</div>
-                      <div style={{ fontSize: 12, color: "#555" }}>{s.desc}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#111b21", marginBottom: 2 }}>{s.title}</div>
+                      <div style={{ fontSize: 12, color: "#667781" }}>{s.desc}</div>
                     </div>
                   </div>
                 ))}
@@ -1137,12 +1137,12 @@ function OnboardingView({ auth, aiCredits }) {
             </div>
 
             {/* Period selector */}
-            <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 24, marginBottom: 20 }}>
+            <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 14, padding: 24, marginBottom: 20 }}>
               <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>📅 Período de análise</div>
-              <div style={{ fontSize: 12, color: "#555", marginBottom: 16 }}>Mais dias = análise mais rica. Recomendamos 90 dias.</div>
+              <div style={{ fontSize: 12, color: "#667781", marginBottom: 16 }}>Mais dias = análise mais rica. Recomendamos 90 dias.</div>
               <div style={{ display: "flex", gap: 8 }}>
                 {[30, 60, 90, 180].map(d => (
-                  <button key={d} onClick={() => setDays(d)} style={{ flex: 1, padding: "10px 0", borderRadius: 9, border: `2px solid ${days === d ? "#00c853" : "#252540"}`, background: days === d ? "#00c85315" : "#13131f", color: days === d ? "#00c853" : "#555", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                  <button key={d} onClick={() => setDays(d)} style={{ flex: 1, padding: "10px 0", borderRadius: 9, border: `2px solid ${days === d ? "#00a884" : "#d1d7db"}`, background: days === d ? "#00a88415" : "#f0f2f5", color: days === d ? "#00a884" : "#667781", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
                     {d} dias
                   </button>
                 ))}
@@ -1156,7 +1156,7 @@ function OnboardingView({ auth, aiCredits }) {
               ⚡ Disponível nos planos <strong>Pro</strong> (200 conversas) e <strong>Business</strong> (500 conversas). Cada análise consome <strong>1.000 créditos</strong> — sem limite mensal, use quantas vezes quiser.
             </div>
 
-            <button onClick={analyze} style={{ width: "100%", padding: "14px 0", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #00c853, #00796b)", color: "#000", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
+            <button onClick={analyze} style={{ width: "100%", padding: "14px 0", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #00a884, #017561)", color: "#000", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
               🧠 Analisar meu histórico e gerar prompt →
             </button>
           </>
@@ -1167,22 +1167,22 @@ function OnboardingView({ auth, aiCredits }) {
           <div style={{ textAlign: "center", paddingTop: 60 }}>
             <div style={{ fontSize: 48, marginBottom: 24 }}>🧠</div>
             <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Analisando suas conversas...</div>
-            <div style={{ fontSize: 13, color: "#555", marginBottom: 40 }}>Nossa IA está lendo o histórico e aprendendo sobre seu negócio. Isso pode levar até 60 segundos.</div>
+            <div style={{ fontSize: 13, color: "#667781", marginBottom: 40 }}>Nossa IA está lendo o histórico e aprendendo sobre seu negócio. Isso pode levar até 60 segundos.</div>
             
             {/* Progress bar */}
-            <div style={{ background: "#1a1a2e", borderRadius: 20, height: 8, marginBottom: 12, overflow: "hidden" }}>
-              <div style={{ height: "100%", borderRadius: 20, background: "linear-gradient(90deg, #00c853, #00bcd4)", width: `${progress}%`, transition: "width 0.8s ease" }} />
+            <div style={{ background: "#e9edef", borderRadius: 20, height: 8, marginBottom: 12, overflow: "hidden" }}>
+              <div style={{ height: "100%", borderRadius: 20, background: "linear-gradient(90deg, #00a884, #00a884)", width: `${progress}%`, transition: "width 0.8s ease" }} />
             </div>
-            <div style={{ fontSize: 12, color: "#555" }}>{Math.round(progress)}% concluído</div>
+            <div style={{ fontSize: 12, color: "#667781" }}>{Math.round(progress)}% concluído</div>
 
-            <div style={{ marginTop: 40, display: "flex", flexDirection: "column", gap: 10, textAlign: "left", background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 12, padding: 20 }}>
+            <div style={{ marginTop: 40, display: "flex", flexDirection: "column", gap: 10, textAlign: "left", background: "#ffffff", border: "1px solid #e9edef", borderRadius: 12, padding: 20 }}>
               {[
                 { label: "Buscando conversas...", done: progress > 15 },
                 { label: "Lendo mensagens...", done: progress > 35 },
                 { label: "Identificando padrões...", done: progress > 60 },
                 { label: "Gerando prompt personalizado...", done: progress > 85 },
               ].map(s => (
-                <div key={s.label} style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13, color: s.done ? "#00c853" : "#333" }}>
+                <div key={s.label} style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13, color: s.done ? "#00a884" : "#54656f" }}>
                   <span>{s.done ? "✓" : "⏳"}</span>
                   {s.label}
                 </div>
@@ -1196,47 +1196,47 @@ function OnboardingView({ auth, aiCredits }) {
           <>
             <div style={{ marginBottom: 24 }}>
               <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>✨ Prompt gerado!</div>
-              <div style={{ fontSize: 13, color: "#555" }}>
-                Analisamos <strong style={{ color: "#00c853" }}>{result.conversations_analyzed} conversas</strong> dos últimos <strong style={{ color: "#00c853" }}>{result.days_analyzed} dias</strong>. Revise e salve.
+              <div style={{ fontSize: 13, color: "#667781" }}>
+                Analisamos <strong style={{ color: "#00a884" }}>{result.conversations_analyzed} conversas</strong> dos últimos <strong style={{ color: "#00a884" }}>{result.days_analyzed} dias</strong>. Revise e salve.
               </div>
             </div>
 
             {/* Stats */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
               {[
-                { label: "Conversas analisadas", value: result.conversations_analyzed, color: "#00c853" },
-                { label: "Dias de histórico", value: result.days_analyzed, color: "#00bcd4" },
+                { label: "Conversas analisadas", value: result.conversations_analyzed, color: "#00a884" },
+                { label: "Dias de histórico", value: result.days_analyzed, color: "#00a884" },
                 { label: "Créditos usados", value: "~50", color: "#7c4dff" },
               ].map(s => (
-                <div key={s.label} style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 10, padding: "12px 14px", textAlign: "center" }}>
+                <div key={s.label} style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 10, padding: "12px 14px", textAlign: "center" }}>
                   <div style={{ fontSize: 20, fontWeight: 800, color: s.color }}>{s.value}</div>
-                  <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>{s.label}</div>
+                  <div style={{ fontSize: 11, color: "#667781", marginTop: 2 }}>{s.label}</div>
                 </div>
               ))}
             </div>
 
             {/* Summary — protects real prompt */}
-            <div style={{ background: "#0d0d18", border: "1px solid #00c85333", borderRadius: 14, padding: 24, marginBottom: 20 }}>
+            <div style={{ background: "#ffffff", border: "1px solid #00a88433", borderRadius: 14, padding: 24, marginBottom: 20 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
                 <div style={{ fontSize: 14, fontWeight: 700 }}>🧠 O que a IA aprendeu sobre seu negócio</div>
-                <span style={{ fontSize: 11, background: "#00c85322", color: "#00c853", padding: "2px 10px", borderRadius: 20, fontWeight: 700 }}>ativo</span>
+                <span style={{ fontSize: 11, background: "#00a88422", color: "#00a884", padding: "2px 10px", borderRadius: 20, fontWeight: 700 }}>ativo</span>
               </div>
-              <div style={{ fontSize: 12, color: "#555", marginBottom: 16 }}>
+              <div style={{ fontSize: 12, color: "#667781", marginBottom: 16 }}>
                 Seu Co-pilot foi configurado com base nas suas conversas. Abaixo um resumo do que ele aprendeu:
               </div>
-              <div style={{ background: "#13131f", border: "1px solid #1a1a2e", borderRadius: 10, padding: "16px 18px" }}>
+              <div style={{ background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 10, padding: "16px 18px" }}>
                 {(result.summary || "").split("\n").filter(l => l.trim()).map((line, i) => (
                   <div key={i} style={{ fontSize: 13, color: "#c8c8e0", marginBottom: 8, lineHeight: 1.5 }}>{line}</div>
                 ))}
               </div>
-              <div style={{ marginTop: 12, fontSize: 11, color: "#333", display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ marginTop: 12, fontSize: 11, color: "#54656f", display: "flex", alignItems: "center", gap: 6 }}>
                 🔒 O prompt completo é mantido de forma segura pela plataforma.
               </div>
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setStep("intro")} style={{ padding: "12px 20px", borderRadius: 10, border: "1px solid #252540", background: "transparent", color: "#555", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>← Refazer análise</button>
-              <button onClick={savePrompt} disabled={saving} style={{ flex: 1, padding: "12px 0", borderRadius: 10, border: "none", background: saved ? "#00c853" : "linear-gradient(135deg,#00c853,#00796b)", color: "#000", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
+              <button onClick={() => setStep("intro")} style={{ padding: "12px 20px", borderRadius: 10, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>← Refazer análise</button>
+              <button onClick={savePrompt} disabled={saving} style={{ flex: 1, padding: "12px 0", borderRadius: 10, border: "none", background: saved ? "#00a884" : "linear-gradient(135deg,#00a884,#017561)", color: "#000", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
                 {saving ? "Ativando..." : saved ? "✓ Co-pilot ativado!" : "🚀 Ativar Co-pilot com este aprendizado →"}
               </button>
             </div>
@@ -1248,14 +1248,14 @@ function OnboardingView({ auth, aiCredits }) {
           <div style={{ textAlign: "center", paddingTop: 60 }}>
             <div style={{ fontSize: 64, marginBottom: 24 }}>🎉</div>
             <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Co-pilot configurado!</div>
-            <div style={{ fontSize: 14, color: "#555", marginBottom: 32 }}>Seu Co-pilot agora conhece sua empresa. Abra uma conversa no Inbox e clique em ✨ para ver a mágica.</div>
-            <div style={{ background: "#00c85315", border: "1px solid #00c85333", borderRadius: 14, padding: 24, marginBottom: 32, textAlign: "left" }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#00c853", marginBottom: 12 }}>O que mudou:</div>
+            <div style={{ fontSize: 14, color: "#667781", marginBottom: 32 }}>Seu Co-pilot agora conhece sua empresa. Abra uma conversa no Inbox e clique em ✨ para ver a mágica.</div>
+            <div style={{ background: "#00a88415", border: "1px solid #00a88433", borderRadius: 14, padding: 24, marginBottom: 32, textAlign: "left" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#00a884", marginBottom: 12 }}>O que mudou:</div>
               {["Co-pilot agora usa o prompt personalizado da sua empresa", "Sugestões de resposta muito mais precisas e no tom certo", "FAQ automático baseado nas suas perguntas reais", "Você pode refinar o prompt a qualquer momento em Configurações"].map(f => (
-                <div key={f} style={{ display: "flex", gap: 8, fontSize: 13, color: "#888", marginBottom: 8 }}><span style={{ color: "#00c853" }}>✓</span>{f}</div>
+                <div key={f} style={{ display: "flex", gap: 8, fontSize: 13, color: "#8696a0", marginBottom: 8 }}><span style={{ color: "#00a884" }}>✓</span>{f}</div>
               ))}
             </div>
-            <button onClick={() => setStep("intro")} style={{ padding: "10px 24px", borderRadius: 10, border: "1px solid #252540", background: "transparent", color: "#555", fontSize: 13, cursor: "pointer", fontFamily: "inherit", marginRight: 10 }}>Refazer análise</button>
+            <button onClick={() => setStep("intro")} style={{ padding: "10px 24px", borderRadius: 10, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 13, cursor: "pointer", fontFamily: "inherit", marginRight: 10 }}>Refazer análise</button>
           </div>
         )}
 
@@ -1488,13 +1488,13 @@ function WhatsAppScreen({ auth }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
           <div>
             <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>📱 Números WhatsApp</div>
-            <div style={{ fontSize: 13, color: "#555" }}>
+            <div style={{ fontSize: 13, color: "#667781" }}>
               {instances.length} de {maxNumbers} números usados · plano <span style={{ color: "#7c4dff", fontWeight: 700 }}>{PLAN_LABELS[plan]}</span>
             </div>
           </div>
           {canAdd ? (
             <button onClick={() => setShowNewForm(true)}
-              style={{ padding: "9px 20px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#00c853,#00796b)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+              style={{ padding: "9px 20px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
               + Adicionar número
             </button>
           ) : (
@@ -1506,26 +1506,26 @@ function WhatsAppScreen({ auth }) {
 
         {/* Slot limit bar */}
         <div style={{ marginBottom: 24 }}>
-          <div style={{ height: 4, background: "#1a1a2e", borderRadius: 4, overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${(instances.length/maxNumbers)*100}%`, background: instances.length >= maxNumbers ? "#f44336" : "#00c853", borderRadius: 4, transition: "width 0.4s" }} />
+          <div style={{ height: 4, background: "#e9edef", borderRadius: 4, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${(instances.length/maxNumbers)*100}%`, background: instances.length >= maxNumbers ? "#f44336" : "#00a884", borderRadius: 4, transition: "width 0.4s" }} />
           </div>
         </div>
 
         {/* New instance form */}
         {showNewForm && (
-          <div style={{ background: "#0d0d18", border: "1px solid #00c85333", borderRadius: 14, padding: 20, marginBottom: 20 }}>
+          <div style={{ background: "#ffffff", border: "1px solid #00a88433", borderRadius: 14, padding: 20, marginBottom: 20 }}>
             <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>➕ Novo número</div>
             <div style={{ display: "flex", gap: 10 }}>
               <input value={newLabel} onChange={e => setNewLabel(e.target.value)}
                 placeholder="Ex: Recepção, Vendas, Suporte..."
                 onKeyDown={e => e.key === "Enter" && createInstance()}
-                style={{ flex: 1, padding: "10px 14px", background: "#13131f", border: "1px solid #252540", borderRadius: 9, color: "#e8e8f0", fontSize: 13, outline: "none", fontFamily: "inherit" }} />
+                style={{ flex: 1, padding: "10px 14px", background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 9, color: "#111b21", fontSize: 13, outline: "none", fontFamily: "inherit" }} />
               <button onClick={createInstance} disabled={creating || !newLabel.trim()}
-                style={{ padding: "10px 20px", borderRadius: 9, border: "none", background: creating || !newLabel.trim() ? "#1a1a2e" : "linear-gradient(135deg,#00c853,#00796b)", color: creating || !newLabel.trim() ? "#444" : "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                style={{ padding: "10px 20px", borderRadius: 9, border: "none", background: creating || !newLabel.trim() ? "#e9edef" : "linear-gradient(135deg,#00a884,#017561)", color: creating || !newLabel.trim() ? "#667781" : "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
                 {creating ? "Criando..." : "Criar"}
               </button>
               <button onClick={() => { setShowNewForm(false); setNewLabel(""); }}
-                style={{ padding: "10px 14px", borderRadius: 9, border: "1px solid #252540", background: "transparent", color: "#555", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+                style={{ padding: "10px 14px", borderRadius: 9, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
                 Cancelar
               </button>
             </div>
@@ -1534,12 +1534,12 @@ function WhatsAppScreen({ auth }) {
 
         {/* Instances grid */}
         {instances.length === 0 && !showNewForm && (
-          <div style={{ textAlign: "center", padding: "60px 20px", background: "#0d0d18", border: "1px dashed #252540", borderRadius: 16 }}>
+          <div style={{ textAlign: "center", padding: "60px 20px", background: "#ffffff", border: "1px dashed #252540", borderRadius: 16 }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>📵</div>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>Nenhum número conectado</div>
-            <div style={{ fontSize: 13, color: "#555", marginBottom: 20 }}>Adicione um número de WhatsApp para começar a receber mensagens no Inbox.</div>
+            <div style={{ fontSize: 13, color: "#667781", marginBottom: 20 }}>Adicione um número de WhatsApp para começar a receber mensagens no Inbox.</div>
             <button onClick={() => setShowNewForm(true)}
-              style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#00c853,#00796b)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+              style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
               + Adicionar primeiro número
             </button>
           </div>
@@ -1548,9 +1548,9 @@ function WhatsAppScreen({ auth }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
           {instances.map(inst => {
             const isActive = activeInst?.id === inst.id;
-            const statusColor = inst.connected ? "#00c853" : "#f44336";
+            const statusColor = inst.connected ? "#00a884" : "#f44336";
             return (
-              <div key={inst.id} style={{ background: "#0d0d18", border: `1px solid ${isActive ? "#00c85344" : "#1a1a2e"}`, borderRadius: 14, overflow: "hidden" }}>
+              <div key={inst.id} style={{ background: "#ffffff", border: `1px solid ${isActive ? "#00a88444" : "#e9edef"}`, borderRadius: 14, overflow: "hidden" }}>
                 {/* Instance header row */}
                 <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 20px" }}>
                   <div style={{ width: 44, height: 44, borderRadius: 12, background: `${statusColor}15`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>
@@ -1573,11 +1573,11 @@ function WhatsAppScreen({ auth }) {
                       </button>
                     )}
                     <button onClick={() => setActiveInst(isActive ? null : inst)}
-                      style={{ padding: "6px 14px", borderRadius: 8, border: `1px solid ${isActive?"#00c85344":"#252540"}`, background: isActive?"#00c85315":"transparent", color: isActive?"#00c853":"#888", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                      style={{ padding: "6px 14px", borderRadius: 8, border: `1px solid ${isActive?"#00a88444":"#d1d7db"}`, background: isActive?"#00a88415":"transparent", color: isActive?"#00a884":"#8696a0", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
                       {inst.connected ? (isActive ? "▲ Fechar" : "▼ Sincronizar") : (isActive ? "▲ Fechar" : "▼ Conectar")}
                     </button>
                     <button onClick={() => deleteInstance(inst)} disabled={deleting === inst.id}
-                      style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #252540", background: "transparent", color: "#333", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                      style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #e9edef", background: "transparent", color: "#54656f", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
                       🗑
                     </button>
                   </div>
@@ -1585,33 +1585,33 @@ function WhatsAppScreen({ auth }) {
 
                 {/* Expanded panel */}
                 {isActive && (
-                  <div style={{ borderTop: "1px solid #1a1a2e", padding: 20 }}>
+                  <div style={{ borderTop: "1px solid #e9edef", padding: 20 }}>
                     {!inst.connected ? (
                       /* QR Code panel */
                       <div style={{ display: "flex", gap: 32, alignItems: "flex-start", flexWrap: "wrap" }}>
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
                           {qrCode ? (
-                            <div style={{ background: "#fff", padding: 16, borderRadius: 16, boxShadow: "0 0 0 4px #00c85330" }}>
+                            <div style={{ background: "#fff", padding: 16, borderRadius: 16, boxShadow: "0 0 0 4px #00a88430" }}>
                               <img src={qrCode} alt="QR Code" style={{ width: 280, height: 280, display: "block" }} />
                             </div>
                           ) : (
-                            <div style={{ width: 312, height: 312, background: "#13131f", border: "2px dashed #252540", borderRadius: 16, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                            <div style={{ width: 312, height: 312, background: "#f0f2f5", border: "2px dashed #252540", borderRadius: 16, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
                               <span style={{ fontSize: 48 }}>📷</span>
-                              <span style={{ fontSize: 13, color: "#555" }}>{loadingQr ? "Gerando QR Code..." : "Clique em Gerar QR Code"}</span>
+                              <span style={{ fontSize: 13, color: "#667781" }}>{loadingQr ? "Gerando QR Code..." : "Clique em Gerar QR Code"}</span>
                             </div>
                           )}
                           <button onClick={() => handleGenerateQr(inst)} disabled={loadingQr}
-                            style={{ width: 312, padding: "13px 0", borderRadius: 10, border: "none", background: loadingQr?"#1a1a2e":"linear-gradient(135deg,#00c853,#00796b)", color: loadingQr?"#444":"#000", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                            style={{ width: 312, padding: "13px 0", borderRadius: 10, border: "none", background: loadingQr?"#e9edef":"linear-gradient(135deg,#00a884,#017561)", color: loadingQr?"#667781":"#000", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
                             {loadingQr ? "⏳ Gerando..." : qrCode ? "🔄 Novo QR Code" : "📷 Gerar QR Code"}
                           </button>
-                          {qrCode && <span style={{ fontSize: 11, color: "#555" }}>QR Code expira em ~60 segundos</span>}
+                          {qrCode && <span style={{ fontSize: 11, color: "#667781" }}>QR Code expira em ~60 segundos</span>}
                         </div>
                         <div style={{ flex: 1, minWidth: 200 }}>
-                          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: "#888" }}>Como conectar:</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: "#8696a0" }}>Como conectar:</div>
                           {["Abra o WhatsApp no celular", "Menu (⋮) → Dispositivos conectados", "Adicionar dispositivo", "Aponte a câmera para o QR Code ✅"].map((step, i) => (
                             <div key={i} style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 10 }}>
-                              <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#00c85320", border: "1px solid #00c85340", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: "#00c853", flexShrink: 0 }}>{i+1}</div>
-                              <span style={{ fontSize: 13, color: "#aaa" }}>{step}</span>
+                              <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#00a88420", border: "1px solid #00a88440", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: "#00a884", flexShrink: 0 }}>{i+1}</div>
+                              <span style={{ fontSize: 13, color: "#667781" }}>{step}</span>
                             </div>
                           ))}
                         </div>
@@ -1621,22 +1621,22 @@ function WhatsAppScreen({ auth }) {
                       <div>
                         {/* Auto-sync in progress — shown right after connection */}
                         {syncing && autoSyncInst?.instance_name === inst.instance_name ? (
-                          <div style={{ background: "#00c85312", border: "1px solid #00c85333", borderRadius: 12, padding: "16px 20px", marginBottom: 16 }}>
+                          <div style={{ background: "#00a88412", border: "1px solid #00a88433", borderRadius: 12, padding: "16px 20px", marginBottom: 16 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
                               <span style={{ fontSize: 20, animation: "spin 2s linear infinite", display: "inline-block" }}>⚡</span>
                               <div>
-                                <div style={{ fontSize: 14, fontWeight: 700, color: "#00c853" }}>Importando histórico automaticamente...</div>
-                                <div style={{ fontSize: 12, color: "#555", marginTop: 2 }}>Suas conversas anteriores estão sendo importadas em segundo plano</div>
+                                <div style={{ fontSize: 14, fontWeight: 700, color: "#00a884" }}>Importando histórico automaticamente...</div>
+                                <div style={{ fontSize: 12, color: "#667781", marginTop: 2 }}>Suas conversas anteriores estão sendo importadas em segundo plano</div>
                               </div>
                             </div>
-                            <div style={{ background: "#0d0d18", borderRadius: 20, height: 8, overflow: "hidden" }}>
-                              <div style={{ height: "100%", borderRadius: 20, background: "linear-gradient(90deg,#00c853,#00bcd4)", width: `${syncProgress}%`, transition: "width 1s" }} />
+                            <div style={{ background: "#ffffff", borderRadius: 20, height: 8, overflow: "hidden" }}>
+                              <div style={{ height: "100%", borderRadius: 20, background: "linear-gradient(90deg,#00a884,#00a884)", width: `${syncProgress}%`, transition: "width 1s" }} />
                             </div>
-                            <div style={{ fontSize: 11, color: "#555", marginTop: 6, textAlign: "right" }}>{syncProgress}%</div>
+                            <div style={{ fontSize: 11, color: "#667781", marginTop: 6, textAlign: "right" }}>{syncProgress}%</div>
                           </div>
                         ) : syncResult && autoSyncInst?.instance_name === inst.instance_name ? (
-                          <div style={{ padding: "14px 18px", borderRadius: 12, background: syncResult.ok ? "#00c85315" : "#f4433315", border: `1px solid ${syncResult.ok ? "#00c85333" : "#f4433333"}`, marginBottom: 16 }}>
-                            <div style={{ fontSize: 14, fontWeight: 700, color: syncResult.ok ? "#00c853" : "#f44336", marginBottom: 6 }}>
+                          <div style={{ padding: "14px 18px", borderRadius: 12, background: syncResult.ok ? "#00a88415" : "#f4433315", border: `1px solid ${syncResult.ok ? "#00a88433" : "#f4433333"}`, marginBottom: 16 }}>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: syncResult.ok ? "#00a884" : "#f44336", marginBottom: 6 }}>
                               {syncResult.ok ? "✅ Histórico importado com sucesso!" : "⚠️ Importação parcial"}
                             </div>
                             {syncResult.stats && (
@@ -1649,30 +1649,30 @@ function WhatsAppScreen({ auth }) {
                                 ].map(s => (
                                   <div key={s.label} style={{ textAlign: "center" }}>
                                     <div style={{ fontSize: 10, marginBottom: 2 }}>{s.icon}</div>
-                                    <div style={{ fontSize: 20, fontWeight: 800, color: "#00c853" }}>{s.value ?? 0}</div>
-                                    <div style={{ fontSize: 10, color: "#555" }}>{s.label}</div>
+                                    <div style={{ fontSize: 20, fontWeight: 800, color: "#00a884" }}>{s.value ?? 0}</div>
+                                    <div style={{ fontSize: 10, color: "#667781" }}>{s.label}</div>
                                   </div>
                                 ))}
                               </div>
                             )}
-                            <div style={{ fontSize: 12, color: "#555" }}>Agora acesse o Inbox para ver todas as conversas.</div>
+                            <div style={{ fontSize: 12, color: "#667781" }}>Agora acesse o Inbox para ver todas as conversas.</div>
                           </div>
                         ) : null}
 
                         {/* Manual sync section */}
-                        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, color: "#555" }}>📲 Reimportar histórico manualmente</div>
-                        <div style={{ fontSize: 12, color: "#333", marginBottom: 12 }}>Use para atualizar ou reimportar caso o histórico esteja incompleto.</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, color: "#667781" }}>📲 Reimportar histórico manualmente</div>
+                        <div style={{ fontSize: 12, color: "#54656f", marginBottom: 12 }}>Use para atualizar ou reimportar caso o histórico esteja incompleto.</div>
                         {syncing && autoSyncInst?.instance_name !== inst.instance_name && (
                           <div style={{ marginBottom: 12 }}>
-                            <div style={{ fontSize: 12, color: "#00c853", marginBottom: 6 }}>⏳ Importando...</div>
-                            <div style={{ background: "#1a1a2e", borderRadius: 20, height: 6, overflow: "hidden" }}>
-                              <div style={{ height: "100%", borderRadius: 20, background: "linear-gradient(90deg,#00c853,#00bcd4)", width: `${syncProgress}%`, transition: "width 1s" }} />
+                            <div style={{ fontSize: 12, color: "#00a884", marginBottom: 6 }}>⏳ Importando...</div>
+                            <div style={{ background: "#e9edef", borderRadius: 20, height: 6, overflow: "hidden" }}>
+                              <div style={{ height: "100%", borderRadius: 20, background: "linear-gradient(90deg,#00a884,#00a884)", width: `${syncProgress}%`, transition: "width 1s" }} />
                             </div>
                           </div>
                         )}
                         {syncResult && autoSyncInst?.instance_name !== inst.instance_name && (
-                          <div style={{ padding: "12px 16px", borderRadius: 10, background: syncResult.ok?"#00c85315":"#f4433315", border: `1px solid ${syncResult.ok?"#00c85333":"#f4433333"}`, marginBottom: 12 }}>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: syncResult.ok?"#00c853":"#f44336", marginBottom: 4 }}>
+                          <div style={{ padding: "12px 16px", borderRadius: 10, background: syncResult.ok?"#00a88415":"#f4433315", border: `1px solid ${syncResult.ok?"#00a88433":"#f4433333"}`, marginBottom: 12 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: syncResult.ok?"#00a884":"#f44336", marginBottom: 4 }}>
                               {syncResult.ok ? "✅ Sincronização concluída!" : "❌ Erro na sincronização"}
                             </div>
                             {syncResult.stats && (
@@ -1684,8 +1684,8 @@ function WhatsAppScreen({ auth }) {
                                   { label: "Mensagens", value: syncResult.stats.messages_saved },
                                 ].map(s => (
                                   <div key={s.label} style={{ textAlign: "center" }}>
-                                    <div style={{ fontSize: 18, fontWeight: 800, color: "#00c853" }}>{s.value}</div>
-                                    <div style={{ fontSize: 10, color: "#555" }}>{s.label}</div>
+                                    <div style={{ fontSize: 18, fontWeight: 800, color: "#00a884" }}>{s.value}</div>
+                                    <div style={{ fontSize: 10, color: "#667781" }}>{s.label}</div>
                                   </div>
                                 ))}
                               </div>
@@ -1694,7 +1694,7 @@ function WhatsAppScreen({ auth }) {
                         )}
                         <button onClick={() => { if(window.confirm("Sincronizar histórico deste número?")) syncHistory(inst); }}
                           disabled={syncing}
-                          style={{ padding: "11px 24px", borderRadius: 10, border: "none", background: syncing?"#1a1a2e":"linear-gradient(135deg,#00c853,#00796b)", color: syncing?"#444":"#000", fontSize: 13, fontWeight: 700, cursor: syncing?"not-allowed":"pointer", fontFamily: "inherit" }}>
+                          style={{ padding: "11px 24px", borderRadius: 10, border: "none", background: syncing?"#e9edef":"linear-gradient(135deg,#00a884,#017561)", color: syncing?"#667781":"#000", fontSize: 13, fontWeight: 700, cursor: syncing?"not-allowed":"pointer", fontFamily: "inherit" }}>
                           {syncing ? "⏳ Sincronizando..." : "📲 Sincronizar histórico"}
                         </button>
                       </div>
@@ -1707,19 +1707,19 @@ function WhatsAppScreen({ auth }) {
         </div>
 
         {/* Info cards */}
-        <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 20 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "#444", marginBottom: 12, letterSpacing: 1 }}>ℹ️ INFORMAÇÕES IMPORTANTES</div>
+        <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 14, padding: 20 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#667781", marginBottom: 12, letterSpacing: 1 }}>ℹ️ INFORMAÇÕES IMPORTANTES</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {[
               { icon: "⚠️", title: "API não oficial", desc: "Pode desconectar 2-3x por ano — basta gerar novo QR Code.", color: "#ff6d00" },
-              { icon: "💾", title: "Dados seguros", desc: "Mensagens salvas mesmo quando desconectado. Nenhum dado é perdido.", color: "#00c853" },
-              { icon: "⚡", title: "Reconexão rápida", desc: "Menos de 2 minutos para reconectar — só gerar novo QR Code.", color: "#00bcd4" },
+              { icon: "💾", title: "Dados seguros", desc: "Mensagens salvas mesmo quando desconectado. Nenhum dado é perdido.", color: "#00a884" },
+              { icon: "⚡", title: "Reconexão rápida", desc: "Menos de 2 minutos para reconectar — só gerar novo QR Code.", color: "#00a884" },
             ].map(item => (
-              <div key={item.title} style={{ display: "flex", gap: 12, padding: "10px 14px", background: "#13131f", borderRadius: 10 }}>
+              <div key={item.title} style={{ display: "flex", gap: 12, padding: "10px 14px", background: "#f0f2f5", borderRadius: 10 }}>
                 <span style={{ fontSize: 16, flexShrink: 0 }}>{item.icon}</span>
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 700, color: item.color, marginBottom: 2 }}>{item.title}</div>
-                  <div style={{ fontSize: 11, color: "#555" }}>{item.desc}</div>
+                  <div style={{ fontSize: 11, color: "#667781" }}>{item.desc}</div>
                 </div>
               </div>
             ))}
@@ -1732,7 +1732,7 @@ function WhatsAppScreen({ auth }) {
       {confirmDelete && (
         <div style={{ position: "fixed", inset: 0, background: "#000000cc", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}
           onClick={() => setConfirmDelete(null)}>
-          <div style={{ background: "#0d0d18", border: "1px solid #f4433344", borderRadius: 18, padding: 32, maxWidth: 460, width: "90%" }}
+          <div style={{ background: "#ffffff", border: "1px solid #f4433344", borderRadius: 18, padding: 32, maxWidth: 460, width: "90%" }}
             onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 36, textAlign: "center", marginBottom: 12 }}>🗑️</div>
             <div style={{ fontSize: 17, fontWeight: 800, textAlign: "center", marginBottom: 8 }}>Remover número?</div>
@@ -1745,17 +1745,17 @@ function WhatsAppScreen({ auth }) {
                   "📩 Todo o histórico de mensagens",
                   "✅ Todas as tarefas vinculadas",
                 ].map(item => (
-                  <div key={item} style={{ fontSize: 12, color: "#ccc" }}>{item}</div>
+                  <div key={item} style={{ fontSize: 12, color: "#54656f" }}>{item}</div>
                 ))}
               </div>
             </div>
-            <div style={{ fontSize: 13, color: "#888", textAlign: "center", marginBottom: 20 }}>
-              Número: <strong style={{ color: "#e8e8f0" }}>{confirmDelete.inst.label}</strong>
-              {confirmDelete.inst.phone && <span style={{ color: "#555" }}> (+{confirmDelete.inst.phone})</span>}
+            <div style={{ fontSize: 13, color: "#8696a0", textAlign: "center", marginBottom: 20 }}>
+              Número: <strong style={{ color: "#111b21" }}>{confirmDelete.inst.label}</strong>
+              {confirmDelete.inst.phone && <span style={{ color: "#667781" }}> (+{confirmDelete.inst.phone})</span>}
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setConfirmDelete(null)}
-                style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1px solid #252540", background: "transparent", color: "#888", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+                style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1px solid #e9edef", background: "transparent", color: "#8696a0", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
                 Cancelar
               </button>
               <button onClick={confirmDeleteExecute}
@@ -1771,25 +1771,25 @@ function WhatsAppScreen({ auth }) {
       {confirmPhone && (
         <div style={{ position: "fixed", inset: 0, background: "#000000cc", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}
           onClick={() => setConfirmPhone(null)}>
-          <div style={{ background: "#0d0d18", border: "1px solid #f4433344", borderRadius: 18, padding: 32, maxWidth: 460, width: "90%" }}
+          <div style={{ background: "#ffffff", border: "1px solid #f4433344", borderRadius: 18, padding: 32, maxWidth: 460, width: "90%" }}
             onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 36, textAlign: "center", marginBottom: 12 }}>⚠️</div>
             <div style={{ fontSize: 17, fontWeight: 800, textAlign: "center", marginBottom: 8 }}>Trocar número?</div>
-            <div style={{ fontSize: 13, color: "#ccc", textAlign: "center", marginBottom: 6, lineHeight: 1.6 }}>
+            <div style={{ fontSize: 13, color: "#54656f", textAlign: "center", marginBottom: 6, lineHeight: 1.6 }}>
               Ao conectar um número diferente, <strong style={{ color: "#f44336" }}>todo o histórico de conversas</strong> deste número será perdido permanentemente.
             </div>
             <div style={{ background: "#f4433315", border: "1px solid #f4433333", borderRadius: 10, padding: "12px 16px", marginBottom: 20 }}>
               <div style={{ fontSize: 12, color: "#f44336", fontWeight: 700, marginBottom: 4 }}>🚨 Ação irreversível</div>
-              <div style={{ fontSize: 12, color: "#aaa" }}>
-                Todas as <strong style={{ color: "#e8e8f0" }}>conversas, mensagens e contatos</strong> vinculados ao número
-                <strong style={{ color: "#e8e8f0" }}> +{confirmPhone.inst.phone}</strong> serão apagados do sistema.
+              <div style={{ fontSize: 12, color: "#667781" }}>
+                Todas as <strong style={{ color: "#111b21" }}>conversas, mensagens e contatos</strong> vinculados ao número
+                <strong style={{ color: "#111b21" }}> +{confirmPhone.inst.phone}</strong> serão apagados do sistema.
               </div>
             </div>
             <div style={{ marginBottom: 6 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: "#888", display: "block", marginBottom: 6 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: "#8696a0", display: "block", marginBottom: 6 }}>
                 Digite o número atual para confirmar:
               </label>
-              <div style={{ fontSize: 11, color: "#555", marginBottom: 8 }}>
+              <div style={{ fontSize: 11, color: "#667781", marginBottom: 8 }}>
                 Ex: {confirmPhone.inst.phone}
               </div>
               <input
@@ -1797,18 +1797,18 @@ function WhatsAppScreen({ auth }) {
                 value={confirmPhone.value || ""}
                 onChange={e => setConfirmPhone(prev => ({ ...prev, value: e.target.value.replace(/\D/g, "") }))}
                 placeholder={`${confirmPhone.inst.phone}`}
-                style={{ width: "100%", padding: "10px 14px", background: "#13131f", border: "1px solid #252540", borderRadius: 8, color: "#e8e8f0", fontSize: 15, outline: "none", boxSizing: "border-box", letterSpacing: 2, fontFamily: "monospace" }}
+                style={{ width: "100%", padding: "10px 14px", background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 8, color: "#111b21", fontSize: 15, outline: "none", boxSizing: "border-box", letterSpacing: 2, fontFamily: "monospace" }}
               />
               {confirmPhone.value && confirmPhone.value !== String(confirmPhone.inst.phone) && (
                 <div style={{ fontSize: 11, color: "#f44336", marginTop: 4 }}>❌ Número incorreto</div>
               )}
               {confirmPhone.value && confirmPhone.value === String(confirmPhone.inst.phone) && (
-                <div style={{ fontSize: 11, color: "#00c853", marginTop: 4 }}>✅ Número confirmado</div>
+                <div style={{ fontSize: 11, color: "#00a884", marginTop: 4 }}>✅ Número confirmado</div>
               )}
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
               <button onClick={() => setConfirmPhone(null)}
-                style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1px solid #252540", background: "transparent", color: "#888", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+                style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1px solid #e9edef", background: "transparent", color: "#8696a0", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
                 Cancelar
               </button>
               <button
@@ -1818,7 +1818,7 @@ function WhatsAppScreen({ auth }) {
                   setConfirmPhone(null);
                   fetchQr(inst.instance_name);
                 }}
-                style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "none", background: confirmPhone.value === String(confirmPhone.inst.phone) ? "linear-gradient(135deg,#f44336,#b71c1c)" : "#1a1a2e", color: confirmPhone.value === String(confirmPhone.inst.phone) ? "#fff" : "#333", fontSize: 13, fontWeight: 700, cursor: confirmPhone.value === String(confirmPhone.inst.phone) ? "pointer" : "not-allowed", fontFamily: "inherit", transition: "all 0.2s" }}>
+                style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "none", background: confirmPhone.value === String(confirmPhone.inst.phone) ? "linear-gradient(135deg,#f44336,#b71c1c)" : "#e9edef", color: confirmPhone.value === String(confirmPhone.inst.phone) ? "#fff" : "#54656f", fontSize: 13, fontWeight: 700, cursor: confirmPhone.value === String(confirmPhone.inst.phone) ? "pointer" : "not-allowed", fontFamily: "inherit", transition: "all 0.2s" }}>
                 ⚠️ Sim, trocar número
               </button>
             </div>
@@ -1864,7 +1864,7 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols }) {
   const [selectedBroadcast, setSelectedBroadcast] = useState(null);
   const [toast, setToast] = useState(null); // {msg, color}
 
-  const showToast = (msg, color = "#00c853") => {
+  const showToast = (msg, color = "#00a884") => {
     setToast({ msg, color });
     setTimeout(() => setToast(null), 4000);
   };
@@ -1965,27 +1965,27 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols }) {
     setScheduledMsgs(prev => prev.filter(m => m.id !== id));
   };
 
-  const STATUS_COLORS = { pending: "#ffd600", sending: "#00bcd4", done: "#00c853", cancelled: "#555", failed: "#f44336", scheduled: "#7c4dff" };
+  const STATUS_COLORS = { pending: "#ffd600", sending: "#00a884", done: "#00a884", cancelled: "#667781", failed: "#f44336", scheduled: "#7c4dff" };
   const STATUS_LABELS = { pending: "⏳ Aguardando", sending: "📤 Enviando", done: "✅ Concluído", cancelled: "🚫 Cancelado", failed: "❌ Falhou", scheduled: "📅 Agendado" };
   const RECURRENCE_LABELS = { daily: "Diário", weekly: "Semanal", monthly: "Mensal" };
 
-  const inputStyle = { width: "100%", padding: "9px 12px", background: "#0d0d18", border: "1px solid #252540", borderRadius: 8, color: "#e8e8f0", fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box" };
-  const labelStyle = { fontSize: 11, fontWeight: 700, color: "#555", marginBottom: 6, display: "block" };
+  const inputStyle = { width: "100%", padding: "9px 12px", background: "#ffffff", border: "1px solid #e9edef", borderRadius: 8, color: "#111b21", fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box" };
+  const labelStyle = { fontSize: 11, fontWeight: 700, color: "#667781", marginBottom: 6, display: "block" };
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
       {/* Toast */}
       {toast && (
-        <div style={{ position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", zIndex: 999, background: toast.color, color: "#000", padding: "12px 24px", borderRadius: 12, fontSize: 13, fontWeight: 700, boxShadow: "0 8px 32px #00000060", display: "flex", alignItems: "center", gap: 10, whiteSpace: "nowrap" }}>
+        <div style={{ position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", zIndex: 999, background: toast.color, color: "#000", padding: "12px 24px", borderRadius: 12, fontSize: 13, fontWeight: 700, boxShadow: "0 1px 3px #0000001a, 0 4px 12px #0000000f", display: "flex", alignItems: "center", gap: 10, whiteSpace: "nowrap" }}>
           {toast.msg}
           <span onClick={() => setToast(null)} style={{ cursor: "pointer", opacity: 0.6, fontSize: 16 }}>×</span>
         </div>
       )}
       {/* Header tabs */}
-      <div style={{ padding: "10px 24px", borderBottom: "1px solid #1a1a2e", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", gap: 3, background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 9, padding: 3 }}>
+      <div style={{ padding: "10px 24px", borderBottom: "1px solid #e9edef", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 3, background: "#ffffff", border: "1px solid #e9edef", borderRadius: 9, padding: 3 }}>
           {[["new","✏️ Novo disparo"],["queue","📋 Fila"],["scheduled","📅 Agendamentos"]].map(([id, label]) => (
-            <button key={id} onClick={() => setTab(id)} style={{ padding: "6px 16px", borderRadius: 7, border: "none", background: tab === id ? "#1a1a2e" : "transparent", color: tab === id ? "#e8e8f0" : "#555", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{label}</button>
+            <button key={id} onClick={() => setTab(id)} style={{ padding: "6px 16px", borderRadius: 7, border: "none", background: tab === id ? "#e9edef" : "transparent", color: tab === id ? "#111b21" : "#667781", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{label}</button>
           ))}
         </div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginLeft: "auto" }}>
@@ -2014,39 +2014,39 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols }) {
                 </div>
                 <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
                   <input value={aiObjective} onChange={e => setAiObjective(e.target.value)} onKeyDown={e => e.key === "Enter" && suggestWithAI()} placeholder="Ex: Relembrar alunos inativos, promoção de plano anual..." style={{ ...inputStyle, flex: 1 }} />
-                  <button onClick={suggestWithAI} disabled={loadingAI || !aiObjective.trim()} style={{ padding: "9px 16px", borderRadius: 8, border: "none", background: aiObjective.trim() ? "linear-gradient(135deg,#7c4dff,#5b21b6)" : "#1a1a2e", color: aiObjective.trim() ? "#fff" : "#444", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>{loadingAI ? "⏳" : "✨ Gerar"}</button>
+                  <button onClick={suggestWithAI} disabled={loadingAI || !aiObjective.trim()} style={{ padding: "9px 16px", borderRadius: 8, border: "none", background: aiObjective.trim() ? "linear-gradient(135deg,#7c4dff,#5b21b6)" : "#e9edef", color: aiObjective.trim() ? "#fff" : "#667781", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>{loadingAI ? "⏳" : "✨ Gerar"}</button>
                 </div>
-                <div style={{ fontSize: 11, color: "#555" }}>Use {"{nome}"} para personalizar com o nome do contato</div>
+                <div style={{ fontSize: 11, color: "#667781" }}>Use {"{nome}"} para personalizar com o nome do contato</div>
               </div>
 
               {/* Message */}
               <div>
-                <label style={labelStyle}>MENSAGEM <span style={{ color: "#555", fontWeight: 400 }}>— use {"{nome}"} para personalizar</span></label>
+                <label style={labelStyle}>MENSAGEM <span style={{ color: "#667781", fontWeight: 400 }}>— use {"{nome}"} para personalizar</span></label>
                 <textarea value={bMessage} onChange={e => setBMessage(e.target.value)} placeholder="Olá {nome}, temos uma novidade especial para você..." rows={5} style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }} />
                 <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
                   {["{nome}", "{telefone}"].map(v => (
-                    <span key={v} onClick={() => setBMessage(m => m + v)} style={{ fontSize: 11, background: "#1a1a2e", color: "#888", padding: "2px 8px", borderRadius: 6, cursor: "pointer", fontFamily: "monospace" }}>{v}</span>
+                    <span key={v} onClick={() => setBMessage(m => m + v)} style={{ fontSize: 11, background: "#e9edef", color: "#8696a0", padding: "2px 8px", borderRadius: 6, cursor: "pointer", fontFamily: "monospace" }}>{v}</span>
                   ))}
                 </div>
               </div>
 
               {/* Interval config */}
-              <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 12, padding: 16 }}>
+              <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 12, padding: 16 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>⏱ Intervalo entre mensagens</div>
-                <div style={{ fontSize: 12, color: "#555", marginBottom: 14 }}>Enviar de X a Y segundos entre cada mensagem. Nunca abaixo de 60s.</div>
+                <div style={{ fontSize: 12, color: "#667781", marginBottom: 14 }}>Enviar de X a Y segundos entre cada mensagem. Nunca abaixo de 60s.</div>
                 <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
                   <div style={{ flex: 1 }}>
                     <label style={labelStyle}>MÍNIMO (segundos)</label>
                     <input type="number" min={60} max={600} value={bIntervalMin} onChange={e => setBIntervalMin(Math.max(60, parseInt(e.target.value) || 60))} style={inputStyle} />
                   </div>
-                  <div style={{ color: "#555", paddingTop: 20 }}>→</div>
+                  <div style={{ color: "#667781", paddingTop: 20 }}>→</div>
                   <div style={{ flex: 1 }}>
                     <label style={labelStyle}>MÁXIMO (segundos)</label>
                     <input type="number" min={bIntervalMin} max={3600} value={bIntervalMax} onChange={e => setBIntervalMax(Math.max(bIntervalMin, parseInt(e.target.value) || 120))} style={inputStyle} />
                   </div>
                 </div>
                 {bIntervalMin < 60 && <div style={{ marginTop: 8, color: "#f44336", fontSize: 11, fontWeight: 600 }}>⚠️ Mínimo de 60 segundos para evitar ban no WhatsApp!</div>}
-                <div style={{ marginTop: 10, fontSize: 11, color: "#444" }}>Com {previewRecipients.length} destinatários e intervalo de ~{Math.round((bIntervalMin + bIntervalMax)/2)}s, o disparo levará ~{Math.round(previewRecipients.length * (bIntervalMin + bIntervalMax)/2 / 60)} minutos.</div>
+                <div style={{ marginTop: 10, fontSize: 11, color: "#667781" }}>Com {previewRecipients.length} destinatários e intervalo de ~{Math.round((bIntervalMin + bIntervalMax)/2)}s, o disparo levará ~{Math.round(previewRecipients.length * (bIntervalMin + bIntervalMax)/2 / 60)} minutos.</div>
               </div>
 
               {/* Schedule */}
@@ -2058,13 +2058,13 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols }) {
 
             {/* Right: recipients */}
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 12, padding: 16, flex: 1 }}>
+              <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 12, padding: 16, flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>👥 Destinatários</div>
 
                 {/* Filter selector */}
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
                   {[["manual","✋ Manual"],["label","🏷 Etiqueta"],["kanban","🗂 Kanban"],["status","● Status"],["csv","📄 CSV"]].map(([id, label]) => (
-                    <button key={id} onClick={() => { setBFilter(id); setBFilterValue(""); }} style={{ padding: "4px 12px", borderRadius: 20, border: `1px solid ${bFilter === id ? "#00c85344" : "#252540"}`, background: bFilter === id ? "#00c85315" : "transparent", color: bFilter === id ? "#00c853" : "#666", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{label}</button>
+                    <button key={id} onClick={() => { setBFilter(id); setBFilterValue(""); }} style={{ padding: "4px 12px", borderRadius: 20, border: `1px solid ${bFilter === id ? "#00a88444" : "#d1d7db"}`, background: bFilter === id ? "#00a88415" : "transparent", color: bFilter === id ? "#00a884" : "#667781", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{label}</button>
                   ))}
                 </div>
 
@@ -2091,13 +2091,13 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols }) {
                 )}
                 {bFilter === "csv" && (
                   <div style={{ marginBottom: 10 }}>
-                    <div style={{ fontSize: 11, color: "#555", marginBottom: 6 }}>Cole aqui: <code style={{ color: "#888" }}>55119999999, Nome</code> (um por linha)</div>
+                    <div style={{ fontSize: 11, color: "#667781", marginBottom: 6 }}>Cole aqui: <code style={{ color: "#8696a0" }}>55119999999, Nome</code> (um por linha)</div>
                     <textarea value={csvText} onChange={e => setCsvText(e.target.value)} rows={5} placeholder={"5511999999999, João Silva\n5511888888888, Maria"} style={{ ...inputStyle, resize: "vertical", fontFamily: "monospace", fontSize: 12 }} />
                   </div>
                 )}
                 {bFilter === "manual" && (
                   <div style={{ marginBottom: 10 }}>
-                    <div style={{ fontSize: 11, color: "#555", marginBottom: 8 }}>Selecione conversas:</div>
+                    <div style={{ fontSize: 11, color: "#667781", marginBottom: 8 }}>Selecione conversas:</div>
                     <div style={{ maxHeight: 200, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
                       {conversations.filter(c => c.contacts?.phone).map(conv => {
                         const checked = bRecipients.some(r => r.phone === conv.contacts.phone?.replace(/\D/g,""));
@@ -2106,12 +2106,12 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols }) {
                             const phone = conv.contacts.phone?.replace(/\D/g,"");
                             const name = conv.contacts.name || "";
                             setBRecipients(prev => checked ? prev.filter(r => r.phone !== phone) : [...prev, { phone, name }]);
-                          }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 8, cursor: "pointer", background: checked ? "#00c85310" : "transparent", border: `1px solid ${checked ? "#00c85333" : "transparent"}` }}>
-                            <div style={{ width: 16, height: 16, borderRadius: 4, border: `2px solid ${checked ? "#00c853" : "#333"}`, background: checked ? "#00c853" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{checked && <span style={{ color: "#000", fontSize: 10, fontWeight: 900 }}>✓</span>}</div>
+                          }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 8, cursor: "pointer", background: checked ? "#00a88410" : "transparent", border: `1px solid ${checked ? "#00a88433" : "transparent"}` }}>
+                            <div style={{ width: 16, height: 16, borderRadius: 4, border: `2px solid ${checked ? "#00a884" : "#54656f"}`, background: checked ? "#00a884" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{checked && <span style={{ color: "#000", fontSize: 10, fontWeight: 900 }}>✓</span>}</div>
                             <Avatar name={conv.contacts.name || conv.contacts.phone} size={20} />
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{conv.contacts.name || conv.contacts.phone}</div>
-                              <div style={{ fontSize: 10, color: "#555" }}>{conv.contacts.phone}</div>
+                              <div style={{ fontSize: 10, color: "#667781" }}>{conv.contacts.phone}</div>
                             </div>
                           </div>
                         );
@@ -2121,20 +2121,20 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols }) {
                 )}
 
                 {/* Recipients preview */}
-                <div style={{ padding: "10px 12px", background: "#13131f", borderRadius: 8, marginBottom: 14 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: previewRecipients.length > 0 ? "#00c853" : "#555" }}>
+                <div style={{ padding: "10px 12px", background: "#f0f2f5", borderRadius: 8, marginBottom: 14 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: previewRecipients.length > 0 ? "#00a884" : "#667781" }}>
                     {previewRecipients.length > 0 ? `✓ ${previewRecipients.length} destinatário${previewRecipients.length !== 1 ? "s" : ""} selecionado${previewRecipients.length !== 1 ? "s" : ""}` : "Nenhum destinatário selecionado"}
                   </div>
                   {previewRecipients.slice(0, 3).map((r, i) => (
-                    <div key={i} style={{ fontSize: 11, color: "#555", marginTop: 3 }}>• {r.name || r.phone}</div>
+                    <div key={i} style={{ fontSize: 11, color: "#667781", marginTop: 3 }}>• {r.name || r.phone}</div>
                   ))}
-                  {previewRecipients.length > 3 && <div style={{ fontSize: 11, color: "#444", marginTop: 3 }}>... e mais {previewRecipients.length - 3}</div>}
+                  {previewRecipients.length > 3 && <div style={{ fontSize: 11, color: "#667781", marginTop: 3 }}>... e mais {previewRecipients.length - 3}</div>}
                 </div>
 
                 <button
                   onClick={createBroadcast}
                   disabled={creating || !bName.trim() || !bMessage.trim() || previewRecipients.length === 0}
-                  style={{ width: "100%", padding: "11px 0", borderRadius: 9, border: "none", background: (!creating && bName.trim() && bMessage.trim() && previewRecipients.length > 0) ? "linear-gradient(135deg,#00c853,#00796b)" : "#1a1a2e", color: (!creating && bName.trim() && bMessage.trim() && previewRecipients.length > 0) ? "#000" : "#444", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+                  style={{ width: "100%", padding: "11px 0", borderRadius: 9, border: "none", background: (!creating && bName.trim() && bMessage.trim() && previewRecipients.length > 0) ? "linear-gradient(135deg,#00a884,#017561)" : "#e9edef", color: (!creating && bName.trim() && bMessage.trim() && previewRecipients.length > 0) ? "#000" : "#667781", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
                 >{creating ? "Criando..." : bScheduledAt ? `📅 Agendar disparo` : `🚀 Iniciar disparo agora`}</button>
               </div>
             </div>
@@ -2146,24 +2146,24 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols }) {
           <div style={{ maxWidth: 900 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <span style={{ fontSize: 13, fontWeight: 700 }}>Histórico de disparos</span>
-              <button onClick={fetchBroadcasts} style={{ padding: "5px 14px", borderRadius: 7, border: "1px solid #252540", background: "transparent", color: "#666", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>↻ Atualizar</button>
+              <button onClick={fetchBroadcasts} style={{ padding: "5px 14px", borderRadius: 7, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>↻ Atualizar</button>
             </div>
-            {loading ? <div style={{ textAlign: "center", color: "#555", padding: 40 }}>Carregando...</div>
+            {loading ? <div style={{ textAlign: "center", color: "#667781", padding: 40 }}>Carregando...</div>
               : broadcasts.length === 0 ? (
                 <div style={{ textAlign: "center", padding: 60 }}>
                   <div style={{ fontSize: 40, marginBottom: 12 }}>📢</div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: "#444" }}>Nenhum disparo ainda</div>
-                  <div style={{ fontSize: 12, color: "#333", marginTop: 4 }}>Crie seu primeiro disparo na aba "Novo disparo"</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#667781" }}>Nenhum disparo ainda</div>
+                  <div style={{ fontSize: 12, color: "#54656f", marginTop: 4 }}>Crie seu primeiro disparo na aba "Novo disparo"</div>
                 </div>
               ) : broadcasts.map(b => {
                 const pct = b.total_recipients > 0 ? Math.round((b.sent_count / b.total_recipients) * 100) : 0;
-                const color = STATUS_COLORS[b.status] || "#555";
+                const color = STATUS_COLORS[b.status] || "#667781";
                 return (
-                  <div key={b.id} style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 12, padding: "16px 20px", marginBottom: 12 }}>
+                  <div key={b.id} style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 12, padding: "16px 20px", marginBottom: 12 }}>
                     <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 10 }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{b.name}</div>
-                        <div style={{ fontSize: 12, color: "#666", lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{b.message}</div>
+                        <div style={{ fontSize: 12, color: "#667781", lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{b.message}</div>
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 }}>
                         <span style={{ background: color + "22", color, fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20 }}>{STATUS_LABELS[b.status]}</span>
@@ -2172,10 +2172,10 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols }) {
                         )}
                       </div>
                     </div>
-                    <div style={{ background: "#13131f", borderRadius: 8, overflow: "hidden", height: 6, marginBottom: 8 }}>
+                    <div style={{ background: "#f0f2f5", borderRadius: 8, overflow: "hidden", height: 6, marginBottom: 8 }}>
                       <div style={{ height: "100%", background: `linear-gradient(90deg, ${color}, ${color}88)`, width: `${pct}%`, transition: "width 0.5s" }} />
                     </div>
-                    <div style={{ display: "flex", gap: 16, fontSize: 11, color: "#555" }}>
+                    <div style={{ display: "flex", gap: 16, fontSize: 11, color: "#667781" }}>
                       <span>📤 {b.sent_count}/{b.total_recipients} enviados</span>
                       {b.failed_count > 0 && <span style={{ color: "#f44336" }}>❌ {b.failed_count} falharam</span>}
                       <span>⏱ {b.interval_min}-{b.interval_max}s entre msgs</span>
@@ -2195,32 +2195,32 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols }) {
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
                 <span style={{ fontSize: 13, fontWeight: 700 }}>Mensagens agendadas</span>
-                <button onClick={fetchScheduled} style={{ padding: "5px 14px", borderRadius: 7, border: "1px solid #252540", background: "transparent", color: "#666", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>↻</button>
+                <button onClick={fetchScheduled} style={{ padding: "5px 14px", borderRadius: 7, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>↻</button>
               </div>
               {scheduledMsgs.length === 0 ? (
                 <div style={{ textAlign: "center", padding: 40 }}>
                   <div style={{ fontSize: 36, marginBottom: 10 }}>📅</div>
-                  <div style={{ fontSize: 14, color: "#444" }}>Nenhum agendamento ainda</div>
+                  <div style={{ fontSize: 14, color: "#667781" }}>Nenhum agendamento ainda</div>
                 </div>
               ) : scheduledMsgs.map(m => {
                 const isPast = new Date(m.scheduled_at) < new Date();
                 return (
-                  <div key={m.id} style={{ background: "#0d0d18", border: `1px solid ${isPast && m.status === "pending" ? "#f4433633" : "#1a1a2e"}`, borderRadius: 10, padding: "13px 16px", marginBottom: 10 }}>
+                  <div key={m.id} style={{ background: "#ffffff", border: `1px solid ${isPast && m.status === "pending" ? "#f4433633" : "#e9edef"}`, borderRadius: 10, padding: "13px 16px", marginBottom: 10 }}>
                     <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
                           <Avatar name={m.contact_name || m.contact_phone} size={24} />
                           <span style={{ fontSize: 13, fontWeight: 600 }}>{m.contact_name || m.contact_phone}</span>
-                          <span style={{ fontSize: 11, color: "#555" }}>{m.contact_phone}</span>
+                          <span style={{ fontSize: 11, color: "#667781" }}>{m.contact_phone}</span>
                           {m.recurrence && <span style={{ fontSize: 10, background: "#7c4dff22", color: "#a78bfa", padding: "1px 7px", borderRadius: 10 }}>🔁 {RECURRENCE_LABELS[m.recurrence]}</span>}
                         </div>
-                        <div style={{ fontSize: 12, color: "#888", marginBottom: 6, lineHeight: 1.5 }}>{m.message}</div>
-                        <div style={{ fontSize: 11, color: isPast && m.status === "pending" ? "#f44336" : "#555" }}>
+                        <div style={{ fontSize: 12, color: "#8696a0", marginBottom: 6, lineHeight: 1.5 }}>{m.message}</div>
+                        <div style={{ fontSize: 11, color: isPast && m.status === "pending" ? "#f44336" : "#667781" }}>
                           📅 {new Date(m.scheduled_at).toLocaleString("pt-BR")}
                           {isPast && m.status === "pending" && " — VENCIDA"}
                         </div>
                       </div>
-                      <button onClick={() => deleteScheduled(m.id)} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid #33333344", background: "transparent", color: "#555", fontSize: 12, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>🗑</button>
+                      <button onClick={() => deleteScheduled(m.id)} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid #33333344", background: "transparent", color: "#667781", fontSize: 12, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>🗑</button>
                     </div>
                   </div>
                 );
@@ -2228,7 +2228,7 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols }) {
             </div>
 
             {/* New scheduled form */}
-            <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 12, padding: 18, alignSelf: "flex-start" }}>
+            <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 12, padding: 18, alignSelf: "flex-start" }}>
               <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 14 }}>+ Novo agendamento</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <div>
@@ -2267,7 +2267,7 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols }) {
                     <option value="monthly">🔁 Mensal</option>
                   </select>
                 </div>
-                <button onClick={createScheduled} disabled={creatingSched || !sPhone.trim() || !sMessage.trim() || !sDate} style={{ padding: "10px 0", borderRadius: 8, border: "none", background: (!creatingSched && sPhone.trim() && sMessage.trim() && sDate) ? "linear-gradient(135deg,#00c853,#00796b)" : "#1a1a2e", color: (!creatingSched && sPhone.trim() && sMessage.trim() && sDate) ? "#000" : "#444", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{creatingSched ? "Salvando..." : "📅 Agendar mensagem"}</button>
+                <button onClick={createScheduled} disabled={creatingSched || !sPhone.trim() || !sMessage.trim() || !sDate} style={{ padding: "10px 0", borderRadius: 8, border: "none", background: (!creatingSched && sPhone.trim() && sMessage.trim() && sDate) ? "linear-gradient(135deg,#00a884,#017561)" : "#e9edef", color: (!creatingSched && sPhone.trim() && sMessage.trim() && sDate) ? "#000" : "#667781", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{creatingSched ? "Salvando..." : "📅 Agendar mensagem"}</button>
               </div>
             </div>
           </div>
@@ -2345,38 +2345,38 @@ function GlobalTasksView({ pendingTasksMap, conversations, agents, onSelectConv,
       <div
         key={task.id}
         onClick={() => !isDone && setSelectedTask(task)}
-        style={{ background: isDone ? "#0a0a0f" : "#0d0d18", border: `1px solid ${isDone ? "#1a1a2e" : overdue ? "#f4433633" : "#1a1a2e"}`, borderRadius: 12, padding: "14px 16px", cursor: isDone ? "default" : "pointer", transition: "all 0.15s", position: "relative", opacity: isDone ? 0.7 : 1 }}
-        onMouseEnter={e => { if (!isDone) { e.currentTarget.style.borderColor = overdue ? "#f4433666" : "#252540"; e.currentTarget.style.background = "#13131f"; }}}
-        onMouseLeave={e => { if (!isDone) { e.currentTarget.style.borderColor = overdue ? "#f4433633" : "#1a1a2e"; e.currentTarget.style.background = "#0d0d18"; }}}
+        style={{ background: isDone ? "#f0f2f5" : "#ffffff", border: `1px solid ${isDone ? "#e9edef" : overdue ? "#f4433633" : "#e9edef"}`, borderRadius: 12, padding: "14px 16px", cursor: isDone ? "default" : "pointer", transition: "all 0.15s", position: "relative", opacity: isDone ? 0.7 : 1 }}
+        onMouseEnter={e => { if (!isDone) { e.currentTarget.style.borderColor = overdue ? "#f4433666" : "#d1d7db"; e.currentTarget.style.background = "#f0f2f5"; }}}
+        onMouseLeave={e => { if (!isDone) { e.currentTarget.style.borderColor = overdue ? "#f4433633" : "#e9edef"; e.currentTarget.style.background = "#ffffff"; }}}
       >
         {/* Status badge */}
         {isDone
-          ? <div style={{ position: "absolute", top: 10, right: 12, background: "#00c85322", color: "#00c853", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 10 }}>✓ CONCLUÍDA</div>
+          ? <div style={{ position: "absolute", top: 10, right: 12, background: "#00a88422", color: "#00a884", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 10 }}>✓ CONCLUÍDA</div>
           : overdue && <div style={{ position: "absolute", top: 10, right: 12, background: "#f4433322", color: "#f44336", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 10 }}>⚠ VENCIDA</div>
         }
-        <div style={{ fontSize: 13, fontWeight: 700, color: isDone ? "#888" : "#e8e8f0", marginBottom: 6, paddingRight: 70, textDecoration: isDone ? "line-through" : "none" }}>{task.title}</div>
-        {task.description && <div style={{ fontSize: 12, color: "#555", marginBottom: 10, lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{task.description}</div>}
+        <div style={{ fontSize: 13, fontWeight: 700, color: isDone ? "#8696a0" : "#111b21", marginBottom: 6, paddingRight: 70, textDecoration: isDone ? "line-through" : "none" }}>{task.title}</div>
+        {task.description && <div style={{ fontSize: 12, color: "#667781", marginBottom: 10, lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{task.description}</div>}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-          {isDone && task.done_at && <span style={{ fontSize: 11, color: "#00c853" }}>✓ {new Date(task.done_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>}
-          {!isDone && task.due_at && <span style={{ fontSize: 11, color: overdue ? "#f44336" : "#888" }}>📅 {new Date(task.due_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>}
-          {assignedName && <span style={{ fontSize: 11, color: isDone ? "#555" : "#00c853" }}>👤 {assignedName}</span>}
+          {isDone && task.done_at && <span style={{ fontSize: 11, color: "#00a884" }}>✓ {new Date(task.done_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>}
+          {!isDone && task.due_at && <span style={{ fontSize: 11, color: overdue ? "#f44336" : "#8696a0" }}>📅 {new Date(task.due_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>}
+          {assignedName && <span style={{ fontSize: 11, color: isDone ? "#667781" : "#00a884" }}>👤 {assignedName}</span>}
         </div>
         {(conv || contactName) && (
           <div
             onClick={e => { e.stopPropagation(); if (conv) onSelectConv(conv); }}
-            style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", background: "#1a1a2e", borderRadius: 8, cursor: conv ? "pointer" : "default" }}
-            onMouseEnter={e => { if (conv) e.currentTarget.style.background = "#252540"; }}
-            onMouseLeave={e => { if (conv) e.currentTarget.style.background = "#1a1a2e"; }}
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", background: "#e9edef", borderRadius: 8, cursor: conv ? "pointer" : "default" }}
+            onMouseEnter={e => { if (conv) e.currentTarget.style.background = "#d1d7db"; }}
+            onMouseLeave={e => { if (conv) e.currentTarget.style.background = "#e9edef"; }}
           >
             <Avatar name={contactName} size={20} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#ccc" }}>{contactName}</div>
-              <div style={{ fontSize: 10, color: "#555" }}>{contactPhone}</div>
+              <div style={{ fontSize: 11, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#54656f" }}>{contactName}</div>
+              <div style={{ fontSize: 10, color: "#667781" }}>{contactPhone}</div>
             </div>
-            {conv && <span style={{ fontSize: 10, color: "#555", flexShrink: 0 }}>→ ver conversa</span>}
+            {conv && <span style={{ fontSize: 10, color: "#667781", flexShrink: 0 }}>→ ver conversa</span>}
           </div>
         )}
-        {!isDone && <div style={{ marginTop: 8, fontSize: 10, color: "#444" }}>Clique para ver detalhes →</div>}
+        {!isDone && <div style={{ marginTop: 8, fontSize: 10, color: "#667781" }}>Clique para ver detalhes →</div>}
       </div>
     );
   };
@@ -2385,40 +2385,40 @@ function GlobalTasksView({ pendingTasksMap, conversations, agents, onSelectConv,
     <>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         {/* Header */}
-        <div style={{ padding: "12px 24px", borderBottom: "1px solid #1a1a2e", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ padding: "12px 24px", borderBottom: "1px solid #e9edef", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           {/* Sub-tabs */}
-          <div style={{ display: "flex", gap: 4, background: "#0d0d18", borderRadius: 8, padding: 3, border: "1px solid #1a1a2e" }}>
-            <button onClick={() => setTab("open")} style={{ padding: "5px 14px", borderRadius: 6, border: "none", background: tab === "open" ? "#1a1a2e" : "transparent", color: tab === "open" ? "#e8e8f0" : "#555", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ display: "flex", gap: 4, background: "#ffffff", borderRadius: 8, padding: 3, border: "1px solid #e9edef" }}>
+            <button onClick={() => setTab("open")} style={{ padding: "5px 14px", borderRadius: 6, border: "none", background: tab === "open" ? "#e9edef" : "transparent", color: tab === "open" ? "#111b21" : "#667781", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6 }}>
               ⏳ Em aberto
-              {openTasks.length > 0 && <span style={{ background: overdueCount > 0 ? "#f44336" : "#00c853", color: "#000", fontSize: 10, fontWeight: 800, padding: "1px 6px", borderRadius: 10 }}>{openTasks.length}</span>}
+              {openTasks.length > 0 && <span style={{ background: overdueCount > 0 ? "#f44336" : "#00a884", color: "#000", fontSize: 10, fontWeight: 800, padding: "1px 6px", borderRadius: 10 }}>{openTasks.length}</span>}
             </button>
-            <button onClick={() => { setTab("done"); fetchDone(); }} style={{ padding: "5px 14px", borderRadius: 6, border: "none", background: tab === "done" ? "#1a1a2e" : "transparent", color: tab === "done" ? "#e8e8f0" : "#555", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6 }}>
+            <button onClick={() => { setTab("done"); fetchDone(); }} style={{ padding: "5px 14px", borderRadius: 6, border: "none", background: tab === "done" ? "#e9edef" : "transparent", color: tab === "done" ? "#111b21" : "#667781", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6 }}>
               ✅ Concluídas
-              {doneTasks.length > 0 && <span style={{ background: "#25254060", color: "#666", fontSize: 10, fontWeight: 800, padding: "1px 6px", borderRadius: 10 }}>{doneTasks.length}</span>}
+              {doneTasks.length > 0 && <span style={{ background: "#25254060", color: "#667781", fontSize: 10, fontWeight: 800, padding: "1px 6px", borderRadius: 10 }}>{doneTasks.length}</span>}
             </button>
           </div>
           {tab === "open" && overdueCount > 0 && <span style={{ background: "#f4433322", color: "#f44336", fontSize: 11, fontWeight: 700, padding: "2px 10px", borderRadius: 20 }}>⚠ {overdueCount} vencida{overdueCount > 1 ? "s" : ""}</span>}
-          {tab === "done" && <span style={{ fontSize: 11, color: "#555" }}>Últimos 7 dias</span>}
+          {tab === "done" && <span style={{ fontSize: 11, color: "#667781" }}>Últimos 7 dias</span>}
           <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
-            {tab === "open" && <button onClick={() => setFilterOverdue(f => !f)} style={{ padding: "5px 12px", borderRadius: 7, border: `1px solid ${filterOverdue ? "#f4433344" : "#252540"}`, background: filterOverdue ? "#f4433315" : "transparent", color: filterOverdue ? "#f44336" : "#666", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>⚠ Vencidas</button>}
-            <select value={filterAgent} onChange={e => setFilterAgent(e.target.value)} style={{ padding: "5px 10px", background: "#13131f", border: "1px solid #252540", borderRadius: 7, color: filterAgent ? "#e8e8f0" : "#555", fontSize: 12, outline: "none", fontFamily: "inherit", cursor: "pointer" }}>
+            {tab === "open" && <button onClick={() => setFilterOverdue(f => !f)} style={{ padding: "5px 12px", borderRadius: 7, border: `1px solid ${filterOverdue ? "#f4433344" : "#d1d7db"}`, background: filterOverdue ? "#f4433315" : "transparent", color: filterOverdue ? "#f44336" : "#667781", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>⚠ Vencidas</button>}
+            <select value={filterAgent} onChange={e => setFilterAgent(e.target.value)} style={{ padding: "5px 10px", background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 7, color: filterAgent ? "#111b21" : "#667781", fontSize: 12, outline: "none", fontFamily: "inherit", cursor: "pointer" }}>
               <option value="">Todos os atendentes</option>
               {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
-            <button onClick={fetchAll} style={{ padding: "5px 12px", borderRadius: 7, border: "1px solid #252540", background: "transparent", color: "#666", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>↻</button>
+            <button onClick={fetchAll} style={{ padding: "5px 12px", borderRadius: 7, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>↻</button>
           </div>
         </div>
 
         {/* Content */}
         <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
           {loading ? (
-            <div style={{ textAlign: "center", color: "#555", padding: 40 }}>Carregando...</div>
+            <div style={{ textAlign: "center", color: "#667781", padding: 40 }}>Carregando...</div>
           ) : tab === "open" ? (
             filteredOpen.length === 0 ? (
               <div style={{ textAlign: "center", padding: 60 }}>
                 <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: "#444", marginBottom: 6 }}>Nenhuma tarefa pendente!</div>
-                <div style={{ fontSize: 13, color: "#333" }}>Todas as tarefas foram concluídas.</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#667781", marginBottom: 6 }}>Nenhuma tarefa pendente!</div>
+                <div style={{ fontSize: 13, color: "#54656f" }}>Todas as tarefas foram concluídas.</div>
               </div>
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 12 }}>
@@ -2429,8 +2429,8 @@ function GlobalTasksView({ pendingTasksMap, conversations, agents, onSelectConv,
             filteredDone.length === 0 ? (
               <div style={{ textAlign: "center", padding: 60 }}>
                 <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: "#444", marginBottom: 6 }}>Nenhuma tarefa concluída</div>
-                <div style={{ fontSize: 13, color: "#333" }}>Nos últimos 7 dias ainda não há registros.</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#667781", marginBottom: 6 }}>Nenhuma tarefa concluída</div>
+                <div style={{ fontSize: 13, color: "#54656f" }}>Nos últimos 7 dias ainda não há registros.</div>
               </div>
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 12 }}>
@@ -2482,17 +2482,17 @@ function LeadsBoard({ conversations, kanbanCols, labels, onSelectConv, onManageL
       onDragStart={(e) => { e.stopPropagation(); setDragging({ convId: conv.id, fromLabelId: colLabel?.id || null }); }}
       onDragEnd={() => { setDragging(null); setDragOver(null); }}
       onClick={() => !dragging && onSelectConv(conv)}
-      style={{ background: "#13131f", border: `1px solid ${dragging?.convId === conv.id ? (colLabel?.color || "#555") + "55" : "#252540"}`, borderRadius: 10, padding: "11px 13px", cursor: "grab", opacity: dragging?.convId === conv.id ? 0.4 : 1, transition: "border-color 0.15s" }}
-      onMouseEnter={e => { if (dragging?.convId !== conv.id) e.currentTarget.style.borderColor = (colLabel?.color || "#555") + "55"; }}
-      onMouseLeave={e => { if (dragging?.convId !== conv.id) e.currentTarget.style.borderColor = "#252540"; }}
+      style={{ background: "#f0f2f5", border: `1px solid ${dragging?.convId === conv.id ? (colLabel?.color || "#667781") + "55" : "#d1d7db"}`, borderRadius: 10, padding: "11px 13px", cursor: "grab", opacity: dragging?.convId === conv.id ? 0.4 : 1, transition: "border-color 0.15s" }}
+      onMouseEnter={e => { if (dragging?.convId !== conv.id) e.currentTarget.style.borderColor = (colLabel?.color || "#667781") + "55"; }}
+      onMouseLeave={e => { if (dragging?.convId !== conv.id) e.currentTarget.style.borderColor = "#d1d7db"; }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
         <Avatar name={conv.contacts?.name || conv.contacts?.phone} size={26} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{conv.contacts?.name || conv.contacts?.phone}</div>
-          <div style={{ fontSize: 11, color: "#555" }}>{conv.contacts?.phone}</div>
+          <div style={{ fontSize: 11, color: "#667781" }}>{conv.contacts?.phone}</div>
         </div>
-        <span style={{ fontSize: 10, color: "#555", flexShrink: 0 }}>{timeAgo(conv.last_message_at)}</span>
+        <span style={{ fontSize: 10, color: "#667781", flexShrink: 0 }}>{timeAgo(conv.last_message_at)}</span>
       </div>
       <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 4 }}>
         {(conv.labels || []).filter(l => l.id !== colLabel?.id).map(l => <LabelChip key={l.id} label={l} />)}
@@ -2500,20 +2500,20 @@ function LeadsBoard({ conversations, kanbanCols, labels, onSelectConv, onManageL
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <StatusDot status={conv.status} />
-        <span style={{ fontSize: 10, color: "#555" }}>{conv.status === "open" ? "Aberto" : conv.status === "pending" ? "Pendente" : "Resolvido"}</span>
-        {conv.assigned_agent && <span style={{ fontSize: 10, color: "#666", marginLeft: "auto" }}>👤 {conv.assigned_agent}</span>}
+        <span style={{ fontSize: 10, color: "#667781" }}>{conv.status === "open" ? "Aberto" : conv.status === "pending" ? "Pendente" : "Resolvido"}</span>
+        {conv.assigned_agent && <span style={{ fontSize: 10, color: "#667781", marginLeft: "auto" }}>👤 {conv.assigned_agent}</span>}
       </div>
     </div>
   );
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      <div style={{ padding: "14px 24px", borderBottom: "1px solid #1a1a2e", display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ padding: "14px 24px", borderBottom: "1px solid #e9edef", display: "flex", alignItems: "center", gap: 12 }}>
         <span style={{ fontSize: 15, fontWeight: 700 }}>🏷 Leads por Etiqueta</span>
-        <span style={{ fontSize: 12, color: "#555" }}>Arraste para mover entre etiquetas</span>
+        <span style={{ fontSize: 12, color: "#667781" }}>Arraste para mover entre etiquetas</span>
         <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
-          <span style={{ fontSize: 12, color: "#555", background: "#1a1a2e", padding: "4px 12px", borderRadius: 20 }}>{conversations.length} total</span>
-          <button onClick={onManageLabels} style={{ padding: "6px 14px", borderRadius: 7, border: "1px solid #252540", background: "transparent", color: "#888", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>⚙️ Gerenciar etiquetas</button>
+          <span style={{ fontSize: 12, color: "#667781", background: "#e9edef", padding: "4px 12px", borderRadius: 20 }}>{conversations.length} total</span>
+          <button onClick={onManageLabels} style={{ padding: "6px 14px", borderRadius: 7, border: "1px solid #e9edef", background: "transparent", color: "#8696a0", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>⚙️ Gerenciar etiquetas</button>
         </div>
       </div>
       <div style={{ flex: 1, display: "flex", gap: 16, padding: "20px 24px", overflowX: "auto", overflowY: "hidden" }}>
@@ -2526,7 +2526,7 @@ function LeadsBoard({ conversations, kanbanCols, labels, onSelectConv, onManageL
               onDragOver={e => { e.preventDefault(); setDragOver(label.id); }}
               onDragLeave={() => setDragOver(null)}
               onDrop={() => handleDrop(label.id)}
-              style={{ width: 270, flexShrink: 0, display: "flex", flexDirection: "column", background: isOver ? "#1a1a2e" : "#0d0d18", border: `1px solid ${isOver ? label.color + "66" : "#1a1a2e"}`, borderRadius: 12, overflow: "hidden", transition: "all 0.15s" }}            >
+              style={{ width: 270, flexShrink: 0, display: "flex", flexDirection: "column", background: isOver ? "#e9edef" : "#ffffff", border: `1px solid ${isOver ? label.color + "66" : "#e9edef"}`, borderRadius: 12, overflow: "hidden", transition: "all 0.15s" }}            >
               <div style={{ padding: "12px 14px", borderBottom: `2px solid ${label.color}44`, display: "flex", alignItems: "center", gap: 8 }}>
                 <div style={{ width: 10, height: 10, borderRadius: "50%", background: label.color, flexShrink: 0 }} />
                 <span style={{ fontWeight: 700, fontSize: 13, color: label.color, flex: 1 }}>{label.name}</span>
@@ -2534,7 +2534,7 @@ function LeadsBoard({ conversations, kanbanCols, labels, onSelectConv, onManageL
               </div>
               <div style={{ flex: 1, overflowY: "auto", padding: "10px 8px", display: "flex", flexDirection: "column", gap: 8 }}>
                 {cards.length === 0
-                  ? <div style={{ border: `2px dashed ${label.color}${isOver ? "88" : "22"}`, borderRadius: 8, padding: 20, textAlign: "center", color: isOver ? label.color : "#444", fontSize: 12, transition: "all 0.15s" }}>
+                  ? <div style={{ border: `2px dashed ${label.color}${isOver ? "88" : "22"}`, borderRadius: 8, padding: 20, textAlign: "center", color: isOver ? label.color : "#667781", fontSize: 12, transition: "all 0.15s" }}>
                       {isOver ? "➕ Soltar aqui" : "Nenhum lead"}
                     </div>
                   : cards.map(conv => renderCard(conv, label))
@@ -2553,16 +2553,16 @@ function LeadsBoard({ conversations, kanbanCols, labels, onSelectConv, onManageL
             onDragOver={e => { e.preventDefault(); setDragOver("unlabeled"); }}
             onDragLeave={() => setDragOver(null)}
             onDrop={() => handleDrop("unlabeled")}
-            style={{ width: 270, flexShrink: 0, display: "flex", flexDirection: "column", background: dragOver === "unlabeled" ? "#1a1a2e" : "#0d0d18", border: `1px solid ${dragOver === "unlabeled" ? "#55555566" : "#1a1a2e"}`, borderRadius: 12, overflow: "hidden", transition: "all 0.15s" }}
+            style={{ width: 270, flexShrink: 0, display: "flex", flexDirection: "column", background: dragOver === "unlabeled" ? "#e9edef" : "#ffffff", border: `1px solid ${dragOver === "unlabeled" ? "#55555566" : "#e9edef"}`, borderRadius: 12, overflow: "hidden", transition: "all 0.15s" }}
           >
             <div style={{ padding: "12px 14px", borderBottom: "2px solid #33333388", display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#444", flexShrink: 0 }} />
-              <span style={{ fontWeight: 700, fontSize: 13, color: "#555", flex: 1 }}>Sem etiqueta</span>
-              <span style={{ background: "#33333322", color: "#555", fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20 }}>{unlabeled.length}</span>
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#667781", flexShrink: 0 }} />
+              <span style={{ fontWeight: 700, fontSize: 13, color: "#667781", flex: 1 }}>Sem etiqueta</span>
+              <span style={{ background: "#33333322", color: "#667781", fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20 }}>{unlabeled.length}</span>
             </div>
             <div style={{ flex: 1, overflowY: "auto", padding: "10px 8px", display: "flex", flexDirection: "column", gap: 8 }}>
               {unlabeled.length === 0
-                ? <div style={{ border: "2px dashed #55555588", borderRadius: 8, padding: 20, textAlign: "center", color: "#666", fontSize: 12 }}>➕ Soltar aqui para remover etiqueta</div>
+                ? <div style={{ border: "2px dashed #55555588", borderRadius: 8, padding: 20, textAlign: "center", color: "#667781", fontSize: 12 }}>➕ Soltar aqui para remover etiqueta</div>
                 : unlabeled.map(conv => renderCard(conv, null))
               }
             </div>
@@ -2593,50 +2593,50 @@ function TaskDetailModal({ task, agents, onClose, onComplete }) {
   const isOverdue = task.due_at && new Date(task.due_at) < new Date();
   const assignedName = task.users?.name || agents.find(a => a.id === task.assigned_to)?.name;
   return (
-    <div style={{ position: "fixed", inset: 0, background: "#00000090", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300 }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "#13131f", border: "1px solid #252540", borderRadius: 16, width: 500, maxHeight: "85vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px #00000080" }}>
-        <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid #1a1a2e" }}>
+    <div style={{ position: "fixed", inset: 0, background: "#00000055", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300 }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 16, width: 500, maxHeight: "85vh", display: "flex", flexDirection: "column", boxShadow: "0 2px 5px #0000001a, 0 8px 20px #00000012" }}>
+        <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid #e9edef" }}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#e8e8f0", marginBottom: 6 }}>{task.title}</div>
-              {task.description && <div style={{ fontSize: 13, color: "#888", lineHeight: 1.6 }}>{task.description}</div>}
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#111b21", marginBottom: 6 }}>{task.title}</div>
+              {task.description && <div style={{ fontSize: 13, color: "#8696a0", lineHeight: 1.6 }}>{task.description}</div>}
             </div>
-            <span onClick={onClose} style={{ cursor: "pointer", color: "#555", fontSize: 20, lineHeight: 1, flexShrink: 0 }}>×</span>
+            <span onClick={onClose} style={{ cursor: "pointer", color: "#667781", fontSize: 20, lineHeight: 1, flexShrink: 0 }}>×</span>
           </div>
           <div style={{ display: "flex", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
-            {task.due_at && <span style={{ fontSize: 12, color: isOverdue ? "#f44336" : "#888", display: "flex", alignItems: "center", gap: 4 }}>📅 {new Date(task.due_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}{isOverdue && <span style={{ background: "#f4433322", color: "#f44336", fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 10 }}>VENCIDA</span>}</span>}
-            {assignedName && <span style={{ fontSize: 12, color: "#00c853" }}>👤 {assignedName}</span>}
+            {task.due_at && <span style={{ fontSize: 12, color: isOverdue ? "#f44336" : "#8696a0", display: "flex", alignItems: "center", gap: 4 }}>📅 {new Date(task.due_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}{isOverdue && <span style={{ background: "#f4433322", color: "#f44336", fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 10 }}>VENCIDA</span>}</span>}
+            {assignedName && <span style={{ fontSize: 12, color: "#00a884" }}>👤 {assignedName}</span>}
           </div>
         </div>
         <div style={{ flex: 1, overflowY: "auto", padding: "16px 24px" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#555", marginBottom: 12 }}>ATUALIZAÇÕES</div>
-          {loading ? <div style={{ color: "#555", fontSize: 13, textAlign: "center", padding: 16 }}>Carregando...</div>
-            : updates.length === 0 ? <div style={{ color: "#444", fontSize: 13, textAlign: "center", padding: 16 }}>Nenhuma atualização ainda.</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#667781", marginBottom: 12 }}>ATUALIZAÇÕES</div>
+          {loading ? <div style={{ color: "#667781", fontSize: 13, textAlign: "center", padding: 16 }}>Carregando...</div>
+            : updates.length === 0 ? <div style={{ color: "#667781", fontSize: 13, textAlign: "center", padding: 16 }}>Nenhuma atualização ainda.</div>
             : updates.map((u, i) => (
               <div key={u.id || i} style={{ display: "flex", gap: 10, marginBottom: 14 }}>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
                   <Avatar name={u.created_by || "?"} size={28} />
-                  {i < updates.length - 1 && <div style={{ width: 2, flex: 1, background: "#1a1a2e", marginTop: 4 }} />}
+                  {i < updates.length - 1 && <div style={{ width: 2, flex: 1, background: "#e9edef", marginTop: 4 }} />}
                 </div>
                 <div style={{ flex: 1, paddingBottom: 4 }}>
                   <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "#e8e8f0" }}>{u.created_by || "Atendente"}</span>
-                    <span style={{ fontSize: 11, color: "#555" }}>{timeAgo(u.created_at)}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#111b21" }}>{u.created_by || "Atendente"}</span>
+                    <span style={{ fontSize: 11, color: "#667781" }}>{timeAgo(u.created_at)}</span>
                   </div>
-                  <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#ccc", lineHeight: 1.5 }}>{u.content}</div>
+                  <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#54656f", lineHeight: 1.5 }}>{u.content}</div>
                 </div>
               </div>
             ))}
         </div>
-        <div style={{ padding: "14px 24px", borderTop: "1px solid #1a1a2e" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#555", marginBottom: 8 }}>NOVA ATUALIZAÇÃO</div>
+        <div style={{ padding: "14px 24px", borderTop: "1px solid #e9edef" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#667781", marginBottom: 8 }}>NOVA ATUALIZAÇÃO</div>
           <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-            <textarea value={newUpdate} onChange={e => setNewUpdate(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendUpdate(); } }} placeholder="Descreva o que foi feito, próximos passos..." rows={2} style={{ flex: 1, padding: "9px 12px", background: "#0d0d18", border: "1px solid #252540", borderRadius: 9, color: "#e8e8f0", fontSize: 13, outline: "none", resize: "none", fontFamily: "inherit", lineHeight: 1.5 }} />
-            <button onClick={sendUpdate} disabled={!newUpdate.trim() || sending} style={{ padding: "0 16px", borderRadius: 9, border: "none", background: newUpdate.trim() ? "linear-gradient(135deg, #00c853, #00796b)" : "#1a1a2e", color: newUpdate.trim() ? "#000" : "#444", fontSize: 13, fontWeight: 700, cursor: newUpdate.trim() ? "pointer" : "not-allowed", fontFamily: "inherit", flexShrink: 0 }}>{sending ? "..." : "↑"}</button>
+            <textarea value={newUpdate} onChange={e => setNewUpdate(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendUpdate(); } }} placeholder="Descreva o que foi feito, próximos passos..." rows={2} style={{ flex: 1, padding: "9px 12px", background: "#ffffff", border: "1px solid #e9edef", borderRadius: 9, color: "#111b21", fontSize: 13, outline: "none", resize: "none", fontFamily: "inherit", lineHeight: 1.5 }} />
+            <button onClick={sendUpdate} disabled={!newUpdate.trim() || sending} style={{ padding: "0 16px", borderRadius: 9, border: "none", background: newUpdate.trim() ? "linear-gradient(135deg, #00a884, #017561)" : "#e9edef", color: newUpdate.trim() ? "#000" : "#667781", fontSize: 13, fontWeight: 700, cursor: newUpdate.trim() ? "pointer" : "not-allowed", fontFamily: "inherit", flexShrink: 0 }}>{sending ? "..." : "↑"}</button>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={onClose} style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: "1px solid #252540", background: "transparent", color: "#666", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>✕ Fechar</button>
-            <button onClick={() => onComplete(task.id)} style={{ flex: 2, padding: "9px 0", borderRadius: 9, border: "1px solid #00c85344", background: "#00c85310", color: "#00c853", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>✅ Marcar como concluída</button>
+            <button onClick={onClose} style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>✕ Fechar</button>
+            <button onClick={() => onComplete(task.id)} style={{ flex: 2, padding: "9px 0", borderRadius: 9, border: "1px solid #00a88444", background: "#00a88410", color: "#00a884", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>✅ Marcar como concluída</button>
           </div>
         </div>
       </div>
@@ -2696,36 +2696,36 @@ function TasksPanel({ convId, agents, onClose, onTaskDone }) {
   const isOverdue = (due) => due && new Date(due) < new Date();
   return (
     <>
-      <div style={{ width: 300, flexShrink: 0, borderLeft: "1px solid #1a1a2e", background: "#0d0d18", display: "flex", flexDirection: "column" }}>
-        <div style={{ padding: "14px 16px", borderBottom: "1px solid #1a1a2e", display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ width: 300, flexShrink: 0, borderLeft: "1px solid #e9edef", background: "#ffffff", display: "flex", flexDirection: "column" }}>
+        <div style={{ padding: "14px 16px", borderBottom: "1px solid #e9edef", display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 14, fontWeight: 700 }}>✅ Tarefas</span>
-          <span style={{ background: "#00c85322", color: "#00c853", fontSize: 11, fontWeight: 700, padding: "1px 7px", borderRadius: 20 }}>{tasks.length}</span>
-          <span onClick={onClose} style={{ marginLeft: "auto", cursor: "pointer", color: "#555", fontSize: 18, lineHeight: 1 }}>×</span>
+          <span style={{ background: "#00a88422", color: "#00a884", fontSize: 11, fontWeight: 700, padding: "1px 7px", borderRadius: 20 }}>{tasks.length}</span>
+          <span onClick={onClose} style={{ marginLeft: "auto", cursor: "pointer", color: "#667781", fontSize: 18, lineHeight: 1 }}>×</span>
         </div>
-        <div style={{ padding: "14px 16px", borderBottom: "1px solid #1a1a2e" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#666", marginBottom: 8 }}>NOVA TAREFA</div>
-          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Título da tarefa *" style={{ width: "100%", padding: "8px 10px", background: "#13131f", border: "1px solid #252540", borderRadius: 7, color: "#e8e8f0", fontSize: 12, outline: "none", boxSizing: "border-box", fontFamily: "inherit", marginBottom: 6 }} />
-          <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Descrição (opcional)..." rows={2} style={{ width: "100%", padding: "8px 10px", background: "#13131f", border: "1px solid #252540", borderRadius: 7, color: "#e8e8f0", fontSize: 12, outline: "none", boxSizing: "border-box", fontFamily: "inherit", resize: "none", marginBottom: 6, lineHeight: 1.5 }} />
-          <input type="datetime-local" value={dueAt} onChange={e => setDueAt(e.target.value)} style={{ width: "100%", padding: "7px 8px", background: "#13131f", border: "1px solid #252540", borderRadius: 7, color: "#888", fontSize: 11, outline: "none", fontFamily: "inherit", colorScheme: "dark", boxSizing: "border-box", marginBottom: 6 }} />
-          <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)} style={{ width: "100%", padding: "7px 10px", background: "#13131f", border: "1px solid #252540", borderRadius: 7, color: assignedTo ? "#e8e8f0" : "#555", fontSize: 12, outline: "none", marginBottom: 10, fontFamily: "inherit", boxSizing: "border-box" }}>
+        <div style={{ padding: "14px 16px", borderBottom: "1px solid #e9edef" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#667781", marginBottom: 8 }}>NOVA TAREFA</div>
+          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Título da tarefa *" style={{ width: "100%", padding: "8px 10px", background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 7, color: "#111b21", fontSize: 12, outline: "none", boxSizing: "border-box", fontFamily: "inherit", marginBottom: 6 }} />
+          <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Descrição (opcional)..." rows={2} style={{ width: "100%", padding: "8px 10px", background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 7, color: "#111b21", fontSize: 12, outline: "none", boxSizing: "border-box", fontFamily: "inherit", resize: "none", marginBottom: 6, lineHeight: 1.5 }} />
+          <input type="datetime-local" value={dueAt} onChange={e => setDueAt(e.target.value)} style={{ width: "100%", padding: "7px 8px", background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 7, color: "#8696a0", fontSize: 11, outline: "none", fontFamily: "inherit", colorScheme: "dark", boxSizing: "border-box", marginBottom: 6 }} />
+          <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)} style={{ width: "100%", padding: "7px 10px", background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 7, color: assignedTo ? "#111b21" : "#667781", fontSize: 12, outline: "none", marginBottom: 10, fontFamily: "inherit", boxSizing: "border-box" }}>
             <option value="">Responsável (opcional)</option>
             {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
-          <button onClick={createTask} disabled={!title.trim() || creating} style={{ width: "100%", padding: "8px 0", borderRadius: 7, border: "none", background: title.trim() ? "linear-gradient(135deg, #00c853, #00796b)" : "#1a1a2e", color: title.trim() ? "#000" : "#444", fontSize: 12, fontWeight: 700, cursor: title.trim() ? "pointer" : "not-allowed", fontFamily: "inherit" }}>{creating ? "Criando..." : "+ Criar tarefa"}</button>
+          <button onClick={createTask} disabled={!title.trim() || creating} style={{ width: "100%", padding: "8px 0", borderRadius: 7, border: "none", background: title.trim() ? "linear-gradient(135deg, #00a884, #017561)" : "#e9edef", color: title.trim() ? "#000" : "#667781", fontSize: 12, fontWeight: 700, cursor: title.trim() ? "pointer" : "not-allowed", fontFamily: "inherit" }}>{creating ? "Criando..." : "+ Criar tarefa"}</button>
           {taskError && <div style={{ background: "#f4433315", border: "1px solid #f4433333", borderRadius: 7, padding: "8px 10px", marginTop: 8, fontSize: 11, color: "#f44336" }}>❌ {taskError}</div>}
         </div>
         <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
-          {loading ? <div style={{ textAlign: "center", color: "#555", fontSize: 12, padding: 16 }}>Carregando...</div>
-            : tasks.length === 0 ? <div style={{ textAlign: "center", padding: 24 }}><div style={{ fontSize: 28, marginBottom: 8 }}>📋</div><div style={{ fontSize: 12, color: "#555" }}>Nenhuma tarefa ainda</div></div>
+          {loading ? <div style={{ textAlign: "center", color: "#667781", fontSize: 12, padding: 16 }}>Carregando...</div>
+            : tasks.length === 0 ? <div style={{ textAlign: "center", padding: 24 }}><div style={{ fontSize: 28, marginBottom: 8 }}>📋</div><div style={{ fontSize: 12, color: "#667781" }}>Nenhuma tarefa ainda</div></div>
             : tasks.map(task => (
-              <div key={task.id} onClick={() => setSelectedTask(task)} style={{ background: "#13131f", border: `1px solid ${isOverdue(task.due_at) ? "#f4433644" : "#252540"}`, borderRadius: 9, padding: "10px 12px", marginBottom: 8, cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.borderColor = "#00c85344"} onMouseLeave={e => e.currentTarget.style.borderColor = isOverdue(task.due_at) ? "#f4433644" : "#252540"}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "#e8e8f0", marginBottom: 4 }}>{task.title}</div>
-                {task.description && <div style={{ fontSize: 11, color: "#666", marginBottom: 6, lineHeight: 1.4, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{task.description}</div>}
+              <div key={task.id} onClick={() => setSelectedTask(task)} style={{ background: "#f0f2f5", border: `1px solid ${isOverdue(task.due_at) ? "#f4433644" : "#d1d7db"}`, borderRadius: 9, padding: "10px 12px", marginBottom: 8, cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.borderColor = "#00a88444"} onMouseLeave={e => e.currentTarget.style.borderColor = isOverdue(task.due_at) ? "#f4433644" : "#d1d7db"}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#111b21", marginBottom: 4 }}>{task.title}</div>
+                {task.description && <div style={{ fontSize: 11, color: "#667781", marginBottom: 6, lineHeight: 1.4, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{task.description}</div>}
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {task.due_at && <span style={{ fontSize: 10, color: isOverdue(task.due_at) ? "#f44336" : "#888" }}>📅 {new Date(task.due_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>}
-                  {task.users?.name && <span style={{ fontSize: 10, color: "#00c853" }}>👤 {task.users.name}</span>}
+                  {task.due_at && <span style={{ fontSize: 10, color: isOverdue(task.due_at) ? "#f44336" : "#8696a0" }}>📅 {new Date(task.due_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>}
+                  {task.users?.name && <span style={{ fontSize: 10, color: "#00a884" }}>👤 {task.users.name}</span>}
                 </div>
-                <div style={{ marginTop: 6, fontSize: 10, color: "#444" }}>Clique para ver detalhes →</div>
+                <div style={{ marginTop: 6, fontSize: 10, color: "#667781" }}>Clique para ver detalhes →</div>
               </div>
             ))}
         </div>
@@ -2745,22 +2745,22 @@ function ColumnManagerModal({ columns, onChange, onClose }) {
   const addCol = () => { if (!newLabel.trim()) return; setCols(prev => [...prev, { id: uid(), label: newLabel.trim(), color: PALETTE[prev.length % PALETTE.length] }]); setNewLabel(""); };
   const save = () => { onChange(cols); saveColumns(cols); onClose(); };
   return (
-    <div style={{ position: "fixed", inset: 0, background: "#00000090", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200 }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} onMouseDown={e => e.preventDefault()} style={{ background: "#13131f", border: "1px solid #252540", borderRadius: 14, padding: 24, width: 420, maxHeight: "85vh", overflowY: "auto", boxShadow: "0 24px 64px #00000080" }}>
+    <div style={{ position: "fixed", inset: 0, background: "#00000055", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200 }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} onMouseDown={e => e.preventDefault()} style={{ background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 14, padding: 24, width: 420, maxHeight: "85vh", overflowY: "auto", boxShadow: "0 2px 5px #0000001a, 0 8px 20px #00000012" }}>
         <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>⚙️ Gerenciar Colunas</div>
-        <div style={{ fontSize: 12, color: "#555", marginBottom: 20 }}>Crie, renomeie ou delete colunas do Kanban</div>
+        <div style={{ fontSize: 12, color: "#667781", marginBottom: 20 }}>Crie, renomeie ou delete colunas do Kanban</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
           {cols.map(col => (
             <div key={col.id} style={{ position: "relative" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#0d0d18", border: "1px solid #252540", borderRadius: 10, padding: "10px 14px" }}>
-                <div onClick={() => setPickingColorFor(pickingColorFor === col.id ? null : col.id)} style={{ width: 22, height: 22, borderRadius: "50%", background: col.color, cursor: "pointer", flexShrink: 0, border: "2px solid #252540" }} />
-                {editingId === col.id ? <input autoFocus value={col.label} onChange={e => update(col.id, { label: e.target.value })} onBlur={() => setEditingId(null)} onKeyDown={e => e.key === "Enter" && setEditingId(null)} style={{ flex: 1, background: "#1a1a2e", border: "1px solid #00c85344", borderRadius: 6, color: "#e8e8f0", fontSize: 13, padding: "4px 10px", outline: "none", fontFamily: "inherit" }} />
+              <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#ffffff", border: "1px solid #e9edef", borderRadius: 10, padding: "10px 14px" }}>
+                <div onClick={() => setPickingColorFor(pickingColorFor === col.id ? null : col.id)} style={{ width: 22, height: 22, borderRadius: "50%", background: col.color, cursor: "pointer", flexShrink: 0, border: "1px solid #e9edef" }} />
+                {editingId === col.id ? <input autoFocus value={col.label} onChange={e => update(col.id, { label: e.target.value })} onBlur={() => setEditingId(null)} onKeyDown={e => e.key === "Enter" && setEditingId(null)} style={{ flex: 1, background: "#e9edef", border: "1px solid #00a88444", borderRadius: 6, color: "#111b21", fontSize: 13, padding: "4px 10px", outline: "none", fontFamily: "inherit" }} />
                   : <span onClick={() => setEditingId(col.id)} style={{ flex: 1, fontSize: 13, fontWeight: 600, cursor: "text", color: col.color }}>{col.label}</span>}
                 <span onClick={() => setEditingId(col.id)} style={{ fontSize: 14, cursor: "pointer", opacity: 0.4 }}>✏️</span>
                 {cols.length > 1 && <span onClick={() => setCols(prev => prev.filter(c => c.id !== col.id))} style={{ fontSize: 14, cursor: "pointer", opacity: 0.4 }}>🗑</span>}
               </div>
               {pickingColorFor === col.id && (
-                <div style={{ position: "absolute", top: "110%", left: 0, zIndex: 300, background: "#1a1a2e", border: "1px solid #252540", borderRadius: 10, padding: 12, display: "flex", flexWrap: "wrap", gap: 8, width: 200, boxShadow: "0 8px 24px #00000060" }}>
+                <div style={{ position: "absolute", top: "110%", left: 0, zIndex: 300, background: "#e9edef", border: "1px solid #e9edef", borderRadius: 10, padding: 12, display: "flex", flexWrap: "wrap", gap: 8, width: 200, boxShadow: "0 1px 3px #0000001a, 0 4px 12px #0000000f" }}>
                   {PALETTE.map(c => <div key={c} onClick={() => { update(col.id, { color: c }); setPickingColorFor(null); }} style={{ width: 28, height: 28, borderRadius: "50%", background: c, cursor: "pointer", border: col.color === c ? "3px solid #fff" : "2px solid transparent" }} />)}
                 </div>
               )}
@@ -2768,15 +2768,15 @@ function ColumnManagerModal({ columns, onChange, onClose }) {
           ))}
         </div>
         <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "#666", marginBottom: 8 }}>Nova coluna</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#667781", marginBottom: 8 }}>Nova coluna</div>
           <div style={{ display: "flex", gap: 8 }}>
-            <input value={newLabel} onChange={e => setNewLabel(e.target.value)} onKeyDown={e => e.key === "Enter" && addCol()} placeholder="Nome da coluna..." style={{ flex: 1, padding: "8px 12px", background: "#0d0d18", border: "1px solid #252540", borderRadius: 8, color: "#e8e8f0", fontSize: 13, outline: "none", fontFamily: "inherit" }} />
-            <button onClick={addCol} disabled={!newLabel.trim()} style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: newLabel.trim() ? "linear-gradient(135deg, #00c853, #00796b)" : "#1a1a2e", color: newLabel.trim() ? "#000" : "#444", fontSize: 13, fontWeight: 700, cursor: newLabel.trim() ? "pointer" : "not-allowed", fontFamily: "inherit" }}>+ Criar</button>
+            <input value={newLabel} onChange={e => setNewLabel(e.target.value)} onKeyDown={e => e.key === "Enter" && addCol()} placeholder="Nome da coluna..." style={{ flex: 1, padding: "8px 12px", background: "#ffffff", border: "1px solid #e9edef", borderRadius: 8, color: "#111b21", fontSize: 13, outline: "none", fontFamily: "inherit" }} />
+            <button onClick={addCol} disabled={!newLabel.trim()} style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: newLabel.trim() ? "linear-gradient(135deg, #00a884, #017561)" : "#e9edef", color: newLabel.trim() ? "#000" : "#667781", fontSize: 13, fontWeight: 700, cursor: newLabel.trim() ? "pointer" : "not-allowed", fontFamily: "inherit" }}>+ Criar</button>
           </div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={onClose} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: "1px solid #252540", background: "transparent", color: "#666", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
-          <button onClick={save} style={{ flex: 2, padding: "9px 0", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #00c853, #00796b)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>💾 Salvar colunas</button>
+          <button onClick={onClose} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
+          <button onClick={save} style={{ flex: 2, padding: "9px 0", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #00a884, #017561)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>💾 Salvar colunas</button>
         </div>
       </div>
     </div>
@@ -2786,17 +2786,17 @@ function ColumnManagerModal({ columns, onChange, onClose }) {
 function AssignModal({ conversation, agents, onAssign, onClose }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "#00000080", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "#13131f", border: "1px solid #252540", borderRadius: 12, padding: 20, width: 300, boxShadow: "0 20px 60px #00000060" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 12, padding: 20, width: 300, boxShadow: "0 2px 5px #0000001a, 0 8px 16px #0000000f" }}>
         <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16 }}>Atribuir conversa</div>
-        {agents.length === 0 ? <div style={{ color: "#666", fontSize: 13, textAlign: "center", padding: 12 }}>Nenhum atendente encontrado</div>
+        {agents.length === 0 ? <div style={{ color: "#667781", fontSize: 13, textAlign: "center", padding: 12 }}>Nenhum atendente encontrado</div>
           : agents.map(agent => (
-            <div key={agent.id} onClick={() => onAssign(agent)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 8, cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.background = "#1a1a2e"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+            <div key={agent.id} onClick={() => onAssign(agent)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 8, cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.background = "#e9edef"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
               <Avatar name={agent.name} size={32} />
-              <div><div style={{ fontSize: 13, fontWeight: 600 }}>{agent.name}</div><div style={{ fontSize: 11, color: "#666" }}>{agent.role === "admin" ? "Admin" : "Atendente"}</div></div>
-              {conversation.assigned_to === agent.id && <span style={{ marginLeft: "auto", color: "#00c853", fontSize: 16 }}>✓</span>}
+              <div><div style={{ fontSize: 13, fontWeight: 600 }}>{agent.name}</div><div style={{ fontSize: 11, color: "#667781" }}>{agent.role === "admin" ? "Admin" : "Atendente"}</div></div>
+              {conversation.assigned_to === agent.id && <span style={{ marginLeft: "auto", color: "#00a884", fontSize: 16 }}>✓</span>}
             </div>
           ))}
-        <button onClick={onClose} style={{ marginTop: 12, width: "100%", padding: "8px 0", borderRadius: 8, border: "1px solid #252540", background: "transparent", color: "#666", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
+        <button onClick={onClose} style={{ marginTop: 12, width: "100%", padding: "8px 0", borderRadius: 8, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
       </div>
     </div>
   );
@@ -2806,21 +2806,21 @@ function LabelPickerModal({ conversation, labels, onToggle, onClose, onManage })
   const convLabels = conversation.labels || [];
   return (
     <div style={{ position: "fixed", inset: 0, background: "#00000080", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "#13131f", border: "1px solid #252540", borderRadius: 12, padding: 20, width: 280, boxShadow: "0 20px 60px #00000060" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 12, padding: 20, width: 280, boxShadow: "0 2px 5px #0000001a, 0 8px 16px #0000000f" }}>
         <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16 }}>Adicionar etiqueta</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
           {labels.map(label => {
             const active = convLabels.some(l => l.id === label.id);
-            return <div key={label.id} onClick={() => onToggle(label)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 8, cursor: "pointer", border: `1px solid ${active ? label.color : "#252540"}`, background: active ? label.color + "11" : "transparent" }}>
+            return <div key={label.id} onClick={() => onToggle(label)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 8, cursor: "pointer", border: `1px solid ${active ? label.color : "#d1d7db"}`, background: active ? label.color + "11" : "transparent" }}>
               <div style={{ width: 10, height: 10, borderRadius: "50%", background: label.color, flexShrink: 0 }} />
-              <span style={{ fontSize: 13, color: active ? label.color : "#ccc", fontWeight: active ? 600 : 400 }}>{label.name}</span>
+              <span style={{ fontSize: 13, color: active ? label.color : "#54656f", fontWeight: active ? 600 : 400 }}>{label.name}</span>
               {active && <span style={{ marginLeft: "auto", color: label.color }}>✓</span>}
             </div>;
           })}
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={onManage} style={{ flex: 1, padding: "7px 0", borderRadius: 8, border: "1px solid #252540", background: "transparent", color: "#666", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>⚙️ Gerenciar</button>
-          <button onClick={onClose} style={{ flex: 1, padding: "7px 0", borderRadius: 8, border: "1px solid #252540", background: "transparent", color: "#666", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Fechar</button>
+          <button onClick={onManage} style={{ flex: 1, padding: "7px 0", borderRadius: 8, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>⚙️ Gerenciar</button>
+          <button onClick={onClose} style={{ flex: 1, padding: "7px 0", borderRadius: 8, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Fechar</button>
         </div>
       </div>
     </div>
@@ -2833,36 +2833,36 @@ function KanbanBoard({ conversations, columns, onMoveCard, onSelectConv, onManag
   const getStage = (conv) => columns.find(c => c.id === conv.kanban_stage) ? conv.kanban_stage : columns[0]?.id;
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      <div style={{ padding: "14px 24px", borderBottom: "1px solid #1a1a2e", display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ padding: "14px 24px", borderBottom: "1px solid #e9edef", display: "flex", alignItems: "center", gap: 12 }}>
         <span style={{ fontSize: 15, fontWeight: 700 }}>Kanban de Conversas</span>
-        <span style={{ fontSize: 12, color: "#555" }}>Arraste para mover entre colunas</span>
-        <button onClick={onManageCols} style={{ marginLeft: "auto", padding: "6px 14px", borderRadius: 7, border: "1px solid #252540", background: "transparent", color: "#888", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>⚙️ Gerenciar colunas</button>
+        <span style={{ fontSize: 12, color: "#667781" }}>Arraste para mover entre colunas</span>
+        <button onClick={onManageCols} style={{ marginLeft: "auto", padding: "6px 14px", borderRadius: 7, border: "1px solid #e9edef", background: "transparent", color: "#8696a0", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>⚙️ Gerenciar colunas</button>
       </div>
       <div style={{ flex: 1, display: "flex", gap: 16, padding: "20px 24px", overflowX: "auto", overflowY: "hidden" }}>
         {columns.map(col => {
           const cards = conversations.filter(c => getStage(c) === col.id);
           const isOver = dragOver === col.id;
           return (
-            <div key={col.id} onDragOver={e => { e.preventDefault(); setDragOver(col.id); }} onDragLeave={() => setDragOver(null)} onDrop={() => { if (dragging) { const conv = conversations.find(c => c.id === dragging); if (conv) onMoveCard(conv, col.id); } setDragging(null); setDragOver(null); }} style={{ width: 270, flexShrink: 0, display: "flex", flexDirection: "column", background: isOver ? "#1a1a2e" : "#0d0d18", border: `1px solid ${isOver ? col.color + "55" : "#1a1a2e"}`, borderRadius: 12, overflow: "hidden", transition: "all 0.15s" }}>
-              <div style={{ padding: "12px 14px", borderBottom: "1px solid #1a1a2e", display: "flex", alignItems: "center", gap: 8 }}>
+            <div key={col.id} onDragOver={e => { e.preventDefault(); setDragOver(col.id); }} onDragLeave={() => setDragOver(null)} onDrop={() => { if (dragging) { const conv = conversations.find(c => c.id === dragging); if (conv) onMoveCard(conv, col.id); } setDragging(null); setDragOver(null); }} style={{ width: 270, flexShrink: 0, display: "flex", flexDirection: "column", background: isOver ? "#e9edef" : "#ffffff", border: `1px solid ${isOver ? col.color + "55" : "#e9edef"}`, borderRadius: 12, overflow: "hidden", transition: "all 0.15s" }}>
+              <div style={{ padding: "12px 14px", borderBottom: "1px solid #e9edef", display: "flex", alignItems: "center", gap: 8 }}>
                 <div style={{ width: 10, height: 10, borderRadius: "50%", background: col.color }} />
-                <span style={{ fontWeight: 700, fontSize: 13, color: "#ccc", flex: 1 }}>{col.label}</span>
+                <span style={{ fontWeight: 700, fontSize: 13, color: "#54656f", flex: 1 }}>{col.label}</span>
                 <span style={{ background: col.color + "22", color: col.color, fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20 }}>{cards.length}</span>
               </div>
               <div style={{ flex: 1, overflowY: "auto", padding: "10px 8px", display: "flex", flexDirection: "column", gap: 8 }}>
-                {cards.length === 0 && <div style={{ border: `2px dashed ${col.color}22`, borderRadius: 8, padding: 20, textAlign: "center", color: "#444", fontSize: 12 }}>Arraste para cá</div>}
+                {cards.length === 0 && <div style={{ border: `2px dashed ${col.color}22`, borderRadius: 8, padding: 20, textAlign: "center", color: "#667781", fontSize: 12 }}>Arraste para cá</div>}
                 {cards.map(conv => (
-                  <div key={conv.id} draggable onDragStart={() => setDragging(conv.id)} onDragEnd={() => { setDragging(null); setDragOver(null); }} onClick={() => onSelectConv(conv)} style={{ background: "#13131f", border: `1px solid ${dragging === conv.id ? col.color + "55" : "#252540"}`, borderRadius: 10, padding: "11px 13px", cursor: "grab", opacity: dragging === conv.id ? 0.4 : 1 }} onMouseEnter={e => e.currentTarget.style.borderColor = col.color + "44"} onMouseLeave={e => e.currentTarget.style.borderColor = "#252540"}>
+                  <div key={conv.id} draggable onDragStart={() => setDragging(conv.id)} onDragEnd={() => { setDragging(null); setDragOver(null); }} onClick={() => onSelectConv(conv)} style={{ background: "#f0f2f5", border: `1px solid ${dragging === conv.id ? col.color + "55" : "#d1d7db"}`, borderRadius: 10, padding: "11px 13px", cursor: "grab", opacity: dragging === conv.id ? 0.4 : 1 }} onMouseEnter={e => e.currentTarget.style.borderColor = col.color + "44"} onMouseLeave={e => e.currentTarget.style.borderColor = "#d1d7db"}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                       <Avatar name={conv.contacts?.name || conv.contacts?.phone} size={26} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{conv.contacts?.name || conv.contacts?.phone}</div>
-                        <div style={{ fontSize: 11, color: "#555" }}>{timeAgo(conv.last_message_at)}</div>
+                        <div style={{ fontSize: 11, color: "#667781" }}>{timeAgo(conv.last_message_at)}</div>
                       </div>
                       {conv.unread_count > 0 && <span style={{ background: col.color, color: "#000", fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 10 }}>{conv.unread_count}</span>}
                     </div>
                     {conv.labels?.length > 0 && <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>{conv.labels.map(l => <LabelChip key={l.id} label={l} />)}</div>}
-                    {conv.assigned_agent && <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 5 }}><Avatar name={conv.assigned_agent} size={14} /><span style={{ fontSize: 10, color: "#555" }}>{conv.assigned_agent}</span></div>}
+                    {conv.assigned_agent && <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 5 }}><Avatar name={conv.assigned_agent} size={14} /><span style={{ fontSize: 10, color: "#667781" }}>{conv.assigned_agent}</span></div>}
                   </div>
                 ))}
               </div>
@@ -2910,7 +2910,7 @@ function ReportsView({ auth }) {
   const maxDay = Math.max(1, ...(data.messages?.by_weekday || []).map(d => d.count));
   const maxHour = Math.max(1, ...(data.messages?.by_hour || []).map(h => h.count));
 
-  const Bar = ({ value, max, color = "#00c853", height = 40 }) => (
+  const Bar = ({ value, max, color = "#00a884", height = 40 }) => (
     <div style={{ width: "100%", height, background: "#0f0f1e", borderRadius: 4, overflow: "hidden", display: "flex", alignItems: "flex-end" }}>
       <div style={{ width: "100%", height: `${Math.max(4, value/max*100)}%`, background: color, borderRadius: 4, transition: "height 0.4s" }} />
     </div>
@@ -2919,11 +2919,11 @@ function ReportsView({ auth }) {
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
       {/* Sub header */}
-      <div style={{ borderBottom: "1px solid #1a1a2e", padding: "0 24px", display: "flex", alignItems: "center", gap: 4, background: "#0d0d18", flexShrink: 0 }}>
+      <div style={{ borderBottom: "1px solid #e9edef", padding: "0 24px", display: "flex", alignItems: "center", gap: 4, background: "#ffffff", flexShrink: 0 }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ padding: "10px 14px", border: "none", borderBottom: `2px solid ${tab===t.id?"#00c853":"transparent"}`,
-              background: "transparent", color: tab===t.id?"#00c853":"#444", fontSize: 12, fontWeight: 600,
+            style={{ padding: "10px 14px", border: "none", borderBottom: `2px solid ${tab===t.id?"#00a884":"transparent"}`,
+              background: "transparent", color: tab===t.id?"#00a884":"#667781", fontSize: 12, fontWeight: 600,
               cursor: "pointer", fontFamily: "inherit" }}>
             {t.label}
           </button>
@@ -2932,8 +2932,8 @@ function ReportsView({ auth }) {
         <div style={{ display: "flex", gap: 6 }}>
           {[7,30,90].map(d => (
             <button key={d} onClick={() => setDays(d)}
-              style={{ padding: "5px 12px", borderRadius: 6, border: `1px solid ${days===d?"#00c853":"#1a1a2e"}`,
-                background: days===d?"#00c85315":"transparent", color: days===d?"#00c853":"#444",
+              style={{ padding: "5px 12px", borderRadius: 6, border: `1px solid ${days===d?"#00a884":"#e9edef"}`,
+                background: days===d?"#00a88415":"transparent", color: days===d?"#00a884":"#667781",
                 fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
               {d}d
             </button>
@@ -2942,7 +2942,7 @@ function ReportsView({ auth }) {
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: 24 }}>
-        {loading && <div style={{ textAlign: "center", padding: 40, color: "#444", fontSize: 13 }}>Carregando...</div>}
+        {loading && <div style={{ textAlign: "center", padding: 40, color: "#667781", fontSize: 13 }}>Carregando...</div>}
 
         {/* ── MENSAGENS ── */}
         {tab === "mensagens" && data.messages && (
@@ -2950,19 +2950,19 @@ function ReportsView({ auth }) {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 20 }}>
               {[
                 { label: "Total mensagens", value: data.messages.total?.toLocaleString("pt-BR"), color: "#e8e8ff" },
-                { label: "Recebidas", value: data.messages.inbound?.toLocaleString("pt-BR"), color: "#00c853" },
+                { label: "Recebidas", value: data.messages.inbound?.toLocaleString("pt-BR"), color: "#00a884" },
                 { label: "Enviadas", value: data.messages.outbound?.toLocaleString("pt-BR"), color: "#7c4dff" },
                 { label: "Média diária", value: Math.round((data.messages.total||0)/days).toLocaleString("pt-BR"), color: "#ff9800" },
               ].map(k => (
-                <div key={k.label} style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 12, padding: "14px 16px" }}>
-                  <div style={{ fontSize: 10, color: "#444", marginBottom: 6, letterSpacing: 1 }}>{k.label.toUpperCase()}</div>
+                <div key={k.label} style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 12, padding: "14px 16px" }}>
+                  <div style={{ fontSize: 10, color: "#667781", marginBottom: 6, letterSpacing: 1 }}>{k.label.toUpperCase()}</div>
                   <div style={{ fontSize: 22, fontWeight: 800, color: k.color }}>{k.value}</div>
                 </div>
               ))}
             </div>
 
             {/* Por dia */}
-            <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 20, marginBottom: 16 }}>
+            <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 14, padding: 20, marginBottom: 16 }}>
               <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16 }}>📅 Mensagens por dia</div>
               <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 80 }}>
                 {(data.messages.by_day || []).slice(-30).map((d, i) => {
@@ -2972,21 +2972,21 @@ function ReportsView({ auth }) {
                   return (
                     <div key={i} title={`${d.date}: ${d.count} msgs`} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
                       <div style={{ width: "100%", height: 64, display: "flex", alignItems: "flex-end" }}>
-                        <div style={{ width: "100%", height: `${Math.max(4, pct)}%`, background: isWeekend?"#7c4dff":"#00c853", borderRadius: "3px 3px 0 0", opacity: 0.8 }} />
+                        <div style={{ width: "100%", height: `${Math.max(4, pct)}%`, background: isWeekend?"#7c4dff":"#00a884", borderRadius: "3px 3px 0 0", opacity: 0.8 }} />
                       </div>
                     </div>
                   );
                 })}
               </div>
-              <div style={{ fontSize: 10, color: "#333", marginTop: 8 }}>
-                <span style={{ color: "#00c853" }}>■</span> Dias úteis &nbsp;
+              <div style={{ fontSize: 10, color: "#54656f", marginTop: 8 }}>
+                <span style={{ color: "#00a884" }}>■</span> Dias úteis &nbsp;
                 <span style={{ color: "#7c4dff" }}>■</span> Fins de semana
               </div>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               {/* Por hora */}
-              <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 20 }}>
+              <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 14, padding: 20 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16 }}>🕐 Pico de mensagens por hora</div>
                 <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 80 }}>
                   {(data.messages.by_hour || []).map((h, i) => {
@@ -2995,9 +2995,9 @@ function ReportsView({ auth }) {
                     return (
                       <div key={i} style={{ flex: 1 }} title={`${h.hour}h: ${h.count}`}>
                         <div style={{ height: 64, display: "flex", alignItems: "flex-end" }}>
-                          <div style={{ width: "100%", height: `${Math.max(3, pct)}%`, background: isDay?"#00c853":"#333", borderRadius: "2px 2px 0 0" }} />
+                          <div style={{ width: "100%", height: `${Math.max(3, pct)}%`, background: isDay?"#00a884":"#54656f", borderRadius: "2px 2px 0 0" }} />
                         </div>
-                        {h.hour % 6 === 0 && <div style={{ fontSize: 8, color: "#333", textAlign: "center" }}>{h.hour}h</div>}
+                        {h.hour % 6 === 0 && <div style={{ fontSize: 8, color: "#54656f", textAlign: "center" }}>{h.hour}h</div>}
                       </div>
                     );
                   })}
@@ -3005,16 +3005,16 @@ function ReportsView({ auth }) {
               </div>
 
               {/* Por dia da semana */}
-              <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 20 }}>
+              <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 14, padding: 20 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16 }}>📊 Por dia da semana</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {(data.messages.by_weekday || []).map((d, i) => (
                     <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ fontSize: 11, color: "#555", width: 28 }}>{d.label}</span>
+                      <span style={{ fontSize: 11, color: "#667781", width: 28 }}>{d.label}</span>
                       <div style={{ flex: 1, height: 16, background: "#0f0f1e", borderRadius: 4, overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: `${Math.max(4, d.count/maxDay*100)}%`, background: i>=5?"#7c4dff":"#00c853", borderRadius: 4, transition: "width 0.4s" }} />
+                        <div style={{ height: "100%", width: `${Math.max(4, d.count/maxDay*100)}%`, background: i>=5?"#7c4dff":"#00a884", borderRadius: 4, transition: "width 0.4s" }} />
                       </div>
-                      <span style={{ fontSize: 11, color: "#555", width: 30, textAlign: "right" }}>{d.count}</span>
+                      <span style={{ fontSize: 11, color: "#667781", width: 30, textAlign: "right" }}>{d.count}</span>
                     </div>
                   ))}
                 </div>
@@ -3029,21 +3029,21 @@ function ReportsView({ auth }) {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 20 }}>
               {[
                 { label: "Total atendentes", value: data.agents.agents?.length, color: "#e8e8ff" },
-                { label: "Total conversas", value: data.agents.agents?.reduce((a,x)=>a+x.total_convs,0), color: "#00c853" },
+                { label: "Total conversas", value: data.agents.agents?.reduce((a,x)=>a+x.total_convs,0), color: "#00a884" },
                 { label: "Resolvidas", value: data.agents.agents?.reduce((a,x)=>a+x.resolved,0), color: "#7c4dff" },
               ].map(k => (
-                <div key={k.label} style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 12, padding: "14px 16px" }}>
-                  <div style={{ fontSize: 10, color: "#444", marginBottom: 6, letterSpacing: 1 }}>{k.label.toUpperCase()}</div>
+                <div key={k.label} style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 12, padding: "14px 16px" }}>
+                  <div style={{ fontSize: 10, color: "#667781", marginBottom: 6, letterSpacing: 1 }}>{k.label.toUpperCase()}</div>
                   <div style={{ fontSize: 22, fontWeight: 800, color: k.color }}>{k.value}</div>
                 </div>
               ))}
             </div>
-            <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 20 }}>
+            <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 14, padding: 20 }}>
               <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16 }}>Ranking de atendentes</div>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
                   <tr>{["Atendente","Função","Conversas","Resolvidas","Msgs enviadas","Taxa resolução"].map(h => (
-                    <th key={h} style={{ textAlign: "left", padding: "8px 12px", fontSize: 10, color: "#444", letterSpacing: 1, borderBottom: "1px solid #1a1a2e" }}>{h.toUpperCase()}</th>
+                    <th key={h} style={{ textAlign: "left", padding: "8px 12px", fontSize: 10, color: "#667781", letterSpacing: 1, borderBottom: "1px solid #e9edef" }}>{h.toUpperCase()}</th>
                   ))}</tr>
                 </thead>
                 <tbody>
@@ -3059,16 +3059,16 @@ function ReportsView({ auth }) {
                             {a.name}
                           </div>
                         </td>
-                        <td style={{ padding: "12px" }}><span style={{ background: a.role==="admin"?"#7c4dff22":"#1a1a2e", color: a.role==="admin"?"#a78bfa":"#555", padding: "2px 8px", borderRadius: 20, fontSize: 11 }}>{a.role}</span></td>
-                        <td style={{ padding: "12px", fontWeight: 700, color: "#00c853" }}>{a.total_convs}</td>
+                        <td style={{ padding: "12px" }}><span style={{ background: a.role==="admin"?"#7c4dff22":"#e9edef", color: a.role==="admin"?"#a78bfa":"#667781", padding: "2px 8px", borderRadius: 20, fontSize: 11 }}>{a.role}</span></td>
+                        <td style={{ padding: "12px", fontWeight: 700, color: "#00a884" }}>{a.total_convs}</td>
                         <td style={{ padding: "12px", color: "#7c4dff" }}>{a.resolved}</td>
-                        <td style={{ padding: "12px", color: "#888" }}>{a.msgs_sent}</td>
+                        <td style={{ padding: "12px", color: "#8696a0" }}>{a.msgs_sent}</td>
                         <td style={{ padding: "12px" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             <div style={{ flex: 1, height: 6, background: "#0f0f1e", borderRadius: 3 }}>
-                              <div style={{ height: "100%", width: `${taxa}%`, background: taxa>70?"#00c853":taxa>40?"#ff9800":"#f44336", borderRadius: 3 }} />
+                              <div style={{ height: "100%", width: `${taxa}%`, background: taxa>70?"#00a884":taxa>40?"#ff9800":"#f44336", borderRadius: 3 }} />
                             </div>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: taxa>70?"#00c853":taxa>40?"#ff9800":"#f44336", minWidth: 35 }}>{taxa}%</span>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: taxa>70?"#00a884":taxa>40?"#ff9800":"#f44336", minWidth: 35 }}>{taxa}%</span>
                           </div>
                         </td>
                       </tr>
@@ -3095,11 +3095,11 @@ function ReportsView({ auth }) {
                   {[
                     { label: "Total disparos", value: all.length, color: "#e8e8ff" },
                     { label: "Mensagens enviadas", value: totalSent.toLocaleString("pt-BR"), color: "#7c4dff" },
-                    { label: "Conversas geradas", value: totalReplied.toLocaleString("pt-BR"), color: "#00c853" },
-                    { label: "ROI médio", value: `${avgRoi}%`, color: avgRoi>10?"#00c853":avgRoi>5?"#ff9800":"#f44336" },
+                    { label: "Conversas geradas", value: totalReplied.toLocaleString("pt-BR"), color: "#00a884" },
+                    { label: "ROI médio", value: `${avgRoi}%`, color: avgRoi>10?"#00a884":avgRoi>5?"#ff9800":"#f44336" },
                   ].map(k => (
-                    <div key={k.label} style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 12, padding: "14px 16px" }}>
-                      <div style={{ fontSize: 10, color: "#444", marginBottom: 6, letterSpacing: 1 }}>{k.label.toUpperCase()}</div>
+                    <div key={k.label} style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 12, padding: "14px 16px" }}>
+                      <div style={{ fontSize: 10, color: "#667781", marginBottom: 6, letterSpacing: 1 }}>{k.label.toUpperCase()}</div>
                       <div style={{ fontSize: 22, fontWeight: 800, color: k.color }}>{k.value}</div>
                     </div>
                   ))}
@@ -3108,24 +3108,24 @@ function ReportsView({ auth }) {
             })()}
 
             {data.broadcasts.broadcasts?.length === 0 && (
-              <div style={{ textAlign: "center", padding: 60, color: "#444", fontSize: 13 }}>
+              <div style={{ textAlign: "center", padding: 60, color: "#667781", fontSize: 13 }}>
                 Nenhum disparo realizado ainda.
               </div>
             )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {(data.broadcasts.broadcasts || []).map(b => {
-                const roiColor = b.roi_pct > 10 ? "#00c853" : b.roi_pct > 4 ? "#ff9800" : "#f44336";
+                const roiColor = b.roi_pct > 10 ? "#00a884" : b.roi_pct > 4 ? "#ff9800" : "#f44336";
                 return (
-                  <div key={b.id} style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 20 }}>
+                  <div key={b.id} style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 14, padding: 20 }}>
                     {/* Header */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
                       <div style={{ flex: 1 }}>
-                        {b.name && <div style={{ fontSize: 12, color: "#555", marginBottom: 4, fontWeight: 600 }}>📢 {b.name}</div>}
-                        <div style={{ fontSize: 13, color: "#888", marginBottom: 6, lineHeight: 1.5 }}>"{b.message || "(sem mensagem)"}"</div>
-                        <div style={{ fontSize: 11, color: "#333" }}>{b.created_at ? new Date(b.created_at).toLocaleDateString("pt-BR", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" }) : "—"}</div>
+                        {b.name && <div style={{ fontSize: 12, color: "#667781", marginBottom: 4, fontWeight: 600 }}>📢 {b.name}</div>}
+                        <div style={{ fontSize: 13, color: "#8696a0", marginBottom: 6, lineHeight: 1.5 }}>"{b.message || "(sem mensagem)"}"</div>
+                        <div style={{ fontSize: 11, color: "#54656f" }}>{b.created_at ? new Date(b.created_at).toLocaleDateString("pt-BR", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" }) : "—"}</div>
                       </div>
-                      <span style={{ background: b.status==="completed"?"#00c85320":b.status==="running"?"#7c4dff20":"#ff980020", color: b.status==="completed"?"#00c853":b.status==="running"?"#a78bfa":"#ff9800", fontSize: 10, fontWeight: 700, padding: "4px 12px", borderRadius: 20, whiteSpace: "nowrap", marginLeft: 12 }}>
+                      <span style={{ background: b.status==="completed"?"#00a88420":b.status==="running"?"#7c4dff20":"#ff980020", color: b.status==="completed"?"#00a884":b.status==="running"?"#a78bfa":"#ff9800", fontSize: 10, fontWeight: 700, padding: "4px 12px", borderRadius: 20, whiteSpace: "nowrap", marginLeft: 12 }}>
                         {b.status === "completed" ? "✓ Concluído" : b.status === "running" ? "⏳ Rodando" : b.status}
                       </span>
                     </div>
@@ -3134,22 +3134,22 @@ function ReportsView({ auth }) {
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 8, marginBottom: 16 }}>
                       {[
                         { label: "Enviados", value: b.sent, color: "#7c4dff", icon: "📤" },
-                        { label: "Entregues", value: b.delivered, color: "#00bcd4", icon: "✓" },
-                        { label: "Falhas", value: b.failed, color: b.failed > 0 ? "#f44336" : "#333", icon: "✗" },
-                        { label: "Responderam", value: b.replied, color: b.replied > 0 ? "#00c853" : "#444", icon: "💬" },
+                        { label: "Entregues", value: b.delivered, color: "#00a884", icon: "✓" },
+                        { label: "Falhas", value: b.failed, color: b.failed > 0 ? "#f44336" : "#54656f", icon: "✗" },
+                        { label: "Responderam", value: b.replied, color: b.replied > 0 ? "#00a884" : "#667781", icon: "💬" },
                         { label: "ROI", value: `${b.roi_pct}%`, color: roiColor, icon: "📈" },
                       ].map(s => (
-                        <div key={s.label} style={{ background: "#13131f", borderRadius: 10, padding: "10px 12px", textAlign: "center" }}>
+                        <div key={s.label} style={{ background: "#f0f2f5", borderRadius: 10, padding: "10px 12px", textAlign: "center" }}>
                           <div style={{ fontSize: 16, marginBottom: 4 }}>{s.icon}</div>
                           <div style={{ fontSize: 18, fontWeight: 800, color: s.color, marginBottom: 2 }}>{s.value}</div>
-                          <div style={{ fontSize: 9, color: "#333", letterSpacing: 1 }}>{s.label.toUpperCase()}</div>
+                          <div style={{ fontSize: 9, color: "#54656f", letterSpacing: 1 }}>{s.label.toUpperCase()}</div>
                         </div>
                       ))}
                     </div>
 
                     {/* Barra de conversão visual */}
                     <div style={{ marginBottom: b.replied_sample?.length > 0 ? 12 : 0 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#333", marginBottom: 4 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#54656f", marginBottom: 4 }}>
                         <span>Taxa de conversão em conversa</span>
                         <span style={{ color: roiColor, fontWeight: 700 }}>{b.replied} de {b.delivered} entregues</span>
                       </div>
@@ -3160,14 +3160,14 @@ function ReportsView({ auth }) {
 
                     {/* Quem respondeu (sample) */}
                     {b.replied_sample?.length > 0 && (
-                      <div style={{ marginTop: 12, padding: "10px 14px", background: "#00c85308", border: "1px solid #00c85322", borderRadius: 8 }}>
-                        <div style={{ fontSize: 10, color: "#00c853", fontWeight: 700, marginBottom: 6, letterSpacing: 1 }}>💬 RESPONDERAM</div>
+                      <div style={{ marginTop: 12, padding: "10px 14px", background: "#00a88408", border: "1px solid #00a88422", borderRadius: 8 }}>
+                        <div style={{ fontSize: 10, color: "#00a884", fontWeight: 700, marginBottom: 6, letterSpacing: 1 }}>💬 RESPONDERAM</div>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                           {b.replied_sample.map((name, i) => (
-                            <span key={i} style={{ background: "#00c85315", color: "#00c853", fontSize: 11, padding: "2px 10px", borderRadius: 20 }}>{name}</span>
+                            <span key={i} style={{ background: "#00a88415", color: "#00a884", fontSize: 11, padding: "2px 10px", borderRadius: 20 }}>{name}</span>
                           ))}
                           {b.replied > b.replied_sample.length && (
-                            <span style={{ color: "#333", fontSize: 11 }}>+{b.replied - b.replied_sample.length} outros</span>
+                            <span style={{ color: "#54656f", fontSize: 11 }}>+{b.replied - b.replied_sample.length} outros</span>
                           )}
                         </div>
                       </div>
@@ -3185,27 +3185,27 @@ function ReportsView({ auth }) {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 20 }}>
               {[
                 { label: "Usados no período", value: data.credits.total_used, color: "#e8e8ff" },
-                { label: "Restantes", value: data.credits.credits_remaining, color: "#00c853" },
+                { label: "Restantes", value: data.credits.credits_remaining, color: "#00a884" },
                 { label: "Limite do plano", value: data.credits.credits_limit, color: "#7c4dff" },
                 { label: "Plano", value: (data.credits.plan || "—").toUpperCase(), color: "#7c4dff" },
               ].map(k => (
-                <div key={k.label} style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 12, padding: "14px 16px" }}>
-                  <div style={{ fontSize: 10, color: "#444", marginBottom: 6, letterSpacing: 1 }}>{k.label.toUpperCase()}</div>
+                <div key={k.label} style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 12, padding: "14px 16px" }}>
+                  <div style={{ fontSize: 10, color: "#667781", marginBottom: 6, letterSpacing: 1 }}>{k.label.toUpperCase()}</div>
                   <div style={{ fontSize: 22, fontWeight: 800, color: k.color }}>{k.value?.toLocaleString?.("pt-BR") ?? k.value}</div>
                 </div>
               ))}
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-              <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 20 }}>
+              <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 14, padding: 20 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16 }}>⚡ Consumo por atendente</div>
-                {(data.credits.by_agent || []).length === 0 && <div style={{ color: "#444", fontSize: 12 }}>Nenhum uso registrado.</div>}
+                {(data.credits.by_agent || []).length === 0 && <div style={{ color: "#667781", fontSize: 12 }}>Nenhum uso registrado.</div>}
                 {(data.credits.by_agent || []).map((a, i) => {
                   const maxA = Math.max(1, ...(data.credits.by_agent||[]).map(x=>x.used));
                   return (
                     <div key={i} style={{ marginBottom: 10 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, fontSize: 12 }}>
-                        <span style={{ color: "#888" }}>{a.name}</span>
-                        <span style={{ fontWeight: 700, color: "#00c853" }}>{a.used} créditos</span>
+                        <span style={{ color: "#8696a0" }}>{a.name}</span>
+                        <span style={{ fontWeight: 700, color: "#00a884" }}>{a.used} créditos</span>
                       </div>
                       <div style={{ height: 6, background: "#0f0f1e", borderRadius: 3 }}>
                         <div style={{ height: "100%", width: `${a.used/maxA*100}%`, background: `hsl(${i*50+140},60%,40%)`, borderRadius: 3 }} />
@@ -3214,7 +3214,7 @@ function ReportsView({ auth }) {
                   );
                 })}
               </div>
-              <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 20 }}>
+              <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 14, padding: 20 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16 }}>📅 Uso por dia</div>
                 <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 100 }}>
                   {(data.credits.by_day || []).slice(-30).map((d, i) => {
@@ -3252,7 +3252,7 @@ function DashboardSocios({ auth, clientes_reais }) {
   const CONFIG_S = {
     planos: {
       starter:  { nome: "Starter",  preco: 99,  cor: "#6b7280", creditos: 0,   atendentes: 2  },
-      pro:      { nome: "Pro",      preco: 149, cor: "#00c853", creditos: 100, atendentes: 5  },
+      pro:      { nome: "Pro",      preco: 149, cor: "#00a884", creditos: 100, atendentes: 5  },
       business: { nome: "Business", preco: 299, cor: "#7c4dff", creditos: 500, atendentes: 15 },
     },
     pacotes: [
@@ -3300,7 +3300,7 @@ function DashboardSocios({ auth, clientes_reais }) {
     return { mes: `M${i+1}`, clientes: n, MRR: Math.round(mrr), Custos: Math.round(custo+infra+pagarme), Lucro: Math.round(luc) };
   });
 
-  const KPI = ({ label, value, sub, color="#00c853", big=false }) => (
+  const KPI = ({ label, value, sub, color="#00a884", big=false }) => (
     <div style={{ background:"#07070f", border:"1px solid #0f0f1e", borderRadius:12, padding:"16px 18px" }}>
       <div style={{ fontSize:10, color:"#2a2a4a", fontWeight:700, letterSpacing:1.5, marginBottom:6, textTransform:"uppercase" }}>{label}</div>
       <div style={{ fontSize: big?26:20, fontWeight:900, color, letterSpacing:-0.5 }}>{value}</div>
@@ -3316,13 +3316,13 @@ function DashboardSocios({ auth, clientes_reais }) {
   ];
 
   return (
-    <div style={{ flex:1, display:"flex", flexDirection:"column", background:"#06060f", overflowY:"auto" }}>
+    <div style={{ flex:1, display:"flex", flexDirection:"column", background:"#f0f2f5", overflowY:"auto" }}>
       {/* Sub-header */}
       <div style={{ borderBottom:"1px solid #0f0f1e", padding:"0 28px", display:"flex", gap:4, background:"#07070f", flexShrink:0 }}>
         {tabs.map(t => (
           <button key={t.id} onClick={() => setActiveTab(t.id)}
-            style={{ padding:"10px 14px", border:"none", borderBottom:`2px solid ${activeTab===t.id?"#00c853":"transparent"}`,
-              background:"transparent", color:activeTab===t.id?"#00c853":"#333", fontSize:12, fontWeight:600,
+            style={{ padding:"10px 14px", border:"none", borderBottom:`2px solid ${activeTab===t.id?"#00a884":"transparent"}`,
+              background:"transparent", color:activeTab===t.id?"#00a884":"#54656f", fontSize:12, fontWeight:600,
               cursor:"pointer", fontFamily:"inherit" }}>
             {t.label}
           </button>
@@ -3340,21 +3340,21 @@ function DashboardSocios({ auth, clientes_reais }) {
           <>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10, marginBottom:14 }}>
               <KPI label="MRR Total"    value={fmt(mrr_total)}   sub={`Base ${fmt(mrr_base)} + IA ${fmt(mrr_creditos)}`} big />
-              <KPI label="Lucro Líquido" value={fmt(lucro)}      sub={`Margem ${margem.toFixed(0)}%`} color={margem>60?"#00c853":margem>35?"#ff9800":"#f44336"} big />
+              <KPI label="Lucro Líquido" value={fmt(lucro)}      sub={`Margem ${margem.toFixed(0)}%`} color={margem>60?"#00a884":margem>35?"#ff9800":"#f44336"} big />
               <KPI label="ARR"          value={fmt(arr)}         sub="Projeção anual" color="#7c4dff" big />
-              <KPI label="Por sócio/mês" value={fmt(lucro_socio)} sub="33% · 3 sócios" color="#00bcd4" big />
+              <KPI label="Por sócio/mês" value={fmt(lucro_socio)} sub="33% · 3 sócios" color="#00a884" big />
             </div>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10, marginBottom:20 }}>
               <KPI label="Clientes Ativos"  value={ativos.length}    sub={`${suspensos.length} suspensos`} color="#e8e8ff" />
               <KPI label="Ticket Médio"     value={ativos.length>0?fmt(mrr_total/ativos.length):"—"} sub="por cliente/mês" color="#ff9800" />
               <KPI label="Custo IA/mês"     value={fmt(custo_api)}   sub={`${fmt(custo_api/Math.max(1,ativos.length))} por cliente`} color="#f44336" />
-              <KPI label="Margem na IA"     value="98.6%"             sub="Custo R$0,07 · Cobra R$4,90" color="#00c853" />
+              <KPI label="Margem na IA"     value="98.6%"             sub="Custo R$0,07 · Cobra R$4,90" color="#00a884" />
             </div>
             {/* Breakdown */}
             <div style={{ background:"#0a0a14", border:"1px solid #0f0f1e", borderRadius:14, padding:20 }}>
               <div style={{ fontSize:13, fontWeight:700, marginBottom:16 }}>Receita vs Custos</div>
               {[
-                { label:"Assinaturas",       value:mrr_base,     color:"#00c853" },
+                { label:"Assinaturas",       value:mrr_base,     color:"#00a884" },
                 { label:"Créditos IA extras", value:mrr_creditos, color:"#7c4dff" },
                 { label:"Infra (Railway/Supabase/Vercel)", value:infra_fixa, color:"#f44336" },
                 { label:"Claude API",        value:custo_api,    color:"#ff6d00" },
@@ -3362,7 +3362,7 @@ function DashboardSocios({ auth, clientes_reais }) {
               ].map(item => (
                 <div key={item.label} style={{ marginBottom:12 }}>
                   <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4, fontSize:12 }}>
-                    <span style={{ color:"#555" }}>{item.label}</span>
+                    <span style={{ color:"#667781" }}>{item.label}</span>
                     <span style={{ fontWeight:700, color:item.color }}>{fmt(item.value)}</span>
                   </div>
                   <div style={{ height:4, background:"#12122a", borderRadius:2 }}>
@@ -3371,8 +3371,8 @@ function DashboardSocios({ auth, clientes_reais }) {
                 </div>
               ))}
               <div style={{ marginTop:16, paddingTop:16, borderTop:"1px solid #0f0f1e", display:"flex", justifyContent:"space-between" }}>
-                <span style={{ fontSize:13, color:"#555" }}>Lucro líquido</span>
-                <span style={{ fontSize:20, fontWeight:900, color:lucro>=0?"#00c853":"#f44336" }}>{fmt(lucro)}</span>
+                <span style={{ fontSize:13, color:"#667781" }}>Lucro líquido</span>
+                <span style={{ fontSize:20, fontWeight:900, color:lucro>=0?"#00a884":"#f44336" }}>{fmt(lucro)}</span>
               </div>
             </div>
           </>
@@ -3384,32 +3384,32 @@ function DashboardSocios({ auth, clientes_reais }) {
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
               <div>
                 <div style={{ fontSize:15, fontWeight:800 }}>Clientes</div>
-                <div style={{ fontSize:12, color:"#333" }}>{ativos.length} ativos · {suspensos.length} suspensos</div>
+                <div style={{ fontSize:12, color:"#54656f" }}>{ativos.length} ativos · {suspensos.length} suspensos</div>
               </div>
               <button onClick={() => setShowAdd(!showAdd)}
-                style={{ padding:"8px 18px", borderRadius:9, border:"none", background:"linear-gradient(135deg,#00c853,#00796b)", color:"#000", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                style={{ padding:"8px 18px", borderRadius:9, border:"none", background:"linear-gradient(135deg,#00a884,#017561)", color:"#000", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
                 + Novo cliente
               </button>
             </div>
 
             {showAdd && (
-              <div style={{ background:"#0a0a14", border:"1px solid #00c85333", borderRadius:14, padding:20, marginBottom:16 }}>
+              <div style={{ background:"#0a0a14", border:"1px solid #00a88433", borderRadius:14, padding:20, marginBottom:16 }}>
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12, marginBottom:14 }}>
                   {[
                     { label:"NOME DA EMPRESA", key:"nome", type:"text", placeholder:"Ex: Academia FitLife" },
                     { label:"CRÉDITOS EXTRAS/MÊS", key:"creditos_extras", type:"number", placeholder:"0" },
                   ].map(f => (
                     <div key={f.key}>
-                      <div style={{ fontSize:10, color:"#333", marginBottom:6, letterSpacing:1 }}>{f.label}</div>
+                      <div style={{ fontSize:10, color:"#54656f", marginBottom:6, letterSpacing:1 }}>{f.label}</div>
                       <input type={f.type} value={novoCli[f.key]} placeholder={f.placeholder}
                         onChange={e => setNovoCli(p => ({ ...p, [f.key]: f.type==="number"?+e.target.value:e.target.value }))}
-                        style={{ width:"100%", padding:"8px 12px", background:"#13131f", border:"1px solid #1a1a2e", borderRadius:8, color:"#e8e8f0", fontSize:13, outline:"none", fontFamily:"inherit", boxSizing:"border-box" }} />
+                        style={{ width:"100%", padding:"8px 12px", background:"#f0f2f5", border:"1px solid #e9edef", borderRadius:8, color:"#111b21", fontSize:13, outline:"none", fontFamily:"inherit", boxSizing:"border-box" }} />
                     </div>
                   ))}
                   <div>
-                    <div style={{ fontSize:10, color:"#333", marginBottom:6, letterSpacing:1 }}>PLANO</div>
+                    <div style={{ fontSize:10, color:"#54656f", marginBottom:6, letterSpacing:1 }}>PLANO</div>
                     <select value={novoCli.plano} onChange={e => setNovoCli(p => ({ ...p, plano:e.target.value }))}
-                      style={{ width:"100%", padding:"8px 12px", background:"#13131f", border:"1px solid #1a1a2e", borderRadius:8, color:"#e8e8f0", fontSize:13, outline:"none", fontFamily:"inherit", boxSizing:"border-box" }}>
+                      style={{ width:"100%", padding:"8px 12px", background:"#f0f2f5", border:"1px solid #e9edef", borderRadius:8, color:"#111b21", fontSize:13, outline:"none", fontFamily:"inherit", boxSizing:"border-box" }}>
                       {Object.entries(CONFIG_S.planos).map(([k,pl]) => (
                         <option key={k} value={k}>{pl.nome} — {fmt(pl.preco)}/mês</option>
                       ))}
@@ -3422,14 +3422,14 @@ function DashboardSocios({ auth, clientes_reais }) {
                     setClientes(p => [...p, { id:Date.now(), ...novoCli, status:"ativo" }]);
                     setNovoCli({ nome:"", plano:"pro", creditos_extras:0 });
                     setShowAdd(false);
-                  }} style={{ padding:"8px 22px", borderRadius:8, border:"none", background:"#00c853", color:"#000", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Salvar</button>
-                  <button onClick={() => setShowAdd(false)} style={{ padding:"8px 14px", borderRadius:8, border:"1px solid #1a1a2e", background:"transparent", color:"#555", fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>Cancelar</button>
+                  }} style={{ padding:"8px 22px", borderRadius:8, border:"none", background:"#00a884", color:"#000", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Salvar</button>
+                  <button onClick={() => setShowAdd(false)} style={{ padding:"8px 14px", borderRadius:8, border:"1px solid #e9edef", background:"transparent", color:"#667781", fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>Cancelar</button>
                 </div>
               </div>
             )}
 
             <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-              {clientes.length === 0 && <div style={{ textAlign:"center", padding:"50px 0", color:"#333", fontSize:13 }}>Nenhum cliente ainda.</div>}
+              {clientes.length === 0 && <div style={{ textAlign:"center", padding:"50px 0", color:"#54656f", fontSize:13 }}>Nenhum cliente ainda.</div>}
               {clientes.map(c => {
                 const pl = CONFIG_S.planos[c.plano] || CONFIG_S.planos.pro;
                 const mrr_c = pl.preco + ((c.creditos_extras||0)/500)*29;
@@ -3441,22 +3441,22 @@ function DashboardSocios({ auth, clientes_reais }) {
                     </div>
                     <div style={{ flex:1 }}>
                       <div style={{ fontSize:14, fontWeight:700, color:"#e8e8ff" }}>{c.nome}</div>
-                      <div style={{ fontSize:11, color:"#333" }}>
+                      <div style={{ fontSize:11, color:"#54656f" }}>
                         <span style={{ color:pl.cor, fontWeight:700 }}>{pl.nome}</span>
                         {c.creditos_extras>0 && <span> · +{fmtN(c.creditos_extras)} créditos/mês</span>}
                       </div>
                     </div>
                     <div style={{ textAlign:"right", marginRight:16 }}>
-                      <div style={{ fontSize:15, fontWeight:800, color:"#00c853" }}>{fmt(mrr_c)}/mês</div>
-                      <div style={{ fontSize:11, color:"#333" }}>Lucro: {fmt(mrr_c-custo_c)}</div>
+                      <div style={{ fontSize:15, fontWeight:800, color:"#00a884" }}>{fmt(mrr_c)}/mês</div>
+                      <div style={{ fontSize:11, color:"#54656f" }}>Lucro: {fmt(mrr_c-custo_c)}</div>
                     </div>
                     <div style={{ display:"flex", gap:6 }}>
                       <button onClick={() => setClientes(p => p.map(x => x.id===c.id?{...x,status:x.status==="ativo"?"suspenso":"ativo"}:x))}
-                        style={{ padding:"5px 12px", borderRadius:7, border:`1px solid ${c.status==="ativo"?"#f4433333":"#00c85333"}`, background:"transparent", color:c.status==="ativo"?"#f44336":"#00c853", fontSize:11, cursor:"pointer", fontFamily:"inherit" }}>
+                        style={{ padding:"5px 12px", borderRadius:7, border:`1px solid ${c.status==="ativo"?"#f4433333":"#00a88433"}`, background:"transparent", color:c.status==="ativo"?"#f44336":"#00a884", fontSize:11, cursor:"pointer", fontFamily:"inherit" }}>
                         {c.status==="ativo"?"Suspender":"Reativar"}
                       </button>
                       <button onClick={() => setClientes(p => p.filter(x => x.id!==c.id))}
-                        style={{ padding:"5px 10px", borderRadius:7, border:"1px solid #1a1a2e", background:"transparent", color:"#333", fontSize:11, cursor:"pointer", fontFamily:"inherit" }}>✕</button>
+                        style={{ padding:"5px 10px", borderRadius:7, border:"1px solid #e9edef", background:"transparent", color:"#54656f", fontSize:11, cursor:"pointer", fontFamily:"inherit" }}>✕</button>
                     </div>
                   </div>
                 );
@@ -3470,16 +3470,16 @@ function DashboardSocios({ auth, clientes_reais }) {
           <>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:14 }}>
               <div style={{ background:"#0a0a14", border:"1px solid #0f0f1e", borderRadius:14, padding:22 }}>
-                <div style={{ fontSize:13, fontWeight:700, color:"#00c853", marginBottom:16 }}>📈 Receita</div>
+                <div style={{ fontSize:13, fontWeight:700, color:"#00a884", marginBottom:16 }}>📈 Receita</div>
                 {[["Assinaturas mensais", mrr_base],["Créditos IA extras", mrr_creditos]].map(([l,v]) => (
                   <div key={l} style={{ display:"flex", justifyContent:"space-between", padding:"11px 0", borderBottom:"1px solid #0f0f1e" }}>
-                    <span style={{ fontSize:13, color:"#555" }}>{l}</span>
-                    <span style={{ fontSize:14, fontWeight:700, color:"#00c853" }}>{fmt(v)}</span>
+                    <span style={{ fontSize:13, color:"#667781" }}>{l}</span>
+                    <span style={{ fontSize:14, fontWeight:700, color:"#00a884" }}>{fmt(v)}</span>
                   </div>
                 ))}
                 <div style={{ display:"flex", justifyContent:"space-between", paddingTop:12 }}>
                   <span style={{ fontSize:14, fontWeight:700 }}>Total</span>
-                  <span style={{ fontSize:18, fontWeight:900, color:"#00c853" }}>{fmt(mrr_total)}</span>
+                  <span style={{ fontSize:18, fontWeight:900, color:"#00a884" }}>{fmt(mrr_total)}</span>
                 </div>
               </div>
               <div style={{ background:"#0a0a14", border:"1px solid #0f0f1e", borderRadius:14, padding:22 }}>
@@ -3493,7 +3493,7 @@ function DashboardSocios({ auth, clientes_reais }) {
                   ["Domínios / Misc", 30],
                 ].map(([l,v]) => (
                   <div key={l} style={{ display:"flex", justifyContent:"space-between", padding:"9px 0", borderBottom:"1px solid #0f0f1e" }}>
-                    <span style={{ fontSize:12, color:"#555" }}>{l}</span>
+                    <span style={{ fontSize:12, color:"#667781" }}>{l}</span>
                     <span style={{ fontSize:13, fontWeight:700, color:"#f44336" }}>{fmt(v)}</span>
                   </div>
                 ))}
@@ -3505,20 +3505,20 @@ function DashboardSocios({ auth, clientes_reais }) {
             </div>
 
             {/* Divisão entre sócios */}
-            <div style={{ background:"#0a0a14", border:`1px solid ${lucro>=0?"#00c85333":"#f4433333"}`, borderRadius:14, padding:22, marginBottom:14 }}>
+            <div style={{ background:"#0a0a14", border:`1px solid ${lucro>=0?"#00a88433":"#f4433333"}`, borderRadius:14, padding:22, marginBottom:14 }}>
               <div style={{ fontSize:13, fontWeight:700, marginBottom:16 }}>💰 Divisão do Lucro — 3 Sócios</div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr", gap:12 }}>
                 {[
-                  { label:"Lucro Líquido", value:fmt(lucro), color:lucro>=0?"#00c853":"#f44336" },
-                  { label:"Margem", value:`${margem.toFixed(0)}%`, color:margem>60?"#00c853":"#ff9800" },
+                  { label:"Lucro Líquido", value:fmt(lucro), color:lucro>=0?"#00a884":"#f44336" },
+                  { label:"Margem", value:`${margem.toFixed(0)}%`, color:margem>60?"#00a884":"#ff9800" },
                   { label:"Matheus", value:fmt(lucro_socio), color:"#7c4dff" },
-                  { label:"Sócio 2", value:fmt(lucro_socio), color:"#00bcd4" },
+                  { label:"Sócio 2", value:fmt(lucro_socio), color:"#00a884" },
                   { label:"Sócio 3", value:fmt(lucro_socio), color:"#ff9800" },
                 ].map(s => (
-                  <div key={s.label} style={{ background:"#13131f", borderRadius:10, padding:"14px 16px", textAlign:"center" }}>
-                    <div style={{ fontSize:10, color:"#333", marginBottom:6, letterSpacing:1 }}>{s.label.toUpperCase()}</div>
+                  <div key={s.label} style={{ background:"#f0f2f5", borderRadius:10, padding:"14px 16px", textAlign:"center" }}>
+                    <div style={{ fontSize:10, color:"#54656f", marginBottom:6, letterSpacing:1 }}>{s.label.toUpperCase()}</div>
                     <div style={{ fontSize:20, fontWeight:900, color:s.color }}>{s.value}</div>
-                    {["Matheus","Sócio 2","Sócio 3"].includes(s.label) && <div style={{ fontSize:10, color:"#333", marginTop:4 }}>1/3 do lucro</div>}
+                    {["Matheus","Sócio 2","Sócio 3"].includes(s.label) && <div style={{ fontSize:10, color:"#54656f", marginTop:4 }}>1/3 do lucro</div>}
                   </div>
                 ))}
               </div>
@@ -3530,7 +3530,7 @@ function DashboardSocios({ auth, clientes_reais }) {
               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
                 <thead>
                   <tr>{["Plano","Preço/mês","Créditos inclusos","Atendentes","Custo real","Margem"].map(h=>(
-                    <th key={h} style={{ textAlign:"left", padding:"8px 10px", color:"#333", fontSize:10, letterSpacing:1, borderBottom:"1px solid #0f0f1e" }}>{h}</th>
+                    <th key={h} style={{ textAlign:"left", padding:"8px 10px", color:"#54656f", fontSize:10, letterSpacing:1, borderBottom:"1px solid #0f0f1e" }}>{h}</th>
                   ))}</tr>
                 </thead>
                 <tbody>
@@ -3541,10 +3541,10 @@ function DashboardSocios({ auth, clientes_reais }) {
                       <tr key={k} style={{ borderBottom:"1px solid #0a0a14" }}>
                         <td style={{ padding:"11px 10px", fontWeight:700, color:pl.cor }}>{pl.nome}</td>
                         <td style={{ padding:"11px 10px", fontWeight:700, color:"#e8e8ff" }}>{fmt(pl.preco)}</td>
-                        <td style={{ padding:"11px 10px", color:"#555" }}>{pl.creditos===0?"Sem IA":fmtN(pl.creditos)}</td>
-                        <td style={{ padding:"11px 10px", color:"#555" }}>Até {pl.atendentes}</td>
+                        <td style={{ padding:"11px 10px", color:"#667781" }}>{pl.creditos===0?"Sem IA":fmtN(pl.creditos)}</td>
+                        <td style={{ padding:"11px 10px", color:"#667781" }}>Até {pl.atendentes}</td>
                         <td style={{ padding:"11px 10px", color:"#f44336" }}>{fmt(c)}</td>
-                        <td style={{ padding:"11px 10px", fontWeight:700, color:mg>70?"#00c853":"#ff9800" }}>{mg.toFixed(0)}%</td>
+                        <td style={{ padding:"11px 10px", fontWeight:700, color:mg>70?"#00a884":"#ff9800" }}>{mg.toFixed(0)}%</td>
                       </tr>
                     );
                   })}
@@ -3561,31 +3561,31 @@ function DashboardSocios({ auth, clientes_reais }) {
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
                 <div>
                   <div style={{ fontSize:14, fontWeight:700 }}>🚀 Projeção — 12 meses</div>
-                  <div style={{ fontSize:11, color:"#333" }}>Mix: 25% Starter · 55% Pro · 20% Business</div>
+                  <div style={{ fontSize:11, color:"#54656f" }}>Mix: 25% Starter · 55% Pro · 20% Business</div>
                 </div>
                 <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                  <span style={{ fontSize:12, color:"#333" }}>Novos/mês:</span>
-                  <input type="range" min={1} max={20} value={crescimento} onChange={e => setCrescimento(+e.target.value)} style={{ width:90, accentColor:"#00c853" }} />
-                  <span style={{ fontSize:14, fontWeight:800, color:"#00c853", minWidth:20 }}>{crescimento}</span>
+                  <span style={{ fontSize:12, color:"#54656f" }}>Novos/mês:</span>
+                  <input type="range" min={1} max={20} value={crescimento} onChange={e => setCrescimento(+e.target.value)} style={{ width:90, accentColor:"#00a884" }} />
+                  <span style={{ fontSize:14, fontWeight:800, color:"#00a884", minWidth:20 }}>{crescimento}</span>
                 </div>
               </div>
               <div style={{ overflowX:"auto" }}>
                 <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
                   <thead>
                     <tr>{["Mês","Clientes","MRR","Custos","Lucro","Matheus","Sócio 2","Sócio 3"].map(h=>(
-                      <th key={h} style={{ textAlign:"left", padding:"8px 10px", color:"#333", fontSize:10, letterSpacing:1, borderBottom:"1px solid #0f0f1e", whiteSpace:"nowrap" }}>{h}</th>
+                      <th key={h} style={{ textAlign:"left", padding:"8px 10px", color:"#54656f", fontSize:10, letterSpacing:1, borderBottom:"1px solid #0f0f1e", whiteSpace:"nowrap" }}>{h}</th>
                     ))}</tr>
                   </thead>
                   <tbody>
                     {projection.map((r,i) => (
                       <tr key={i} style={{ borderBottom:"1px solid #0a0a14", background:i%2===0?"transparent":"#07070f" }}>
-                        <td style={{ padding:"9px 10px", color:"#555" }}>{r.mes}</td>
+                        <td style={{ padding:"9px 10px", color:"#667781" }}>{r.mes}</td>
                         <td style={{ padding:"9px 10px", fontWeight:700, color:"#e8e8ff" }}>{r.clientes}</td>
-                        <td style={{ padding:"9px 10px", fontWeight:700, color:"#00c853" }}>{fmt(r.MRR)}</td>
+                        <td style={{ padding:"9px 10px", fontWeight:700, color:"#00a884" }}>{fmt(r.MRR)}</td>
                         <td style={{ padding:"9px 10px", color:"#f44336" }}>{fmt(r.Custos)}</td>
-                        <td style={{ padding:"9px 10px", fontWeight:700, color:r.Lucro>=0?"#00c853":"#f44336" }}>{fmt(r.Lucro)}</td>
+                        <td style={{ padding:"9px 10px", fontWeight:700, color:r.Lucro>=0?"#00a884":"#f44336" }}>{fmt(r.Lucro)}</td>
                         <td style={{ padding:"9px 10px", fontWeight:700, color:"#7c4dff" }}>{fmt(r.Lucro/3)}</td>
-                        <td style={{ padding:"9px 10px", fontWeight:700, color:"#00bcd4" }}>{fmt(r.Lucro/3)}</td>
+                        <td style={{ padding:"9px 10px", fontWeight:700, color:"#00a884" }}>{fmt(r.Lucro/3)}</td>
                         <td style={{ padding:"9px 10px", fontWeight:700, color:"#ff9800" }}>{fmt(r.Lucro/3)}</td>
                       </tr>
                     ))}
@@ -3608,12 +3608,12 @@ function DashboardSocios({ auth, clientes_reais }) {
                 const lm = mrr - (200+m.n*8) - mrr*0.035 - m.n*200*CONFIG_S.custo_credito;
                 const atingido = ativos.length >= m.n;
                 return (
-                  <div key={m.n} style={{ background:"#0a0a14", border:`1px solid ${atingido?"#00c85333":"#0f0f1e"}`, borderRadius:12, padding:18 }}>
+                  <div key={m.n} style={{ background:"#0a0a14", border:`1px solid ${atingido?"#00a88433":"#0f0f1e"}`, borderRadius:12, padding:18 }}>
                     <div style={{ fontSize:22, marginBottom:6 }}>{atingido?"✅":m.icon}</div>
-                    <div style={{ fontSize:13, fontWeight:700, color:atingido?"#00c853":"#e8e8ff" }}>{m.label}</div>
-                    <div style={{ fontSize:11, color:"#333", marginTop:2 }}>{m.n} clientes</div>
-                    <div style={{ fontSize:16, fontWeight:800, color:"#00c853", marginTop:8 }}>{fmt(mrr)}</div>
-                    <div style={{ fontSize:10, color:"#333" }}>MRR</div>
+                    <div style={{ fontSize:13, fontWeight:700, color:atingido?"#00a884":"#e8e8ff" }}>{m.label}</div>
+                    <div style={{ fontSize:11, color:"#54656f", marginTop:2 }}>{m.n} clientes</div>
+                    <div style={{ fontSize:16, fontWeight:800, color:"#00a884", marginTop:8 }}>{fmt(mrr)}</div>
+                    <div style={{ fontSize:10, color:"#54656f" }}>MRR</div>
                     <div style={{ fontSize:13, fontWeight:700, color:"#7c4dff", marginTop:4 }}>{fmt(lm/3)}/sócio</div>
                   </div>
                 );
@@ -3654,20 +3654,20 @@ function UpgradeModal({ feature, onClose, currentPlan }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "#000000cc", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}
       onClick={onClose}>
-      <div style={{ background: "#0d0d18", border: "1px solid #7c4dff44", borderRadius: 18, padding: 32, maxWidth: 420, width: "90%", textAlign: "center" }}
+      <div style={{ background: "#ffffff", border: "1px solid #7c4dff44", borderRadius: 18, padding: 32, maxWidth: 420, width: "90%", textAlign: "center" }}
         onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
         <div style={{ fontSize: 40, marginBottom: 12 }}>✨</div>
         <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>Recurso Premium</div>
-        <div style={{ fontSize: 14, color: "#888", marginBottom: 20 }}>{feature} está disponível a partir do plano <strong style={{ color: "#a78bfa" }}>Pro</strong>.</div>
+        <div style={{ fontSize: 14, color: "#8696a0", marginBottom: 20 }}>{feature} está disponível a partir do plano <strong style={{ color: "#a78bfa" }}>Pro</strong>.</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
           {[
-            { plan: "Pro", price: "R$ 299/mês", color: "#00c853", features: ["8 atendentes", "2 números", "Co-pilot IA", "1.000 créditos/mês", "Checkout PIX"] },
+            { plan: "Pro", price: "R$ 299/mês", color: "#00a884", features: ["8 atendentes", "2 números", "Co-pilot IA", "1.000 créditos/mês", "Checkout PIX"] },
             { plan: "Business", price: "R$ 599/mês", color: "#7c4dff", features: ["Ilimitado", "White-label", "3.000 créditos/mês", "API própria", "Suporte prioritário"] },
           ].map(p => (
-            <div key={p.plan} style={{ background: "#13131f", border: `1px solid ${p.color}44`, borderRadius: 12, padding: "14px 16px", textAlign: "left" }}>
+            <div key={p.plan} style={{ background: "#f0f2f5", border: `1px solid ${p.color}44`, borderRadius: 12, padding: "14px 16px", textAlign: "left" }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: p.color, marginBottom: 2 }}>{p.plan}</div>
               <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 10 }}>{p.price}</div>
-              {p.features.map(f => <div key={f} style={{ fontSize: 11, color: "#666", marginBottom: 3 }}>✓ {f}</div>)}
+              {p.features.map(f => <div key={f} style={{ fontSize: 11, color: "#667781", marginBottom: 3 }}>✓ {f}</div>)}
             </div>
           ))}
         </div>
@@ -3675,7 +3675,7 @@ function UpgradeModal({ feature, onClose, currentPlan }) {
           style={{ width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#7c4dff,#5b21b6)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", marginBottom: 8 }}>
           🚀 Fazer upgrade agora
         </button>
-        <button onClick={onClose} style={{ width: "100%", padding: "9px 0", borderRadius: 10, border: "1px solid #252540", background: "transparent", color: "#555", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+        <button onClick={onClose} style={{ width: "100%", padding: "9px 0", borderRadius: 10, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
           Fechar
         </button>
       </div>
@@ -3689,14 +3689,14 @@ function CreditsWidget({ credits, limit, plan, onBuyMore, onUpgrade }) {
   const pct = Math.round((credits / limit) * 100);
   const isLow = pct <= 25;
   const isEmpty = credits <= 0;
-  const color = isEmpty ? "#f44336" : isLow ? "#ff9800" : "#00c853";
+  const color = isEmpty ? "#f44336" : isLow ? "#ff9800" : "#00a884";
   return (
-    <div style={{ background: isEmpty ? "#f4433310" : isLow ? "#ff980010" : "#0d0d18", border: `1px solid ${color}33`, borderRadius: 10, padding: "10px 14px", marginBottom: 12 }}>
+    <div style={{ background: isEmpty ? "#f4433310" : isLow ? "#ff980010" : "#ffffff", border: `1px solid ${color}33`, borderRadius: 10, padding: "10px 14px", marginBottom: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-        <span style={{ fontSize: 12, fontWeight: 700, color: "#888" }}>⚡ Créditos IA</span>
-        <span style={{ fontSize: 13, fontWeight: 800, color }}>{credits.toLocaleString("pt-BR")}<span style={{ color: "#555", fontWeight: 400 }}>/{limit.toLocaleString("pt-BR")}</span></span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "#8696a0" }}>⚡ Créditos IA</span>
+        <span style={{ fontSize: 13, fontWeight: 800, color }}>{credits.toLocaleString("pt-BR")}<span style={{ color: "#667781", fontWeight: 400 }}>/{limit.toLocaleString("pt-BR")}</span></span>
       </div>
-      <div style={{ height: 6, background: "#1a1a2e", borderRadius: 3, overflow: "hidden", marginBottom: 6 }}>
+      <div style={{ height: 6, background: "#e9edef", borderRadius: 3, overflow: "hidden", marginBottom: 6 }}>
         <div style={{ height: "100%", width: `${Math.max(2, pct)}%`, background: color, borderRadius: 3, transition: "width 0.5s" }} />
       </div>
       {isEmpty && <div style={{ fontSize: 11, color: "#f44336", marginBottom: 6 }}>Créditos esgotados! IA pausada.</div>}
@@ -3737,16 +3737,16 @@ function BuyCreditsModal({ tenantId, authHeaders, onClose, onSuccess, plan }) {
   };
   return (
     <div style={{ position: "fixed", inset: 0, background: "#000000cc", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }} onClick={onClose}>
-      <div style={{ background: "#0d0d18", border: "1px solid #ff980044", borderRadius: 18, padding: 28, maxWidth: 380, width: "90%" }}
+      <div style={{ background: "#ffffff", border: "1px solid #ff980044", borderRadius: 18, padding: 28, maxWidth: 380, width: "90%" }}
         onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
         <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>⚡ Comprar Créditos de IA</div>
-        <div style={{ fontSize: 12, color: "#555", marginBottom: 16 }}>1 crédito = 1 sugestão do Co-pilot</div>
+        <div style={{ fontSize: 12, color: "#667781", marginBottom: 16 }}>1 crédito = 1 sugestão do Co-pilot</div>
 
         {isStarter && (
-          <div style={{ padding: "12px 14px", background: "#00c85310", border: "1px solid #00c85333", borderRadius: 10, marginBottom: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#00c853", marginBottom: 4 }}>💡 Dica — vale mais fazer upgrade</div>
-            <div style={{ fontSize: 11, color: "#555", lineHeight: 1.6 }}>
-              No plano <strong style={{ color: "#888" }}>Pro (R$149/mês)</strong> você já ganha <strong style={{ color: "#00c853" }}>300 créditos todo mês</strong> + todos os modos de IA desbloqueados.<br/>
+          <div style={{ padding: "12px 14px", background: "#00a88410", border: "1px solid #00a88433", borderRadius: 10, marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#00a884", marginBottom: 4 }}>💡 Dica — vale mais fazer upgrade</div>
+            <div style={{ fontSize: 11, color: "#667781", lineHeight: 1.6 }}>
+              No plano <strong style={{ color: "#8696a0" }}>Pro (R$149/mês)</strong> você já ganha <strong style={{ color: "#00a884" }}>300 créditos todo mês</strong> + todos os modos de IA desbloqueados.<br/>
               Comprar créditos avulsos no Starter sai mais caro a médio prazo.
             </div>
           </div>
@@ -3756,20 +3756,20 @@ function BuyCreditsModal({ tenantId, authHeaders, onClose, onSuccess, plan }) {
           {PACKS.map(p => (
             <button key={p.amount} onClick={() => buy(p.amount)} disabled={!!buying}
               style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderRadius: 10,
-                border: `1px solid ${p.highlight ? "#ff980066" : "#252540"}`,
+                border: `1px solid ${p.highlight ? "#ff980066" : "#d1d7db"}`,
                 background: p.highlight ? "#ff980015" : "transparent",
-                color: "#e8e8f0", cursor: "pointer", fontFamily: "inherit" }}>
+                color: "#111b21", cursor: "pointer", fontFamily: "inherit" }}>
               <div style={{ textAlign: "left" }}>
                 <div style={{ fontSize: 13, fontWeight: 700 }}>{p.label}</div>
-                <div style={{ fontSize: 11, color: "#444" }}>+{p.amount.toLocaleString("pt-BR")} créditos · {p.perUnit}</div>
+                <div style={{ fontSize: 11, color: "#667781" }}>+{p.amount.toLocaleString("pt-BR")} créditos · {p.perUnit}</div>
               </div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: p.highlight ? "#ff9800" : "#e8e8f0" }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: p.highlight ? "#ff9800" : "#111b21" }}>
                 {buying === p.amount ? "..." : p.price}
               </div>
             </button>
           ))}
         </div>
-        <button onClick={onClose} style={{ width: "100%", padding: "9px", borderRadius: 9, border: "1px solid #252540", background: "transparent", color: "#555", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
+        <button onClick={onClose} style={{ width: "100%", padding: "9px", borderRadius: 9, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
       </div>
     </div>
   );
@@ -4257,17 +4257,17 @@ A mensagem deve:
   ];
 
   return (
-    <div style={{ display: "flex", height: "100vh", width: "100vw", flexDirection: "column", background: "#0a0a0f", color: "#e8e8f0", fontFamily: "'DM Sans', 'Segoe UI', sans-serif", overflow: "hidden" }}>
+    <div style={{ display: "flex", height: "100vh", width: "100vw", flexDirection: "column", background: "#f0f2f5", color: "#111b21", fontFamily: "'DM Sans', 'Segoe UI', sans-serif", overflow: "hidden" }}>
       {/* TopBar */}
-      <div style={{ height: 48, flexShrink: 0, borderBottom: "1px solid #1a1a2e", background: "#0d0d18", display: "flex", alignItems: "center", padding: "0 20px", gap: 24 }}>
+      <div style={{ height: 48, flexShrink: 0, borderBottom: "1px solid #e9edef", background: "#f0f2f5", display: "flex", alignItems: "center", padding: "0 20px", gap: 24 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 26, height: 26, borderRadius: 7, background: "linear-gradient(135deg, #00c853, #00796b)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>⚡</div>
+          <div style={{ width: 26, height: 26, borderRadius: 7, background: "linear-gradient(135deg, #00a884, #017561)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>⚡</div>
           <span style={{ fontWeight: 700, fontSize: 15 }}>7CRM</span>
         </div>
         {/* Work tabs — esquerda */}
         <div style={{ display: "flex", gap: 2 }}>
           {WORK_TABS.map(tab => (
-            <button key={tab.id} onClick={() => setView(tab.id)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 6, border: "none", background: view === tab.id ? "#00c85320" : "transparent", color: view === tab.id ? "#00c853" : "#555", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+            <button key={tab.id} onClick={() => setView(tab.id)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 6, border: "none", background: view === tab.id ? "#00a88420" : "transparent", color: view === tab.id ? "#00a884" : "#667781", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
               {tab.label}
               {tab.id === "tasks_global" && totalPendingTasks > 0 && <span style={{ background: "#ff6d00", color: "#000", fontSize: 10, fontWeight: 800, padding: "1px 6px", borderRadius: 10, lineHeight: 1.4 }}>{totalPendingTasks}</span>}
             </button>
@@ -4278,14 +4278,14 @@ A mensagem deve:
         <div style={{ flex: 1 }} />
 
         {/* Admin tabs — direita */}
-        <div style={{ display: "flex", alignItems: "center", gap: 2, paddingLeft: 10, borderLeft: "1px solid #1a1a2e" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 2, paddingLeft: 10, borderLeft: "1px solid #e9edef" }}>
           {ADMIN_TABS.map(tab => (
-            <button key={tab.id} onClick={() => setView(tab.id)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 6, border: tab.id === "upgrade" ? "1px solid #ff6d0044" : "none", background: view === tab.id ? "#00c85320" : tab.id === "upgrade" ? "#ff6d0012" : "transparent", color: view === tab.id ? "#00c853" : tab.id === "upgrade" ? "#ff6d00" : "#444", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+            <button key={tab.id} onClick={() => setView(tab.id)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 6, border: tab.id === "upgrade" ? "1px solid #ff6d0044" : "none", background: view === tab.id ? "#00a88420" : tab.id === "upgrade" ? "#ff6d0012" : "transparent", color: view === tab.id ? "#00a884" : tab.id === "upgrade" ? "#ff6d00" : "#667781", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
               {tab.label}
             </button>
           ))}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, paddingLeft: 12, borderLeft: "1px solid #1a1a2e" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, paddingLeft: 12, borderLeft: "1px solid #e9edef" }}>
           {/* Trial days badge */}
           {trialInfo?.status === "trial" && trialInfo?.days_left !== null && (
             <div style={{ fontSize: 11, fontWeight: 700, color: trialInfo.days_left <= 2 ? "#f44336" : "#ff6d00" }}>
@@ -4296,7 +4296,7 @@ A mensagem deve:
           {/* ⚡ Credits pill */}
           {aiCredits && aiCredits.limit > 0 && (() => {
             const pct = aiCredits.limit > 0 ? Math.round(aiCredits.credits / aiCredits.limit * 100) : 100;
-            const color = aiCredits.credits <= 0 ? "#f44336" : pct <= 25 ? "#ff9800" : "#00c853";
+            const color = aiCredits.credits <= 0 ? "#f44336" : pct <= 25 ? "#ff9800" : "#00a884";
             return (
               <button onClick={() => setView("config")}
                 title={`${aiCredits.credits.toLocaleString("pt-BR")} / ${aiCredits.limit.toLocaleString("pt-BR")} créditos IA restantes`}
@@ -4305,9 +4305,9 @@ A mensagem deve:
                 <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 60 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color }}>{aiCredits.credits.toLocaleString("pt-BR")}</span>
-                    <span style={{ fontSize: 10, color: "#555" }}>/{aiCredits.limit.toLocaleString("pt-BR")}</span>
+                    <span style={{ fontSize: 10, color: "#667781" }}>/{aiCredits.limit.toLocaleString("pt-BR")}</span>
                   </div>
-                  <div style={{ height: 3, background: "#1a1a2e", borderRadius: 2, overflow: "hidden", width: "100%" }}>
+                  <div style={{ height: 3, background: "#e9edef", borderRadius: 2, overflow: "hidden", width: "100%" }}>
                     <div style={{ height: "100%", width: `${Math.max(3, pct)}%`, background: color, borderRadius: 2, transition: "width 0.5s" }} />
                   </div>
                 </div>
@@ -4316,11 +4316,11 @@ A mensagem deve:
             );
           })()}
 
-          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#444" }}>
-            <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#00c853" }} />
-            <span style={{ color: "#555" }}>{auth.user.name}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#667781" }}>
+            <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#00a884" }} />
+            <span style={{ color: "#667781" }}>{auth.user.name}</span>
           </div>
-          <button onClick={onLogout} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid #1a1a2e", background: "transparent", color: "#444", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Sair</button>
+          <button onClick={onLogout} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Sair</button>
         </div>
       </div>
 
@@ -4366,40 +4366,40 @@ A mensagem deve:
             <div style={{ maxWidth: 600, margin: "0 auto" }}>
               <div style={{ marginBottom: 32 }}>
                 <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>🚀 Escolha seu plano</div>
-                <div style={{ fontSize: 13, color: "#555" }}>Todos os planos incluem 7 dias de trial grátis para novos clientes</div>
+                <div style={{ fontSize: 13, color: "#667781" }}>Todos os planos incluem 7 dias de trial grátis para novos clientes</div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {[
-                  { plan: "starter", label: "Starter", price: "R$ 149", desc: "Para recepções e pequenos negócios", color: "#00bcd4", features: ["1 número conectado", "Até 5 atendentes", "Inbox + Kanban + Etiquetas", "Disparos em massa", "Número extra: +R$49/mês"] },
-                  { plan: "pro", label: "Pro", price: "R$ 299", desc: "Para academias, clínicas e empresas em crescimento", color: "#00c853", highlight: true, features: ["3 números conectados", "Até 15 atendentes", "Tudo do Starter", "Co-pilot IA (1.000 créditos/mês)", "Onboarding Inteligente IA (200 conversas)", "Número extra: +R$49/mês"] },
+                  { plan: "starter", label: "Starter", price: "R$ 149", desc: "Para recepções e pequenos negócios", color: "#00a884", features: ["1 número conectado", "Até 5 atendentes", "Inbox + Kanban + Etiquetas", "Disparos em massa", "Número extra: +R$49/mês"] },
+                  { plan: "pro", label: "Pro", price: "R$ 299", desc: "Para academias, clínicas e empresas em crescimento", color: "#00a884", highlight: true, features: ["3 números conectados", "Até 15 atendentes", "Tudo do Starter", "Co-pilot IA (1.000 créditos/mês)", "Onboarding Inteligente IA (200 conversas)", "Número extra: +R$49/mês"] },
                   { plan: "business", label: "Business", price: "R$ 599", desc: "Para redes, franquias e operações maiores", color: "#7c4dff", features: ["8 números conectados", "Até 30 atendentes", "Tudo do Pro", "3.000 créditos IA/mês", "Onboarding Inteligente IA (500 conversas)", "White-label", "Suporte prioritário"] },
                 ].map(p => (
-                  <div key={p.plan} style={{ background: "#0d0d18", border: `2px solid ${p.highlight ? p.color : "#1a1a2e"}`, borderRadius: 14, padding: 24, position: "relative" }}>
-                    {p.highlight && <div style={{ position: "absolute", top: -10, right: 20, background: "#00c853", color: "#000", fontSize: 10, fontWeight: 800, padding: "2px 12px", borderRadius: 20 }}>MAIS POPULAR</div>}
+                  <div key={p.plan} style={{ background: "#ffffff", border: `2px solid ${p.highlight ? p.color : "#e9edef"}`, borderRadius: 14, padding: 24, position: "relative" }}>
+                    {p.highlight && <div style={{ position: "absolute", top: -10, right: 20, background: "#00a884", color: "#000", fontSize: 10, fontWeight: 800, padding: "2px 12px", borderRadius: 20 }}>MAIS POPULAR</div>}
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                       <div>
                         <div style={{ fontSize: 18, fontWeight: 800, color: p.color }}>{p.label}</div>
-                        <div style={{ fontSize: 12, color: "#555", marginTop: 2 }}>{p.desc}</div>
+                        <div style={{ fontSize: 12, color: "#667781", marginTop: 2 }}>{p.desc}</div>
                       </div>
                       <div style={{ textAlign: "right" }}>
-                        <div style={{ fontSize: 24, fontWeight: 800, color: "#e8e8f0" }}>{p.price}</div>
-                        <div style={{ fontSize: 11, color: "#555" }}>/mês</div>
+                        <div style={{ fontSize: 24, fontWeight: 800, color: "#111b21" }}>{p.price}</div>
+                        <div style={{ fontSize: 11, color: "#667781" }}>/mês</div>
                       </div>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
-                      {p.features.map(f => <div key={f} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, color: "#888" }}><span style={{ color: p.color }}>✓</span>{f}</div>)}
+                      {p.features.map(f => <div key={f} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, color: "#8696a0" }}><span style={{ color: p.color }}>✓</span>{f}</div>)}
                     </div>
                     <button onClick={async () => {
                       await fetch(`${API_URL}/tenant/activate-plan`, { method: "POST", headers, body: JSON.stringify({ tenant_id: TENANT_ID, plan: p.plan }) });
                       await fetchTrialStatus();
                       setView("inbox");
-                    }} style={{ width: "100%", padding: "11px 0", borderRadius: 10, border: "none", background: p.highlight ? `linear-gradient(135deg, ${p.color}, #00796b)` : `${p.color}22`, color: p.highlight ? "#000" : p.color, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                    }} style={{ width: "100%", padding: "11px 0", borderRadius: 10, border: "none", background: p.highlight ? `linear-gradient(135deg, ${p.color}, #017561)` : `${p.color}22`, color: p.highlight ? "#000" : p.color, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
                       Assinar {p.label} →
                     </button>
                   </div>
                 ))}
               </div>
-              <div style={{ marginTop: 24, padding: 16, background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 12, fontSize: 12, color: "#555", textAlign: "center" }}>
+              <div style={{ marginTop: 24, padding: 16, background: "#ffffff", border: "1px solid #e9edef", borderRadius: 12, fontSize: 12, color: "#667781", textAlign: "center" }}>
                 💬 Pagamento via PIX, boleto ou cartão · Fale com a gente no WhatsApp para dúvidas
               </div>
             </div>
@@ -4409,22 +4409,22 @@ A mensagem deve:
         {/* Config */}
         {view === "config" && (
           <div style={{ flex: 1, overflowY: "auto", padding: 40, maxWidth: 720 }}>
-            <div style={{ marginBottom: 32 }}><div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>⚙️ Configurações</div><div style={{ fontSize: 13, color: "#555" }}>Personalize o comportamento do 7zap para sua empresa</div></div>
-            <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 28, marginBottom: 24 }}>
+            <div style={{ marginBottom: 32 }}><div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>⚙️ Configurações</div><div style={{ fontSize: 13, color: "#667781" }}>Personalize o comportamento do 7zap para sua empresa</div></div>
+            <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 14, padding: 28, marginBottom: 24 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><span style={{ fontSize: 18 }}>✨</span><span style={{ fontSize: 16, fontWeight: 700 }}>Co-pilot IA</span><span style={{ background: "#7c4dff22", color: "#a78bfa", fontSize: 11, fontWeight: 700, padding: "2px 10px", borderRadius: 20 }}>Co-pilot IA</span></div>
-              <div style={{ fontSize: 13, color: "#555", marginBottom: 20 }}>Prompt + modo automático do Co-pilot para sua empresa.</div>
+              <div style={{ fontSize: 13, color: "#667781", marginBottom: 20 }}>Prompt + modo automático do Co-pilot para sua empresa.</div>
 
               {/* Auto mode */}
-              <div style={{ background: "#13131f", border: "1px solid #252540", borderRadius: 12, padding: 20, marginBottom: 20 }}>
+              <div style={{ background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 12, padding: 20, marginBottom: 20 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>🤖 Modo Automático</div>
-                <div style={{ fontSize: 12, color: "#555", marginBottom: 14 }}>Quando ativo, o Co-pilot responde sozinho sem precisar de aprovação humana.</div>
+                <div style={{ fontSize: 12, color: "#667781", marginBottom: 14 }}>Quando ativo, o Co-pilot responde sozinho sem precisar de aprovação humana.</div>
                 {/* Starter locked banner */}
                 {aiCredits?.plan === "starter" && (
                   <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "#7c4dff12", border: "1px solid #7c4dff33", borderRadius: 10, marginBottom: 14 }}>
                     <span style={{ fontSize: 16 }}>🔒</span>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: "#a78bfa", marginBottom: 2 }}>Modos de IA disponíveis no plano Pro</div>
-                      <div style={{ fontSize: 11, color: "#555" }}>No Starter só o modo Desativado está disponível. Faça upgrade para liberar o Co-pilot completo.</div>
+                      <div style={{ fontSize: 11, color: "#667781" }}>No Starter só o modo Desativado está disponível. Faça upgrade para liberar o Co-pilot completo.</div>
                     </div>
                     <button onClick={() => setView("upgrade")}
                       style={{ padding: "6px 14px", borderRadius: 7, border: "none", background: "linear-gradient(135deg, #7c4dff, #5b21b6)", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
@@ -4446,15 +4446,15 @@ A mensagem deve:
                       <div key={m.id}
                         onClick={() => { if (isLocked) { setView("upgrade"); return; } setCopilotAutoMode(m.id); }}
                         style={{ flex: "1 1 180px", padding: "12px 14px", borderRadius: 10, position: "relative", transition: "all 0.15s",
-                          border: `2px solid ${isActive ? "#7c4dff" : isLocked ? "#1a1a2e" : "#252540"}`,
-                          background: isActive ? "#7c4dff18" : isLocked ? "#0a0a0f" : "#0d0d18",
+                          border: `2px solid ${isActive ? "#7c4dff" : isLocked ? "#e9edef" : "#d1d7db"}`,
+                          background: isActive ? "#7c4dff18" : isLocked ? "#f0f2f5" : "#ffffff",
                           cursor: isLocked ? "not-allowed" : "pointer",
                           opacity: isLocked ? 0.5 : 1 }}>
                         {isLocked && (
                           <span style={{ position: "absolute", top: 7, right: 8, fontSize: 9, fontWeight: 800, color: "#7c4dff", background: "#7c4dff18", border: "1px solid #7c4dff33", padding: "2px 7px", borderRadius: 20 }}>🔒 PRO</span>
                         )}
-                        <div style={{ fontSize: 13, fontWeight: 700, color: isActive ? "#a78bfa" : isLocked ? "#333" : "#888", marginBottom: 3 }}>{m.label}</div>
-                        <div style={{ fontSize: 11, color: isLocked ? "#2a2a3a" : "#555" }}>{m.desc}</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: isActive ? "#a78bfa" : isLocked ? "#54656f" : "#8696a0", marginBottom: 3 }}>{m.label}</div>
+                        <div style={{ fontSize: 11, color: isLocked ? "#2a2a3a" : "#667781" }}>{m.desc}</div>
                       </div>
                     );
                   })}
@@ -4462,15 +4462,15 @@ A mensagem deve:
                 {copilotAutoMode === "schedule" && (
                   <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                     <div>
-                      <div style={{ fontSize: 11, color: "#555", marginBottom: 4, fontWeight: 700 }}>INÍCIO DO PERÍODO AUTOMÁTICO</div>
+                      <div style={{ fontSize: 11, color: "#667781", marginBottom: 4, fontWeight: 700 }}>INÍCIO DO PERÍODO AUTOMÁTICO</div>
                       <input type="time" value={copilotScheduleStart} onChange={e => setCopilotScheduleStart(e.target.value)}
-                        style={{ padding: "7px 12px", background: "#0d0d18", border: "1px solid #252540", borderRadius: 8, color: "#e8e8f0", fontSize: 13, outline: "none", colorScheme: "dark" }} />
+                        style={{ padding: "7px 12px", background: "#ffffff", border: "1px solid #e9edef", borderRadius: 8, color: "#111b21", fontSize: 13, outline: "none", colorScheme: "dark" }} />
                     </div>
-                    <div style={{ color: "#555", paddingTop: 18 }}>até</div>
+                    <div style={{ color: "#667781", paddingTop: 18 }}>até</div>
                     <div>
-                      <div style={{ fontSize: 11, color: "#555", marginBottom: 4, fontWeight: 700 }}>FIM DO PERÍODO AUTOMÁTICO</div>
+                      <div style={{ fontSize: 11, color: "#667781", marginBottom: 4, fontWeight: 700 }}>FIM DO PERÍODO AUTOMÁTICO</div>
                       <input type="time" value={copilotScheduleEnd} onChange={e => setCopilotScheduleEnd(e.target.value)}
-                        style={{ padding: "7px 12px", background: "#0d0d18", border: "1px solid #252540", borderRadius: 8, color: "#e8e8f0", fontSize: 13, outline: "none", colorScheme: "dark" }} />
+                        style={{ padding: "7px 12px", background: "#ffffff", border: "1px solid #e9edef", borderRadius: 8, color: "#111b21", fontSize: 13, outline: "none", colorScheme: "dark" }} />
                     </div>
                     <div style={{ fontSize: 11, color: "#7c4dff", paddingTop: 18 }}>Automático das {copilotScheduleStart} às {copilotScheduleEnd}</div>
                   </div>
@@ -4481,74 +4481,74 @@ A mensagem deve:
                   </div>
                 )}
                 {copilotAutoMode === "per_conv" && (
-                  <div style={{ background: "#00c85315", border: "1px solid #00c85333", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#00c853" }}>
+                  <div style={{ background: "#00a88415", border: "1px solid #00a88433", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#00a884" }}>
                     ✓ Um botão <strong>🤖 Auto</strong> vai aparecer em cada conversa para o atendente ativar o modo automático individualmente.
                   </div>
                 )}
               </div>
 
               {/* Prompt — summary only, real prompt protected */}
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#666", marginBottom: 8 }}>PROMPT DO CO-PILOT</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#667781", marginBottom: 8 }}>PROMPT DO CO-PILOT</div>
               {copilotPrompt ? (
-                <div style={{ background: "#13131f", border: "1px solid #1a1a2e", borderRadius: 10, padding: "14px 16px", marginBottom: 16 }}>
-                  <div style={{ fontSize: 11, color: "#444", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 10, padding: "14px 16px", marginBottom: 16 }}>
+                  <div style={{ fontSize: 11, color: "#667781", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
                     🔒 Configurado via Onboarding Inteligente — mantido de forma segura pela plataforma.
                   </div>
                   {copilotPrompt.split("\n").filter(l => l.trim()).map((line, i) => (
                     <div key={i} style={{ fontSize: 13, color: "#c8c8e0", marginBottom: 6, lineHeight: 1.5 }}>{line}</div>
                   ))}
-                  <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid #1a1a2e", fontSize: 11, color: "#444" }}>
+                  <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid #e9edef", fontSize: 11, color: "#667781" }}>
                     Para atualizar: use <strong style={{ color: "#a78bfa" }}>🧠 Onboarding Inteligente</strong> e refaça a análise.
                   </div>
                 </div>
               ) : (
-                <div style={{ background: "#13131f", border: "1px dashed #252540", borderRadius: 10, padding: "24px 16px", textAlign: "center", marginBottom: 16 }}>
+                <div style={{ background: "#f0f2f5", border: "1px dashed #252540", borderRadius: 10, padding: "24px 16px", textAlign: "center", marginBottom: 16 }}>
                   <div style={{ fontSize: 20, marginBottom: 8 }}>🧠</div>
-                  <div style={{ fontSize: 13, color: "#555", marginBottom: 6 }}>Nenhum prompt configurado ainda.</div>
-                  <div style={{ fontSize: 12, color: "#333" }}>Use o <strong style={{ color: "#a78bfa" }}>Onboarding Inteligente</strong> para gerar um prompt baseado no histórico real da sua empresa.</div>
+                  <div style={{ fontSize: 13, color: "#667781", marginBottom: 6 }}>Nenhum prompt configurado ainda.</div>
+                  <div style={{ fontSize: 12, color: "#54656f" }}>Use o <strong style={{ color: "#a78bfa" }}>Onboarding Inteligente</strong> para gerar um prompt baseado no histórico real da sua empresa.</div>
                 </div>
               )}
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                <button onClick={savePrompt} disabled={savingPrompt} style={{ padding: "10px 28px", borderRadius: 9, border: "none", background: savingPrompt ? "#1a1a2e" : "linear-gradient(135deg, #7c4dff, #5b21b6)", color: savingPrompt ? "#444" : "#fff", fontSize: 14, fontWeight: 700, cursor: savingPrompt ? "not-allowed" : "pointer", fontFamily: "inherit" }}>{savingPrompt ? "Salvando..." : "💾 Salvar configurações"}</button>
-                {promptSaved && <span style={{ fontSize: 13, color: "#00c853", fontWeight: 600 }}>✓ Salvo!</span>}
+                <button onClick={savePrompt} disabled={savingPrompt} style={{ padding: "10px 28px", borderRadius: 9, border: "none", background: savingPrompt ? "#e9edef" : "linear-gradient(135deg, #7c4dff, #5b21b6)", color: savingPrompt ? "#667781" : "#fff", fontSize: 14, fontWeight: 700, cursor: savingPrompt ? "not-allowed" : "pointer", fontFamily: "inherit" }}>{savingPrompt ? "Salvando..." : "💾 Salvar configurações"}</button>
+                {promptSaved && <span style={{ fontSize: 13, color: "#00a884", fontWeight: 600 }}>✓ Salvo!</span>}
               </div>
               {/* Credits card — direto abaixo do salvar */}
-              <div style={{ padding: "14px 16px", background: "linear-gradient(135deg, #00c85310, #7c4dff10)", border: "1px solid #00c85333", borderRadius: 10, display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ padding: "14px 16px", background: "linear-gradient(135deg, #00a88410, #7c4dff10)", border: "1px solid #00a88433", borderRadius: 10, display: "flex", alignItems: "center", gap: 12 }}>
                 <span style={{ fontSize: 22 }}>⚡</span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#00c853", marginBottom: 2 }}>Créditos de IA</div>
-                  <div style={{ fontSize: 11, color: "#555" }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#00a884", marginBottom: 2 }}>Créditos de IA</div>
+                  <div style={{ fontSize: 11, color: "#667781" }}>
                     {aiCredits ? `${aiCredits.credits.toLocaleString("pt-BR")} créditos restantes de ${aiCredits.limit.toLocaleString("pt-BR")}` : "Carregando..."}
                   </div>
                 </div>
                 <button onClick={() => setShowBuyCredits(true)}
-                  style={{ padding: "8px 18px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #00c853, #00796b)", color: "#000", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+                  style={{ padding: "8px 18px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #00a884, #017561)", color: "#000", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
                   + Comprar créditos
                 </button>
               </div>
             </div>
-            <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: 14, padding: 24 }}>
+            <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 14, padding: 24 }}>
               <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>🏢 Sua Empresa</div>
-              <div style={{ fontSize: 12, color: "#555", marginBottom: 20 }}>Informações do plano e uso atual</div>
+              <div style={{ fontSize: 12, color: "#667781", marginBottom: 20 }}>Informações do plano e uso atual</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
                 {[
                   { label: "Plano atual", value: "Pro", color: "#7c4dff" },
-                  { label: "Versão", value: "7CRM v1.0", color: "#00c853" },
-                  { label: "Atendentes", value: `${agents.length} ativo${agents.length !== 1 ? "s" : ""}`, color: "#00bcd4" },
-                  { label: "Status", value: "🟢 Online", color: "#00c853" },
+                  { label: "Versão", value: "7CRM v1.0", color: "#00a884" },
+                  { label: "Atendentes", value: `${agents.length} ativo${agents.length !== 1 ? "s" : ""}`, color: "#00a884" },
+                  { label: "Status", value: "🟢 Online", color: "#00a884" },
                 ].map(({ label, value, color }) => (
-                  <div key={label} style={{ background: "#13131f", border: "1px solid #1a1a2e", borderRadius: 10, padding: "12px 16px" }}>
-                    <div style={{ fontSize: 11, color: "#555", marginBottom: 4 }}>{label}</div>
+                  <div key={label} style={{ background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 10, padding: "12px 16px" }}>
+                    <div style={{ fontSize: 11, color: "#667781", marginBottom: 4 }}>{label}</div>
                     <div style={{ fontSize: 14, fontWeight: 700, color }}>{value}</div>
                   </div>
                 ))}
               </div>
               {/* Users management */}
-              <div style={{ padding: "12px 16px", background: "#13131f", border: "1px solid #1a1a2e", borderRadius: 10, display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ padding: "12px 16px", background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 10, display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontSize: 18 }}>🔐</span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "#888", marginBottom: 2 }}>Gestão de usuários e atendentes</div>
-                  <div style={{ fontSize: 11, color: "#444" }}>Convites, permissões e controle de acesso</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#8696a0", marginBottom: 2 }}>Gestão de usuários e atendentes</div>
+                  <div style={{ fontSize: 11, color: "#667781" }}>Convites, permissões e controle de acesso</div>
                 </div>
                 <button onClick={() => { setView("admin"); }}
                   style={{ padding: "6px 14px", borderRadius: 7, border: "1px solid #7c4dff44", background: "#7c4dff15", color: "#a78bfa", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
@@ -4592,7 +4592,7 @@ A mensagem deve:
           <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
             {/* Disconnect banner — flow element, pushes content down */}
             {waInstances.some(i => !i.connected && i.phone) && (
-              <div style={{ background: "linear-gradient(90deg,#b71c1c,#c62828)", padding: "9px 20px", display: "flex", alignItems: "center", gap: 10, boxShadow: "0 2px 12px #f4433640", flexShrink: 0, zIndex: 10 }}>
+              <div style={{ background: "linear-gradient(90deg,#b71c1c,#c62828)", padding: "9px 20px", display: "flex", alignItems: "center", gap: 10, boxShadow: "0 1px 4px #f4433620", flexShrink: 0, zIndex: 10 }}>
                 <span style={{ fontSize: 16 }}>📵</span>
                 <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: "#fff" }}>
                   {waInstances.filter(i => !i.connected && i.phone).map(i => `"${i.label || i.phone}"`).join(", ")} {waInstances.filter(i => !i.connected && i.phone).length === 1 ? "está desconectado" : "estão desconectados"} — nenhuma mensagem nova está sendo recebida.
@@ -4608,18 +4608,18 @@ A mensagem deve:
             <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
 
             {/* Sidebar */}
-            <div style={{ width: 300, flexShrink: 0, display: "flex", flexDirection: "column", borderRight: "1px solid #1a1a2e", background: "#0d0d18" }}>
-              <div style={{ padding: "12px 14px", borderBottom: "1px solid #1a1a2e" }}>
+            <div style={{ width: 300, flexShrink: 0, display: "flex", flexDirection: "column", borderRight: "1px solid #e9edef", background: "#ffffff" }}>
+              <div style={{ padding: "12px 14px", borderBottom: "1px solid #e9edef" }}>
                 <div style={{ position: "relative" }}>
                   <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 13, opacity: 0.4 }}>🔍</span>
-                  <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar conversa..." style={{ width: "100%", padding: "7px 12px 7px 30px", background: "#1a1a2e", border: "1px solid #252540", borderRadius: 8, color: "#e8e8f0", fontSize: 13, outline: "none", boxSizing: "border-box" }} />
+                  <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar conversa..." style={{ width: "100%", padding: "7px 12px 7px 30px", background: "#e9edef", border: "1px solid #e9edef", borderRadius: 8, color: "#111b21", fontSize: 13, outline: "none", boxSizing: "border-box" }} />
                 </div>
               </div>
 
               {/* Tudo / Não lidas */}
-              <div style={{ display: "flex", borderBottom: "1px solid #1a1a2e" }}>
+              <div style={{ display: "flex", borderBottom: "1px solid #e9edef" }}>
                 {[["all", "Tudo"], ["unread", "Não lidas"]].map(([id, label]) => (
-                  <button key={id} onClick={() => setUnreadFilter(id)} style={{ flex: 1, padding: "8px 0", border: "none", background: "transparent", color: unreadFilter === id ? "#00c853" : "#555", fontSize: 12, fontWeight: unreadFilter === id ? 700 : 500, cursor: "pointer", fontFamily: "inherit", borderBottom: `2px solid ${unreadFilter === id ? "#00c853" : "transparent"}`, transition: "all 0.15s" }}>
+                  <button key={id} onClick={() => setUnreadFilter(id)} style={{ flex: 1, padding: "8px 0", border: "none", background: "transparent", color: unreadFilter === id ? "#00a884" : "#667781", fontSize: 12, fontWeight: unreadFilter === id ? 700 : 500, cursor: "pointer", fontFamily: "inherit", borderBottom: `2px solid ${unreadFilter === id ? "#00a884" : "transparent"}`, transition: "all 0.15s" }}>
                     {label}{id === "unread" && unreadCount > 0 ? ` (${unreadCount})` : ""}
                   </button>
                 ))}
@@ -4627,15 +4627,15 @@ A mensagem deve:
 
               {/* Number selector — only shown when 2+ instances exist */}
               {waInstances.length >= 2 && (
-                <div style={{ padding: "7px 10px", borderBottom: "1px solid #1a1a2e", display: "flex", gap: 5, alignItems: "center", overflowX: "auto" }}>
+                <div style={{ padding: "7px 10px", borderBottom: "1px solid #e9edef", display: "flex", gap: 5, alignItems: "center", overflowX: "auto" }}>
                   <button onClick={() => setInstanceFilter(null)}
-                    style={{ padding: "3px 10px", borderRadius: 20, border: `1px solid ${!instanceFilter ? "#00c85366" : "#1a1a2e"}`, background: !instanceFilter ? "#00c85318" : "transparent", color: !instanceFilter ? "#00c853" : "#555", fontSize: 11, fontWeight: !instanceFilter ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0 }}>
+                    style={{ padding: "3px 10px", borderRadius: 20, border: `1px solid ${!instanceFilter ? "#00a88466" : "#e9edef"}`, background: !instanceFilter ? "#00a88418" : "transparent", color: !instanceFilter ? "#00a884" : "#667781", fontSize: 11, fontWeight: !instanceFilter ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0 }}>
                     📥 Todos
                   </button>
                   {waInstances.map(inst => (
                     <button key={inst.id} onClick={() => setInstanceFilter(instanceFilter === inst.instance_name ? null : inst.instance_name)}
-                      style={{ padding: "3px 10px", borderRadius: 20, border: `1px solid ${instanceFilter === inst.instance_name ? "#00c85366" : "#1a1a2e"}`, background: instanceFilter === inst.instance_name ? "#00c85318" : "transparent", color: instanceFilter === inst.instance_name ? "#00c853" : "#555", fontSize: 11, fontWeight: instanceFilter === inst.instance_name ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}>
-                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: inst.connected ? "#00c853" : "#f44336", display: "inline-block", flexShrink: 0 }} />
+                      style={{ padding: "3px 10px", borderRadius: 20, border: `1px solid ${instanceFilter === inst.instance_name ? "#00a88466" : "#e9edef"}`, background: instanceFilter === inst.instance_name ? "#00a88418" : "transparent", color: instanceFilter === inst.instance_name ? "#00a884" : "#667781", fontSize: 11, fontWeight: instanceFilter === inst.instance_name ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: inst.connected ? "#00a884" : "#f44336", display: "inline-block", flexShrink: 0 }} />
                       {inst.label || inst.instance_name}
                     </button>
                   ))}
@@ -4643,11 +4643,11 @@ A mensagem deve:
               )}
 
               {/* Inactive days filter */}
-              <div style={{ padding: "8px 10px", borderBottom: "1px solid #1a1a2e", display: "flex", flexWrap: "wrap", gap: 5, alignItems: "center" }}>
-                <span style={{ fontSize: 10, color: "#444", fontWeight: 700, letterSpacing: 0.5, marginRight: 2 }}>SEM RESPOSTA:</span>
+              <div style={{ padding: "8px 10px", borderBottom: "1px solid #e9edef", display: "flex", flexWrap: "wrap", gap: 5, alignItems: "center" }}>
+                <span style={{ fontSize: 10, color: "#667781", fontWeight: 700, letterSpacing: 0.5, marginRight: 2 }}>SEM RESPOSTA:</span>
                 {[null, 3, 5, 10, 15].map(d => (
                   <button key={d ?? "all"} onClick={() => setInactiveDays(d === inactiveDays ? null : d)}
-                    style={{ padding: "3px 9px", borderRadius: 20, border: `1px solid ${inactiveDays === d && d !== null ? "#ff6d0066" : "#1a1a2e"}`, background: inactiveDays === d && d !== null ? "#ff6d0018" : "transparent", color: inactiveDays === d && d !== null ? "#ff6d00" : d === null ? "#333" : "#555", fontSize: 11, fontWeight: inactiveDays === d ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+                    style={{ padding: "3px 9px", borderRadius: 20, border: `1px solid ${inactiveDays === d && d !== null ? "#ff6d0066" : "#e9edef"}`, background: inactiveDays === d && d !== null ? "#ff6d0018" : "transparent", color: inactiveDays === d && d !== null ? "#ff6d00" : d === null ? "#54656f" : "#667781", fontSize: 11, fontWeight: inactiveDays === d ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
                     {d === null ? "Todos" : d === 15 ? "15d+" : `${d}d`}
                   </button>
                 ))}
@@ -4655,23 +4655,23 @@ A mensagem deve:
               </div>
 
               <div style={{ flex: 1, overflowY: "auto" }}>
-                {loading ? <div style={{ padding: 24, textAlign: "center", color: "#555", fontSize: 13 }}>Carregando...</div>
-                  : filtered.length === 0 ? <div style={{ padding: 24, textAlign: "center", color: "#555", fontSize: 13 }}>Nenhuma conversa</div>
+                {loading ? <div style={{ padding: 24, textAlign: "center", color: "#667781", fontSize: 13 }}>Carregando...</div>
+                  : filtered.length === 0 ? <div style={{ padding: 24, textAlign: "center", color: "#667781", fontSize: 13 }}>Nenhuma conversa</div>
                   : filtered.map(conv => (
-                    <div key={conv.id} onClick={() => { setSelected(conv); setSuggestion(""); setShowTasks(false); setNoteMode(false); }} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "11px 14px", cursor: "pointer", background: selected?.id === conv.id ? "#1a1a2e" : "transparent", borderLeft: selected?.id === conv.id ? "3px solid #00c853" : "3px solid transparent" }}>
+                    <div key={conv.id} onClick={() => { setSelected(conv); setSuggestion(""); setShowTasks(false); setNoteMode(false); }} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "11px 14px", cursor: "pointer", background: selected?.id === conv.id ? "#e9edef" : "transparent", borderLeft: selected?.id === conv.id ? "3px solid #00a884" : "3px solid transparent" }}>
                       <Avatar name={conv.contacts?.name || conv.contacts?.phone} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
-                          <span style={{ fontWeight: conv.unread_count > 0 ? 800 : 600, fontSize: 13, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: conv.unread_count > 0 ? "#e8e8f0" : "#ccc" }}>{conv.contacts?.name || conv.contacts?.phone}</span>
-                          <span style={{ fontSize: 11, color: inactiveDays ? "#ff6d00" : (conv.unread_count > 0 ? "#00c853" : "#555"), flexShrink: 0, fontWeight: conv.unread_count > 0 ? 700 : 400 }}>{timeAgo(conv.last_message_at)}</span>
+                          <span style={{ fontWeight: conv.unread_count > 0 ? 800 : 600, fontSize: 13, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: conv.unread_count > 0 ? "#111b21" : "#54656f" }}>{conv.contacts?.name || conv.contacts?.phone}</span>
+                          <span style={{ fontSize: 11, color: inactiveDays ? "#ff6d00" : (conv.unread_count > 0 ? "#00a884" : "#667781"), flexShrink: 0, fontWeight: conv.unread_count > 0 ? 700 : 400 }}>{timeAgo(conv.last_message_at)}</span>
                         </div>
                         <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 4 }}>
                           {conv.labels?.map(l => <LabelChip key={l.id} label={l} />)}
                           <KanbanBadge stage={conv.kanban_stage} columns={kanbanCols} />
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ fontSize: 11, color: "#555", flex: 1 }}>{conv.assigned_agent ? `👤 ${conv.assigned_agent}` : conv.contacts?.phone}</span>
-                          {conv.unread_count > 0 && <span style={{ background: "#00c853", color: "#000", fontSize: 10, fontWeight: 800, minWidth: 18, height: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", padding: "0 4px", flexShrink: 0 }}>{conv.unread_count}</span>}
+                          <span style={{ fontSize: 11, color: "#667781", flex: 1 }}>{conv.assigned_agent ? `👤 ${conv.assigned_agent}` : conv.contacts?.phone}</span>
+                          {conv.unread_count > 0 && <span style={{ background: "#00a884", color: "#000", fontSize: 10, fontWeight: 800, minWidth: 18, height: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", padding: "0 4px", flexShrink: 0 }}>{conv.unread_count}</span>}
                           {pendingTasksMap[conv.id] > 0 && <span title={`${pendingTasksMap[conv.id]} tarefa(s) pendente(s)`} style={{ background: "#ff6d0022", border: "1px solid #ff6d0066", color: "#ff6d00", fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 10, flexShrink: 0 }}>✅ {pendingTasksMap[conv.id]}</span>}
                           {isAutoActive(conv) && <span title="Co-pilot automático ativo" style={{ fontSize: 12 }}>🤖</span>}
                         </div>
@@ -4680,7 +4680,7 @@ A mensagem deve:
                           <button
                             onClick={e => { e.stopPropagation(); resumeConversation(conv); }}
                             disabled={resumingConv === conv.id}
-                            style={{ marginTop: 6, width: "100%", padding: "5px 0", borderRadius: 6, border: "1px solid #7c4dff44", background: resumingConv === conv.id ? "#1a1a2e" : "#7c4dff18", color: resumingConv === conv.id ? "#444" : "#a78bfa", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                            style={{ marginTop: 6, width: "100%", padding: "5px 0", borderRadius: 6, border: "1px solid #7c4dff44", background: resumingConv === conv.id ? "#e9edef" : "#7c4dff18", color: resumingConv === conv.id ? "#667781" : "#a78bfa", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
                             {resumingConv === conv.id ? <><span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⏳</span> Gerando...</> : "✨ Retomar conversa"}
                           </button>
                         )}
@@ -4688,8 +4688,8 @@ A mensagem deve:
                     </div>
                   ))}
               </div>
-              <div style={{ padding: "10px 14px", borderTop: "1px solid #1a1a2e", fontSize: 12, color: "#444", display: "flex", alignItems: "center", gap: 6 }}>
-                <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#00c853" }} />{conversations.length} conversa{conversations.length !== 1 ? "s" : ""}
+              <div style={{ padding: "10px 14px", borderTop: "1px solid #e9edef", fontSize: 12, color: "#667781", display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#00a884" }} />{conversations.length} conversa{conversations.length !== 1 ? "s" : ""}
               </div>
             </div>
 
@@ -4698,13 +4698,13 @@ A mensagem deve:
               <div style={{ flex: 1, display: "flex", minWidth: 0 }}>
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
                   {/* Chat header */}
-                  <div style={{ padding: "10px 14px", borderBottom: "1px solid #1a1a2e", display: "flex", alignItems: "center", gap: 10, background: "#0d0d18", flexWrap: "wrap" }}>
+                  <div style={{ padding: "10px 14px", borderBottom: "1px solid #e9edef", display: "flex", alignItems: "center", gap: 10, background: "#f0f2f5", flexWrap: "wrap" }}>
                     <Avatar name={selected.contacts?.name || selected.contacts?.phone} size={34} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 700, fontSize: 13 }}>{selected.contacts?.name || selected.contacts?.phone}</div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 2 }}>
-                        <span style={{ fontSize: 11, color: "#555" }}>{selected.contacts?.phone}</span>
-                        {selected.assigned_agent && <span style={{ fontSize: 11, color: "#00c853" }}>· 👤 {selected.assigned_agent}</span>}
+                        <span style={{ fontSize: 11, color: "#667781" }}>{selected.contacts?.phone}</span>
+                        {selected.assigned_agent && <span style={{ fontSize: 11, color: "#00a884" }}>· 👤 {selected.assigned_agent}</span>}
                         {selected.labels?.map(l => <LabelChip key={l.id} label={l} />)}
                         <KanbanBadge stage={selected.kanban_stage} columns={kanbanCols} />
                       </div>
@@ -4713,7 +4713,7 @@ A mensagem deve:
                       <div style={{ width: "100%", padding: "5px 14px", background: "#7c4dff18", borderTop: "1px solid #7c4dff33", display: "flex", alignItems: "center", gap: 8, fontSize: 11 }}>
                         <span style={{ animation: "pulse 2s infinite", display: "inline-block" }}>🤖</span>
                         <span style={{ color: "#a78bfa", fontWeight: 700 }}>Co-pilot automático ativo</span>
-                        <span style={{ color: "#555" }}>— respondendo automaticamente mensagens recebidas</span>
+                        <span style={{ color: "#667781" }}>— respondendo automaticamente mensagens recebidas</span>
                         {copilotAutoMode === "per_conv" && <button onClick={async () => {
                           const newVal = false;
                           autoModeRef.current[selected.id] = newVal;
@@ -4724,9 +4724,9 @@ A mensagem deve:
                       </div>
                     )}
                     <div style={{ display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center" }}>
-                      <button onClick={() => setShowLabelPicker(true)} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #252540", background: "transparent", color: "#888", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>🏷 Etiqueta</button>
-                      <button onClick={() => setShowAssign(true)} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #252540", background: "transparent", color: "#888", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>👤 Atribuir</button>
-                      <button onClick={fetchSuggestion} disabled={loadingSuggest} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #7c4dff44", background: loadingSuggest ? "#1a1a2e" : "#7c4dff15", color: loadingSuggest ? "#444" : "#a78bfa", fontSize: 11, cursor: loadingSuggest ? "not-allowed" : "pointer", fontFamily: "inherit", fontWeight: 600 }}>{loadingSuggest ? "⏳..." : "✨ Co-pilot"}</button>
+                      <button onClick={() => setShowLabelPicker(true)} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e9edef", background: "transparent", color: "#8696a0", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>🏷 Etiqueta</button>
+                      <button onClick={() => setShowAssign(true)} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e9edef", background: "transparent", color: "#8696a0", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>👤 Atribuir</button>
+                      <button onClick={fetchSuggestion} disabled={loadingSuggest} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #7c4dff44", background: loadingSuggest ? "#e9edef" : "#7c4dff15", color: loadingSuggest ? "#667781" : "#a78bfa", fontSize: 11, cursor: loadingSuggest ? "not-allowed" : "pointer", fontFamily: "inherit", fontWeight: 600 }}>{loadingSuggest ? "⏳..." : "✨ Co-pilot"}</button>
                       {copilotAutoMode === "per_conv" && (
                         <button onClick={async () => {
                           const newVal = !selected.auto_mode;
@@ -4734,24 +4734,24 @@ A mensagem deve:
                           await fetch(`${API_URL}/conversations/${selected.id}/auto-mode`, { method: "PUT", headers, body: JSON.stringify({ enabled: newVal }) }).catch(() => {});
                           setSelected(prev => ({ ...prev, auto_mode: newVal }));
                           setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, auto_mode: newVal } : c));
-                        }} style={{ padding: "5px 10px", borderRadius: 6, border: `1px solid ${selected.auto_mode ? "#00c85344" : "#252540"}`, background: selected.auto_mode ? "#00c85318" : "transparent", color: selected.auto_mode ? "#00c853" : "#555", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>🤖 Auto {selected.auto_mode ? "ON" : "OFF"}</button>
+                        }} style={{ padding: "5px 10px", borderRadius: 6, border: `1px solid ${selected.auto_mode ? "#00a88444" : "#d1d7db"}`, background: selected.auto_mode ? "#00a88418" : "transparent", color: selected.auto_mode ? "#00a884" : "#667781", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>🤖 Auto {selected.auto_mode ? "ON" : "OFF"}</button>
                       )}
-                      <button onClick={() => setShowTasks(t => !t)} style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 6, border: `1px solid ${showTasks ? "#00c85344" : pendingTasksMap[selected?.id] > 0 ? "#ff6d0044" : "#252540"}`, background: showTasks ? "#00c85315" : pendingTasksMap[selected?.id] > 0 ? "#ff6d0010" : "transparent", color: showTasks ? "#00c853" : pendingTasksMap[selected?.id] > 0 ? "#ff6d00" : "#888", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>✅ Tarefas{!showTasks && pendingTasksMap[selected?.id] > 0 && <span style={{ background: "#ff6d00", color: "#000", fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 10 }}>{pendingTasksMap[selected.id]}</span>}</button>
+                      <button onClick={() => setShowTasks(t => !t)} style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 6, border: `1px solid ${showTasks ? "#00a88444" : pendingTasksMap[selected?.id] > 0 ? "#ff6d0044" : "#d1d7db"}`, background: showTasks ? "#00a88415" : pendingTasksMap[selected?.id] > 0 ? "#ff6d0010" : "transparent", color: showTasks ? "#00a884" : pendingTasksMap[selected?.id] > 0 ? "#ff6d00" : "#8696a0", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>✅ Tarefas{!showTasks && pendingTasksMap[selected?.id] > 0 && <span style={{ background: "#ff6d00", color: "#000", fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 10 }}>{pendingTasksMap[selected.id]}</span>}</button>
                     </div>
                   </div>
 
                   {/* Messages */}
-                  <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 6 }}>
-                    {messages.length === 0 ? <div style={{ textAlign: "center", color: "#444", fontSize: 13, marginTop: 40 }}>Nenhuma mensagem ainda</div>
+                  <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 2, background: "#efeae2" }}>
+                    {messages.length === 0 ? <div style={{ textAlign: "center", color: "#667781", fontSize: 13, marginTop: 40 }}>Nenhuma mensagem ainda</div>
                       : messages.map((msg, i) => {
                         const isOut = msg.direction === "outbound";
                         const isInternal = msg.is_internal_note;
                         return (
                           <div key={msg.id || i} style={{ display: "flex", justifyContent: isOut ? "flex-end" : "flex-start", marginBottom: 2 }}>
-                            <div style={{ maxWidth: "65%", padding: "10px 14px", borderRadius: isOut ? "16px 4px 16px 16px" : "4px 16px 16px 16px", background: isInternal ? "#2a2010" : isOut ? "#00c85322" : "#1a1a2e", border: isInternal ? "1px solid #ffd60044" : isOut ? "1px solid #00c85340" : "1px solid #252540", fontSize: 14, lineHeight: 1.5, color: isInternal ? "#ffd600" : isOut ? "#b0f0c0" : "#e8e8f0" }}>
-                              {isInternal && <div style={{ fontSize: 10, fontWeight: 700, color: "#ffd600", marginBottom: 4 }}>📝 NOTA INTERNA</div>}
+                            <div style={{ maxWidth: "65%", padding: "7px 12px 8px 12px", borderRadius: isOut ? "8px 0px 8px 8px" : "0px 8px 8px 8px", background: isInternal ? "#fff8dc" : isOut ? "#d9fdd3" : "#ffffff", boxShadow: "0 1px 2px #0000001a", fontSize: 14, lineHeight: 1.5, color: "#111b21" }}>
+                              {isInternal && <div style={{ fontSize: 10, fontWeight: 700, color: "#8a6914", marginBottom: 4 }}>📝 NOTA INTERNA</div>}
                               <div style={{ wordBreak: "break-word" }}>{msg.content}</div>
-                              <div style={{ fontSize: 10, color: "#555", marginTop: 4, textAlign: isOut ? "right" : "left" }}>{new Date(msg.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</div>
+                              <div style={{ fontSize: 10, color: "#667781", marginTop: 2, textAlign: isOut ? "right" : "left" }}>{new Date(msg.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}{isOut && <span style={{ marginLeft: 4, color: "#53bdeb" }}>✓✓</span>}</div>
                             </div>
                           </div>
                         );
@@ -4760,42 +4760,42 @@ A mensagem deve:
                   </div>
 
                   {/* Input */}
-                  <div style={{ padding: "10px 14px", borderTop: "1px solid #1a1a2e", background: "#0d0d18" }}>
+                  <div style={{ padding: "10px 14px", borderTop: "1px solid #e9edef", background: "#f0f2f5" }}>
                     {suggestion && (
-                      <div style={{ marginBottom: 10, padding: "12px 14px", background: "#1a1030", border: "1px solid #7c4dff44", borderRadius: 10 }}>
+                      <div style={{ marginBottom: 10, padding: "12px 14px", background: "#f5f0ff", border: "1px solid #7c4dff33", borderRadius: 10 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                          <span>✨</span><span style={{ fontSize: 11, fontWeight: 700, color: "#a78bfa" }}>SUGESTÃO DO CO-PILOT</span>
-                          <span onClick={() => setSuggestion("")} style={{ marginLeft: "auto", fontSize: 16, cursor: "pointer", color: "#555" }}>×</span>
+                          <span>✨</span><span style={{ fontSize: 11, fontWeight: 700, color: "#7c3aed" }}>SUGESTÃO DO CO-PILOT</span>
+                          <span onClick={() => setSuggestion("")} style={{ marginLeft: "auto", fontSize: 16, cursor: "pointer", color: "#667781" }}>×</span>
                         </div>
-                        <div style={{ fontSize: 13, color: "#c4b5fd", lineHeight: 1.5, marginBottom: 10 }}>{suggestion}</div>
+                        <div style={{ fontSize: 13, color: "#4c1d95", lineHeight: 1.5, marginBottom: 10 }}>{suggestion}</div>
                         <div style={{ display: "flex", gap: 8 }}>
                           <button onClick={() => { setInput(suggestion); setSuggestion(""); }} style={{ flex: 1, padding: "6px 0", borderRadius: 7, border: "none", background: "linear-gradient(135deg, #7c4dff, #5b21b6)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>✓ Usar resposta</button>
                           <button onClick={fetchSuggestion} style={{ padding: "6px 14px", borderRadius: 7, border: "1px solid #7c4dff44", background: "transparent", color: "#a78bfa", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>↻ Nova</button>
-                          <button onClick={() => setSuggestion("")} style={{ padding: "6px 14px", borderRadius: 7, border: "1px solid #252540", background: "transparent", color: "#555", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Ignorar</button>
+                          <button onClick={() => setSuggestion("")} style={{ padding: "6px 14px", borderRadius: 7, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Ignorar</button>
                         </div>
                       </div>
                     )}
                     {noteMode && (
-                      <div style={{ marginBottom: 8, padding: "6px 12px", background: "#ffd60011", border: "1px solid #ffd60033", borderRadius: 7, display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ marginBottom: 8, padding: "6px 12px", background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 7, display: "flex", alignItems: "center", gap: 8 }}>
                         <span style={{ fontSize: 12 }}>📝</span>
-                        <span style={{ fontSize: 12, color: "#ffd600", fontWeight: 600 }}>Modo nota interna — visível só para a equipe</span>
-                        <span onClick={() => setNoteMode(false)} style={{ marginLeft: "auto", cursor: "pointer", color: "#ffd600", fontSize: 14, opacity: 0.7 }}>×</span>
+                        <span style={{ fontSize: 12, color: "#92400e", fontWeight: 600 }}>Modo nota interna — visível só para a equipe</span>
+                        <span onClick={() => setNoteMode(false)} style={{ marginLeft: "auto", cursor: "pointer", color: "#92400e", fontSize: 14, opacity: 0.7 }}>×</span>
                       </div>
                     )}
                     <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-                      <button onClick={() => setNoteMode(n => !n)} style={{ padding: "9px 10px", borderRadius: 9, border: `1px solid ${noteMode ? "#ffd60044" : "#252540"}`, background: noteMode ? "#ffd60015" : "transparent", color: noteMode ? "#ffd600" : "#555", fontSize: 14, cursor: "pointer", flexShrink: 0 }}>📝</button>
-                      <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }} placeholder={noteMode ? "Escreva uma nota interna..." : "Digite uma mensagem... (Enter para enviar)"} rows={1} style={{ flex: 1, padding: "9px 13px", background: noteMode ? "#1a1500" : "#1a1a2e", border: `1px solid ${noteMode ? "#ffd60033" : "#252540"}`, borderRadius: 9, color: noteMode ? "#ffd600" : "#e8e8f0", fontSize: 14, outline: "none", resize: "none", fontFamily: "inherit", lineHeight: 1.5, maxHeight: 120, overflowY: "auto" }} />
-                      <button onClick={sendMessage} disabled={sending || !input.trim()} style={{ padding: "9px 16px", borderRadius: 9, border: "none", background: sending || !input.trim() ? "#1a1a2e" : noteMode ? "linear-gradient(135deg, #ffd600, #f57f17)" : "linear-gradient(135deg, #00c853, #00796b)", color: sending || !input.trim() ? "#444" : "#000", fontSize: 14, fontWeight: 700, cursor: sending || !input.trim() ? "not-allowed" : "pointer", fontFamily: "inherit", flexShrink: 0 }}>{sending ? "..." : noteMode ? "Nota" : "Enviar"}</button>
+                      <button onClick={() => setNoteMode(n => !n)} style={{ padding: "9px 10px", borderRadius: 9, border: `1px solid ${noteMode ? "#ffd60044" : "#d1d7db"}`, background: noteMode ? "#ffd60015" : "transparent", color: noteMode ? "#ffd600" : "#667781", fontSize: 14, cursor: "pointer", flexShrink: 0 }}>📝</button>
+                      <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }} placeholder={noteMode ? "Escreva uma nota interna..." : "Digite uma mensagem... (Enter para enviar)"} rows={1} style={{ flex: 1, padding: "9px 13px", background: noteMode ? "#fffbeb" : "#f0f2f5", border: `1px solid ${noteMode ? "#ffd60033" : "#d1d7db"}`, borderRadius: 9, color: noteMode ? "#92400e" : "#111b21", fontSize: 14, outline: "none", resize: "none", fontFamily: "inherit", lineHeight: 1.5, maxHeight: 120, overflowY: "auto" }} />
+                      <button onClick={sendMessage} disabled={sending || !input.trim()} style={{ padding: "9px 16px", borderRadius: 9, border: "none", background: sending || !input.trim() ? "#e9edef" : noteMode ? "linear-gradient(135deg, #ffd600, #f57f17)" : "linear-gradient(135deg, #00a884, #017561)", color: sending || !input.trim() ? "#667781" : "#000", fontSize: 14, fontWeight: 700, cursor: sending || !input.trim() ? "not-allowed" : "pointer", fontFamily: "inherit", flexShrink: 0 }}>{sending ? "..." : noteMode ? "Nota" : "Enviar"}</button>
                     </div>
                   </div>
                 </div>
                 {showTasks && <TasksPanel convId={selected.id} agents={agents} onClose={() => { setShowTasks(false); fetchPendingTasks(); }} onTaskDone={fetchPendingTasks} />}
               </div>
             ) : (
-              <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 14, color: "#333" }}>
+              <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 14, color: "#54656f" }}>
                 <div style={{ fontSize: 44 }}>💬</div>
-                <div style={{ fontSize: 17, fontWeight: 600, color: "#444" }}>Selecione uma conversa</div>
-                <div style={{ fontSize: 13, color: "#333" }}>Escolha uma conversa na lista ao lado</div>
+                <div style={{ fontSize: 17, fontWeight: 600, color: "#667781" }}>Selecione uma conversa</div>
+                <div style={{ fontSize: 13, color: "#54656f" }}>Escolha uma conversa na lista ao lado</div>
               </div>
             )}
             </div>{/* end inbox row */}
