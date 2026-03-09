@@ -3879,7 +3879,8 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const bottomRef = useRef(null);
   const chatScrollRef = useRef(null);
   const pollRef = useRef(null);
-  const labelOverrideRef = useRef({}); // { convId: { labels, until } }
+  const labelOverrideRef = useRef({});
+  const kanbanOverrideRef = useRef({}); // { convId: { labels, until } }
   const autoProcessedRef = useRef(new Set()); // msgIds already auto-replied
   const autoProcessingRef = useRef(new Set()); // per-conv processing lock
   const autoModeRef = useRef({}); // { convId: boolean } — persists across polls
@@ -3890,7 +3891,10 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       const ov = labelOverrideRef.current[c.id];
       const labels = (ov && ov.until > now) ? ov.labels : c.labels;
       const auto_mode = autoModeRef.current[c.id] !== undefined ? autoModeRef.current[c.id] : (c.auto_mode || false);
-      return { ...c, labels, auto_mode };
+      // Preserve kanban_stage from local optimistic state (overrides stale cache for 30s)
+      const ko = kanbanOverrideRef.current[c.id];
+      const kanban_stage = (ko && ko.until > now) ? ko.stage : c.kanban_stage;
+      return { ...c, labels, auto_mode, kanban_stage };
     });
   }, []);
 
@@ -4180,11 +4184,15 @@ A mensagem deve:
     }
   };
   const moveKanbanCard = async (conv, newStage) => {
-    try { await fetch(`${API_URL}/conversations/${conv.id}/kanban`, { method: "PUT", headers, body: JSON.stringify({ stage: newStage }) }); } catch (e) {}
+    if (!instanceFilter) { showToast("⚠️ Selecione um número de telefone primeiro", "#ff9800"); return; }
+    // Optimistic: store override for 30s so polling doesn't revert it
+    kanbanOverrideRef.current[conv.id] = { stage: newStage, until: Date.now() + 30000 };
     setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, kanban_stage: newStage } : c));
+    try { await fetch(`${API_URL}/conversations/${conv.id}/kanban`, { method: "PUT", headers, body: JSON.stringify({ stage: newStage }) }); } catch (e) {}
   };
 
   const moveLabelCard = async (conv, fromLabelId, targetLabel) => {
+    if (!instanceFilter) { showToast("⚠️ Selecione um número de telefone primeiro", "#ff9800"); return; }
     const current = conv.labels || [];
     let updated;
     if (!targetLabel) {
@@ -4200,8 +4208,10 @@ A mensagem deve:
       const alreadyHas = withoutFrom.some(l => l.id === targetLabel.id);
       updated = alreadyHas ? withoutFrom : [...withoutFrom, targetLabel];
     }
-    try { await fetch(`${API_URL}/conversations/${conv.id}/labels`, { method: "PUT", headers, body: JSON.stringify({ label_ids: updated.map(l => l.id) }) }); } catch (e) {}
+    // Optimistic: store override for 60s so polling doesn't revert it
+    labelOverrideRef.current[conv.id] = { labels: updated, until: Date.now() + 60000 };
     setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, labels: updated } : c));
+    try { await fetch(`${API_URL}/conversations/${conv.id}/labels`, { method: "PUT", headers, body: JSON.stringify({ label_ids: updated.map(l => l.id) }) }); } catch (e) {}
   };
   const fetchSuggestion = async () => {
     if (!selected || loadingSuggest) return; setLoadingSuggest(true); setSuggestion("");
@@ -4366,13 +4376,7 @@ A mensagem deve:
             </div>
           );
         })()}
-        {!instanceFilter && waInstances.length >= 2 && (
-          <div style={{ display: "flex", alignItems: "center", gap: 5, padding: isMobile ? "4px 8px" : "4px 12px", borderRadius: 20, background: "#ff9800" + "18", border: "1px dashed #ff980055", flexShrink: 0, cursor: "pointer" }}
-            onClick={() => {/* scroll to selector */}}
-            title="Selecione um número para filtrar">
-            <span style={{ fontSize: isMobile ? 10 : 12, fontWeight: 700, color: "#ff9800" }}>📱 Todos os números</span>
-          </div>
-        )}
+
 
         {/* Work tabs — desktop only; mobile uses bottom nav */}
         {!isMobile && <div style={{ display: "flex", gap: 2 }}>
@@ -4762,10 +4766,7 @@ A mensagem deve:
               {/* Number selector pills — only shown when 2+ instances exist */}
               {waInstances.length >= 2 && (
                 <div style={{ padding: "7px 10px", borderBottom: "1px solid #e9edef", display: "flex", gap: 5, alignItems: "center", overflowX: "auto" }}>
-                  <button onClick={() => selectInstance(null)}
-                    style={{ padding: "3px 10px", borderRadius: 20, border: `1px solid ${!instanceFilter ? "#00a88466" : T.border}`, background: !instanceFilter ? "#00a88418" : "transparent", color: !instanceFilter ? "#00a884" : "#667781", fontSize: 11, fontWeight: !instanceFilter ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0 }}>
-                    📥 Todos
-                  </button>
+
                   {waInstances.map(inst => (
                     <button key={inst.id} onClick={() => selectInstance(instanceFilter === inst.instance_name ? null : inst.instance_name)}
                       style={{ padding: "3px 10px", borderRadius: 20, border: `1px solid ${instanceFilter === inst.instance_name ? "#00a88466" : T.border}`, background: instanceFilter === inst.instance_name ? "#00a88418" : "transparent", color: instanceFilter === inst.instance_name ? "#00a884" : "#667781", fontSize: 11, fontWeight: instanceFilter === inst.instance_name ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}>
