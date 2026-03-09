@@ -4332,10 +4332,10 @@ function AppInner({ auth, onLogout }) {
 
         {/* Inbox */}
         {view === "inbox" && (
-          <>
-            {/* Disconnect banner */}
+          <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
+            {/* Disconnect banner — flow element, pushes content down */}
             {waInstances.some(i => !i.connected && i.phone) && (
-              <div style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 100, background: "linear-gradient(90deg,#b71c1c,#c62828)", padding: "9px 20px", display: "flex", alignItems: "center", gap: 10, boxShadow: "0 2px 12px #f4433640" }}>
+              <div style={{ background: "linear-gradient(90deg,#b71c1c,#c62828)", padding: "9px 20px", display: "flex", alignItems: "center", gap: 10, boxShadow: "0 2px 12px #f4433640", flexShrink: 0, zIndex: 10 }}>
                 <span style={{ fontSize: 16 }}>📵</span>
                 <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: "#fff" }}>
                   {waInstances.filter(i => !i.connected && i.phone).map(i => `"${i.label || i.phone}"`).join(", ")} {waInstances.filter(i => !i.connected && i.phone).length === 1 ? "está desconectado" : "estão desconectados"} — nenhuma mensagem nova está sendo recebida.
@@ -4347,8 +4347,11 @@ function AppInner({ auth, onLogout }) {
               </div>
             )}
 
+            {/* Inbox row: sidebar + chat */}
+            <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+
             {/* Sidebar */}
-            <div style={{ width: 300, flexShrink: 0, display: "flex", flexDirection: "column", borderRight: "1px solid #1a1a2e", background: "#0d0d18", marginTop: waInstances.some(i => !i.connected && i.phone) ? 39 : 0 }}>
+            <div style={{ width: 300, flexShrink: 0, display: "flex", flexDirection: "column", borderRight: "1px solid #1a1a2e", background: "#0d0d18" }}>
               <div style={{ padding: "12px 14px", borderBottom: "1px solid #1a1a2e" }}>
                 <div style={{ position: "relative" }}>
                   <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 13, opacity: 0.4 }}>🔍</span>
@@ -4500,7 +4503,8 @@ function AppInner({ auth, onLogout }) {
                 <div style={{ fontSize: 13, color: "#333" }}>Escolha uma conversa na lista ao lado</div>
               </div>
             )}
-          </>
+            </div>{/* end inbox row */}
+          </div>{/* end inbox column wrapper */}
         )}
       </div>
 
