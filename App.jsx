@@ -1437,7 +1437,7 @@ function WhatsAppScreen({ auth }) {
   };
 
   const disconnect = async (inst) => {
-    if (!window.confirm(`Desconectar "${inst.label}"?`)) return;
+    if (!window.confirm(`Desconectar "${inst.label}"? O número ficará offline mas o histórico é mantido.`)) return;
     try {
       await fetch(`${API_URL}/whatsapp/disconnect`, {
         method: "POST", headers,
