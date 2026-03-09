@@ -1335,11 +1335,10 @@ function WhatsAppScreen({ auth, T, theme }) {
   };
 
   const triggerAutoSync = (instName, phone) => {
-    // Use ref to get fresh activeInst — avoids stale closure
-    const inst = activeInstRef.current;
-    const syncInst = { instance_name: instName, phone, id: inst?.id, label: inst?.label || instName };
-    setSyncPhase("connecting");
-    setTimeout(() => startAutoSync(syncInst), 800); // brief "connecting" phase for UX
+    // Número conectado — sem importação de histórico, mensagens carregam ao clicar
+    setAutoSyncInst(null);
+    setSyncPhase("connected_idle");
+    fetchInstances();
   };
 
   const fetchQr = async (instName) => {
@@ -1577,130 +1576,25 @@ function WhatsAppScreen({ auth, T, theme }) {
 
                 {/* Expanded panel */}
                 {isActive && (() => {
-                  const isSyncingThis = autoSyncInst?.instance_name === inst.instance_name;
-                  const phaseThis = isSyncingThis ? syncPhase : (inst.connected ? "connected_idle" : "idle");
-
-                  /* ── CONNECTING phase: QR just scanned, brief handshake ── */
-                  if (phaseThis === "connecting") return (
-                    <div style={{ borderTop: "1px solid #e9edef", padding: 32, display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-                      <div style={{ width: 64, height: 64, borderRadius: "50%", background: "linear-gradient(135deg,#00a884,#017561)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, animation: "spin 1.5s linear infinite" }}>⚡</div>
-                      <div style={{ fontSize: 17, fontWeight: 800, color: "#111b21" }}>WhatsApp conectado!</div>
-                      <div style={{ fontSize: 13, color: "#667781" }}>Preparando sincronização de histórico...</div>
-                    </div>
-                  );
-
-                  /* ── SYNCING phase: history import in progress ── */
-                  if (phaseThis === "syncing") return (
-                    <div style={{ borderTop: "1px solid #e9edef" }}>
-                      {/* ⚠️ DO NOT CLOSE banner */}
-                      <div style={{ background: "linear-gradient(90deg,#ff6d00,#f57c00)", padding: "12px 20px", display: "flex", alignItems: "center", gap: 10 }}>
-                        <span style={{ fontSize: 20 }}>⚠️</span>
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>Não feche esta tela!</div>
-                          <div style={{ fontSize: 11, color: "#fff9", marginTop: 1 }}>Os dados estão sendo sincronizados — fechar pode interromper a importação.</div>
-                        </div>
-                        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#fff", display: "inline-block", animation: "pulse 1s infinite" }} />
-                          <span style={{ fontSize: 11, color: "#fff", fontWeight: 700 }}>ao vivo</span>
-                        </div>
+                  /* ── CONNECTED: número online ── */
+                  if (inst.connected) return (
+                    <div style={{ borderTop: "1px solid #e9edef", padding: "28px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 14, textAlign: "center" }}>
+                      <div style={{ width: 56, height: 56, borderRadius: "50%", background: "linear-gradient(135deg,#00a884,#017561)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>✓</div>
+                      <div style={{ fontSize: 17, fontWeight: 800, color: "#111b21" }}>Número conectado!</div>
+                      <div style={{ fontSize: 13, color: "#667781", maxWidth: 320, lineHeight: 1.6 }}>
+                        As mensagens chegam em tempo real.<br/>Clique em uma conversa para ver o histórico.
                       </div>
-                      <div style={{ padding: "24px 28px" }}>
-                        {/* Big progress ring visual */}
-                        <div style={{ display: "flex", alignItems: "center", gap: 24, marginBottom: 24 }}>
-                          <div style={{ position: "relative", width: 80, height: 80, flexShrink: 0 }}>
-                            <svg width="80" height="80" style={{ transform: "rotate(-90deg)" }}>
-                              <circle cx="40" cy="40" r="34" fill="none" stroke="#e9edef" strokeWidth="7" />
-                              <circle cx="40" cy="40" r="34" fill="none" stroke="#00a884" strokeWidth="7"
-                                strokeDasharray={`${2 * 3.14159 * 34}`}
-                                strokeDashoffset={`${2 * 3.14159 * 34 * (1 - syncProgress / 100)}`}
-                                style={{ transition: "stroke-dashoffset 1s ease" }} />
-                            </svg>
-                            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 800, color: "#00a884" }}>{syncProgress}%</div>
-                          </div>
-                          <div>
-                            <div style={{ fontSize: 16, fontWeight: 800, color: "#111b21", marginBottom: 4 }}>Importando histórico de mensagens</div>
-                            <div style={{ fontSize: 13, color: "#667781", lineHeight: 1.5 }}>Suas conversas anteriores do WhatsApp estão sendo importadas para o 7CRM. Isso pode levar alguns minutos dependendo do volume.</div>
-                          </div>
-                        </div>
-
-                        {/* Progress bar */}
-                        <div style={{ background: "#e9edef", borderRadius: 20, height: 10, overflow: "hidden", marginBottom: 8 }}>
-                          <div style={{ height: "100%", borderRadius: 20, background: "linear-gradient(90deg,#00a884,#00bfa5)", width: `${syncProgress}%`, transition: "width 1s ease", boxShadow: "0 0 8px #00a88460" }} />
-                        </div>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#8696a0", marginBottom: 20 }}>
-                          <span>Sincronizando contatos, conversas e mensagens...</span>
-                          <span style={{ fontWeight: 700, color: "#00a884" }}>{syncProgress}%</span>
-                        </div>
-
-                        {/* Animated steps */}
-                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                          {[
-                            { label: "Conectando ao WhatsApp", done: syncProgress >= 10 },
-                            { label: "Buscando histórico de conversas", done: syncProgress >= 35 },
-                            { label: "Importando contatos", done: syncProgress >= 55 },
-                            { label: "Salvando mensagens", done: syncProgress >= 80 },
-                            { label: "Finalizando sincronização", done: syncProgress >= 100 },
-                          ].map((step, i) => {
-                            const active = !step.done && (i === 0 || [10,35,55,80,100][i-1] <= syncProgress);
-                            return (
-                              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, opacity: step.done || active ? 1 : 0.35, transition: "opacity 0.3s" }}>
-                                <div style={{ width: 22, height: 22, borderRadius: "50%", flexShrink: 0, background: step.done ? "#00a884" : active ? "#00a88430" : "#e9edef", border: `2px solid ${step.done ? "#00a884" : active ? "#00a884" : "#d1d7db"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, transition: "all 0.3s" }}>
-                                  {step.done ? <span style={{ color: "#fff", fontSize: 12 }}>✓</span> : active ? <span style={{ display: "inline-block", animation: "spin 1s linear infinite", fontSize: 10, color: "#00a884" }}>⟳</span> : <span style={{ color: "#d1d7db", fontSize: 10 }}>○</span>}
-                                </div>
-                                <span style={{ fontSize: 13, color: step.done ? "#111b21" : active ? "#00a884" : "#8696a0", fontWeight: step.done || active ? 600 : 400 }}>{step.label}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  );
-
-                  /* ── DONE phase: success ── */
-                  if (phaseThis === "done" && syncResult) return (
-                    <div style={{ borderTop: "1px solid #e9edef", padding: "24px 28px" }}>
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginBottom: 24, textAlign: "center" }}>
-                        <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#00a884", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>✓</div>
-                        <div style={{ fontSize: 18, fontWeight: 800, color: "#111b21" }}>Sincronização concluída!</div>
-                        <div style={{ fontSize: 13, color: "#667781" }}>Seu histórico foi importado com sucesso.</div>
-                      </div>
-                      {syncResult.stats && (
-                        <div style={{ display: "flex", gap: 12, justifyContent: "center", marginBottom: 20 }}>
-                          {[
-                            { label: "Chats", value: syncResult.stats.chats, icon: "💬" },
-                            { label: "Contatos", value: syncResult.stats.contacts_created, icon: "👤" },
-                            { label: "Conversas", value: syncResult.stats.conversations_created, icon: "🗂" },
-                            { label: "Mensagens", value: syncResult.stats.messages_saved, icon: "📩" },
-                          ].map(s => (
-                            <div key={s.label} style={{ textAlign: "center", background: "#f0f2f5", borderRadius: 12, padding: "12px 16px", minWidth: 72 }}>
-                              <div style={{ fontSize: 16, marginBottom: 4 }}>{s.icon}</div>
-                              <div style={{ fontSize: 22, fontWeight: 800, color: "#00a884", lineHeight: 1 }}>{s.value ?? 0}</div>
-                              <div style={{ fontSize: 10, color: "#667781", marginTop: 4 }}>{s.label}</div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      <button onClick={() => { setSyncPhase("idle"); setView("inbox"); }}
-                        style={{ width: "100%", padding: "13px 0", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#fff", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
+                      <button onClick={() => { setActiveInst(null); setView("inbox"); }}
+                        style={{ marginTop: 8, padding: "11px 32px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#fff", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
                         → Ir para o Inbox
                       </button>
                     </div>
                   );
 
-                  /* ── ERROR phase ── */
-                  if (phaseThis === "error") return (
-                    <div style={{ borderTop: "1px solid #e9edef", padding: "24px 28px", textAlign: "center" }}>
-                      <div style={{ fontSize: 40, marginBottom: 12 }}>⚠️</div>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: "#f44336", marginBottom: 8 }}>Erro na sincronização</div>
-                      <div style={{ fontSize: 13, color: "#667781", marginBottom: 20 }}>Não foi possível importar o histórico. Tente novamente.</div>
-                      <button onClick={() => { setSyncPhase("idle"); startAutoSync(inst); }}
-                        style={{ padding: "11px 28px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
-                        🔄 Tentar novamente
-                      </button>
-                    </div>
-                  );
-
-                  /* ── DEFAULT: QR or manual sync ── */
+                  /* ── NEVER REACHED (kept to avoid dead code errors) ── */
+                  if (false) return (
+                    <div style={{ borderTop: "1px solid #e9edef" }}>
+                                    /* ── DEFAULT: QR or manual sync ── */
                   return (
                     <div style={{ borderTop: "1px solid #e9edef", padding: 20 }}>
                       {!inst.connected ? (
