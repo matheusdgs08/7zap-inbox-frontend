@@ -1,6 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 const API_URL = "https://7zap-inbox-production.up.railway.app";
 const API_KEY = "7zap_inbox_secret";
+// Supabase config para OAuth social
+const SUPABASE_URL = "https://kiqxdkpzbnzxbhzzmoto.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtpcXhka3B6Ym56eGJoenptb3RvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDkwMzE2MDAsImV4cCI6MjAyNDYwNzYwMH0.placeholder";
+let _supabaseClient = null;
+const getSupabase = () => {
+  if (_supabaseClient) return _supabaseClient;
+  if (window.supabase) {
+    _supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+  return _supabaseClient;
+};
 const TENANT_ID = "98c38c97-2796-471f-bfc9-f093ff3ae6e9";
 const headers = { "x-api-key": API_KEY, "Content-Type": "application/json" };
 
@@ -320,6 +331,47 @@ function LoginScreen({ onLogin }) {
     setLoading(false);
   };
 
+  // ── SOCIAL LOGIN ──
+  const [socialLoading, setSocialLoading] = useState("");
+  const socialLogin = async (provider) => {
+    setSocialLoading(provider); setError("");
+    try {
+      const sb = getSupabase();
+      if (!sb) { setError("Supabase não carregado. Recarregue a página."); setSocialLoading(""); return; }
+      const { data, error: sbErr } = await sb.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo: window.location.origin + "/?social_callback=1" }
+      });
+      if (sbErr) { setError(sbErr.message); setSocialLoading(""); }
+      // Redirect happens automatically
+    } catch(e) { setError("Erro ao iniciar login social."); setSocialLoading(""); }
+  };
+
+  // Handle OAuth callback — check for session on load
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.get("social_callback")) return;
+    const sb = getSupabase();
+    if (!sb) return;
+    sb.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session?.access_token) return;
+      try {
+        const r = await fetch(`${API_URL}/auth/social`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ access_token: session.access_token })
+        });
+        const d = await r.json();
+        if (r.ok) {
+          window.history.replaceState({}, "", "/");
+          onLogin(d);
+        } else {
+          setError(d.detail || "Erro no login social");
+        }
+      } catch(e) { setError("Erro de conexão."); }
+    });
+  }, []);
+
   // ── FORGOT PASSWORD ──
   const submitForgot = async () => {
     if (!fEmail.trim()) return;
@@ -495,7 +547,36 @@ function LoginScreen({ onLogin }) {
             {loading ? "Entrando..." : "Entrar →"}
           </button>
         </div>
-        <div style={{ marginTop: 24, textAlign: "center", fontSize: 12, color: "#333" }}>7CRM v1.0 · Estúdio Se7e</div>
+
+        {/* Divisor */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "20px 0 16px" }}>
+          <div style={{ flex: 1, height: 1, background: "#1a1a2e" }} />
+          <span style={{ fontSize: 11, color: "#333", fontWeight: 600, whiteSpace: "nowrap" }}>ou continue com</span>
+          <div style={{ flex: 1, height: 1, background: "#1a1a2e" }} />
+        </div>
+
+        {/* Social buttons */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
+          {[
+            { provider: "google",   label: "Google",    icon: "G", color: "#ea4335" },
+            { provider: "facebook", label: "Facebook",  icon: "f", color: "#1877f2" },
+            { provider: "azure",    label: "Microsoft", icon: "M", color: "#00a4ef" },
+            { provider: "apple",    label: "Apple",     icon: "🍎", color: "#e8e8f0" },
+          ].map(({ provider, label, icon, color }) => (
+            <button key={provider} onClick={() => socialLogin(provider)} disabled={!!socialLoading}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                padding: "11px 0", borderRadius: 10, border: `1px solid ${color}44`,
+                background: socialLoading === provider ? color + "20" : "#13131f",
+                color: "#e8e8f0", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                fontFamily: "inherit", opacity: socialLoading && socialLoading !== provider ? 0.4 : 1,
+                transition: "opacity 0.2s" }}>
+              <span style={{ fontSize: 14, fontWeight: 900, color }}>{icon}</span>
+              {socialLoading === provider ? "Abrindo..." : label}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ textAlign: "center", fontSize: 12, color: "#333" }}>7CRM v1.0 · Estúdio Se7e</div>
       </div>
     </div>
   );
@@ -1379,26 +1460,29 @@ function WhatsAppScreen({ auth }) {
                     {!inst.connected ? (
                       /* QR Code panel */
                       <div style={{ display: "flex", gap: 32, alignItems: "flex-start", flexWrap: "wrap" }}>
-                        <div>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
                           {qrCode ? (
-                            <img src={qrCode} alt="QR Code" style={{ width: 260, height: 260, borderRadius: 12, border: "2px solid #252540" }} />
+                            <div style={{ background: "#fff", padding: 16, borderRadius: 16, boxShadow: "0 0 0 4px #00c85330" }}>
+                              <img src={qrCode} alt="QR Code" style={{ width: 280, height: 280, display: "block" }} />
+                            </div>
                           ) : (
-                            <div style={{ width: 260, height: 260, background: "#13131f", border: "2px dashed #252540", borderRadius: 12, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
-                              <span style={{ fontSize: 36 }}>📷</span>
-                              <span style={{ fontSize: 12, color: "#555" }}>{loadingQr ? "Gerando..." : "Clique em Gerar QR"}</span>
+                            <div style={{ width: 312, height: 312, background: "#13131f", border: "2px dashed #252540", borderRadius: 16, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                              <span style={{ fontSize: 48 }}>📷</span>
+                              <span style={{ fontSize: 13, color: "#555" }}>{loadingQr ? "Gerando QR Code..." : "Clique em Gerar QR Code"}</span>
                             </div>
                           )}
                           <button onClick={() => fetchQr(inst.instance_name)} disabled={loadingQr}
-                            style={{ width: 260, marginTop: 10, padding: "12px 0", borderRadius: 10, border: "none", background: loadingQr?"#1a1a2e":"linear-gradient(135deg,#00c853,#00796b)", color: loadingQr?"#444":"#000", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
-                            {loadingQr ? "Gerando..." : qrCode ? "🔄 Novo QR Code" : "📷 Gerar QR Code"}
+                            style={{ width: 312, padding: "13px 0", borderRadius: 10, border: "none", background: loadingQr?"#1a1a2e":"linear-gradient(135deg,#00c853,#00796b)", color: loadingQr?"#444":"#000", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                            {loadingQr ? "⏳ Gerando..." : qrCode ? "🔄 Novo QR Code" : "📷 Gerar QR Code"}
                           </button>
+                          {qrCode && <span style={{ fontSize: 11, color: "#555" }}>QR Code expira em ~60 segundos</span>}
                         </div>
                         <div style={{ flex: 1, minWidth: 200 }}>
                           <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: "#888" }}>Como conectar:</div>
                           {["Abra o WhatsApp no celular", "Menu (⋮) → Dispositivos conectados", "Adicionar dispositivo", "Aponte a câmera para o QR Code ✅"].map((step, i) => (
                             <div key={i} style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 10 }}>
-                              <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#00c85320", border: "1px solid #00c85340", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "#00c853", flexShrink: 0 }}>{i+1}</div>
-                              <span style={{ fontSize: 12, color: "#555" }}>{step}</span>
+                              <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#00c85320", border: "1px solid #00c85340", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: "#00c853", flexShrink: 0 }}>{i+1}</div>
+                              <span style={{ fontSize: 13, color: "#aaa" }}>{step}</span>
                             </div>
                           ))}
                         </div>
