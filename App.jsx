@@ -3768,6 +3768,12 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
 
   useEffect(() => { fetchTrialStatus(); }, []);
   const [conversations, setConversations] = useState([]);
+  const [hasMoreConvs, setHasMoreConvs] = useState(false);
+  const [loadingMoreConvs, setLoadingMoreConvs] = useState(false);
+  const convListRef = useRef(null);
+  const [hasMoreConvs, setHasMoreConvs] = useState(false);
+  const [loadingMoreConvs, setLoadingMoreConvs] = useState(false);
+  const convListRef = useRef(null);
   const [selected, setSelected] = useState(null);
   const [messages, setMessages] = useState([]);
   const [messagesOffset, setMessagesOffset] = useState(0);
@@ -3862,9 +3868,19 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const autoProcessingRef = useRef(new Set()); // per-conv processing lock
   const autoModeRef = useRef({}); // { convId: boolean } — persists across polls
 
+  const mergeConvs = useCallback((list) => {
+    const now = Date.now();
+    return list.map(c => {
+      const ov = labelOverrideRef.current[c.id];
+      const labels = (ov && ov.until > now) ? ov.labels : c.labels;
+      const auto_mode = autoModeRef.current[c.id] !== undefined ? autoModeRef.current[c.id] : (c.auto_mode || false);
+      return { ...c, labels, auto_mode };
+    });
+  }, []);
+
   const fetchConversations = useCallback(async () => {
     try {
-      const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}`, { headers });
+      const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}&limit=50`, { headers });
       if (r.status === 401) {
         const err = await r.json().catch(() => ({}));
         if ((err.detail || "").includes("Sess\u00e3o encerrada")) {
@@ -3874,44 +3890,52 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
         return;
       }
       const d = await r.json();
-      const now = Date.now();
-      const merged = (d.conversations || []).map(c => {
-        const ov = labelOverrideRef.current[c.id];
-        const labels = (ov && ov.until > now) ? ov.labels : c.labels;
-        // Preserve auto_mode from local ref — backend may not return this field
-        const auto_mode = autoModeRef.current[c.id] !== undefined ? autoModeRef.current[c.id] : (c.auto_mode || false);
-        return { ...c, labels, auto_mode };
-      });
+      const merged = mergeConvs(d.conversations || []);
       setConversations(merged);
-      // Keep selected in sync — preserve local-only fields
+      setHasMoreConvs(d.has_more === true);
       setSelected(prev => {
         if (!prev) return prev;
         const fresh = merged.find(c => c.id === prev.id);
-        if (!fresh) return prev;
-        return fresh; // already has labels + auto_mode merged above
+        return fresh || prev;
       });
     } catch (e) {}
     setLoading(false);
-  }, [filter]);
+  }, [filter, mergeConvs]);
+
+  const fetchMoreConversations = useCallback(async () => {
+    if (loadingMoreConvs) return;
+    setLoadingMoreConvs(true);
+    try {
+      const last = conversations[conversations.length - 1];
+      if (!last?.last_message_at) return;
+      const before = encodeURIComponent(last.last_message_at);
+      const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}&limit=50&before=${before}`, { headers });
+      const d = await r.json();
+      const more = mergeConvs(d.conversations || []);
+      // Append avoiding duplicates
+      setConversations(prev => {
+        const ids = new Set(prev.map(c => c.id));
+        return [...prev, ...more.filter(c => !ids.has(c.id))];
+      });
+      setHasMoreConvs(d.has_more === true);
+    } catch (e) {}
+    setLoadingMoreConvs(false);
+  }, [conversations, loadingMoreConvs, mergeConvs]);
   const fetchAllConversations = useCallback(async () => {
-    try { const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}`, { headers }); const d = await r.json();
-      const now = Date.now();
-      const merged = (d.conversations || []).map(c => {
-        const ov = labelOverrideRef.current[c.id];
-        const labels = (ov && ov.until > now) ? ov.labels : c.labels;
-        const auto_mode = autoModeRef.current[c.id] !== undefined ? autoModeRef.current[c.id] : (c.auto_mode || false);
-        return { ...c, labels, auto_mode };
-      });
+    try {
+      const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}&limit=50`, { headers });
+      const d = await r.json();
+      const merged = mergeConvs(d.conversations || []);
       setConversations(merged);
+      setHasMoreConvs(d.has_more === true);
       setSelected(prev => {
         if (!prev) return prev;
         const fresh = merged.find(c => c.id === prev.id);
-        if (!fresh) return prev;
-        return fresh;
+        return fresh || prev;
       });
     } catch (e) {}
     setLoading(false);
-  }, []);
+  }, [mergeConvs]);
   const lazySyncChat = useCallback(async (conv) => {
     // Busca mensagens do WhatsApp para essa conversa específica
     // Chamado uma vez quando o atendente abre a conversa
@@ -4684,9 +4708,25 @@ A mensagem deve:
                 {inactiveDays && <span style={{ fontSize: 10, color: "#ff6d00" }}>({filtered.length})</span>}
               </div>
 
-              <div style={{ flex: 1, overflowY: "auto" }}>
-                {loading ? <div style={{ padding: 24, textAlign: "center", color: "#667781", fontSize: 13 }}>Carregando...</div>
-                  : filtered.length === 0 ? <div style={{ padding: 24, textAlign: "center", color: "#667781", fontSize: 13 }}>Nenhuma conversa</div>
+              <div ref={convListRef} style={{ flex: 1, overflowY: "auto" }} onScroll={e => {
+                  const el = e.currentTarget;
+                  if (hasMoreConvs && !loadingMoreConvs && el.scrollHeight - el.scrollTop - el.clientHeight < 120) {
+                    fetchMoreConversations();
+                  }
+                }}>
+                {loading ? (
+                  <div style={{ padding: "8px 14px" }}>
+                    {[...Array(8)].map((_,i) => (
+                      <div key={i} style={{ display: "flex", gap: 10, padding: "11px 0", borderBottom: "1px solid #f0f2f5", opacity: 1 - i*0.1 }}>
+                        <div style={{ width: 40, height: 40, borderRadius: "50%", background: "linear-gradient(90deg,#f0f2f5 25%,#e9edef 50%,#f0f2f5 75%)", backgroundSize: "200% 100%", animation: "shimmer 1.2s infinite", flexShrink: 0 }} />
+                        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6, justifyContent: "center" }}>
+                          <div style={{ height: 12, borderRadius: 6, background: "linear-gradient(90deg,#f0f2f5 25%,#e9edef 50%,#f0f2f5 75%)", backgroundSize: "200% 100%", animation: "shimmer 1.2s infinite", width: "60%" }} />
+                          <div style={{ height: 10, borderRadius: 6, background: "linear-gradient(90deg,#f0f2f5 25%,#e9edef 50%,#f0f2f5 75%)", backgroundSize: "200% 100%", animation: "shimmer 1.2s infinite", width: "40%" }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : filtered.length === 0 ? <div style={{ padding: 24, textAlign: "center", color: "#667781", fontSize: 13 }}>Nenhuma conversa</div>
                   : filtered.map(conv => (
                     <div key={conv.id} onClick={() => { setSelected(conv); setSuggestion(""); setShowTasks(false); setNoteMode(false); }} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "11px 14px", cursor: "pointer", background: selected?.id === conv.id ? T.selected : "transparent", borderLeft: selected?.id === conv.id ? "3px solid #00a884" : "3px solid transparent" }}>
                       <Avatar name={conv.contacts?.name || conv.contacts?.phone} />
@@ -4718,8 +4758,19 @@ A mensagem deve:
                     </div>
                   ))}
               </div>
+              {/* Infinite scroll loader */}
+              {loadingMoreConvs && (
+                <div style={{ padding: "12px 0", textAlign: "center", color: "#667781", fontSize: 12 }}>
+                  ⏳ Carregando mais...
+                </div>
+              )}
+              {!hasMoreConvs && conversations.length > 50 && (
+                <div style={{ padding: "10px 0", textAlign: "center", color: "#d1d7db", fontSize: 11 }}>
+                  — fim das conversas —
+                </div>
+              )}
               <div style={{ padding: "10px 14px", borderTop: `1px solid ${T.border}`, fontSize: 12, color: T.text2, display: "flex", alignItems: "center", gap: 6 }}>
-                <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#00a884" }} />{conversations.length} conversa{conversations.length !== 1 ? "s" : ""}
+                <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#00a884" }} />{conversations.length} conversa{conversations.length !== 1 ? "s" : ""}{hasMoreConvs ? "+" : ""}
               </div>
             </div>
 
