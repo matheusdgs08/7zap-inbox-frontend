@@ -2947,7 +2947,7 @@ function KanbanBoard({ conversations, columns, onMoveCard, onSelectConv, onManag
 
 
 // ─── Reports View ─────────────────────────────────────────────────────────────
-function ReportsView({ auth }) {
+function ReportsView({ auth, T = { app: "#f0f2f5", card: "#ffffff", border: "#e9edef", text: "#111b21", text2: "#667781" } }) {
   const [tab, setTab] = useState("mensagens");
   const [days, setDays] = useState(30);
   const [data, setData] = useState({});
@@ -2982,15 +2982,15 @@ function ReportsView({ auth }) {
   const maxHour = Math.max(1, ...(data.messages?.by_hour || []).map(h => h.count));
 
   const Bar = ({ value, max, color = "#00a884", height = 40 }) => (
-    <div style={{ width: "100%", height, background: "#0f0f1e", borderRadius: 4, overflow: "hidden", display: "flex", alignItems: "flex-end" }}>
+    <div style={{ width: "100%", height, background: T.border, borderRadius: 4, overflow: "hidden", display: "flex", alignItems: "flex-end" }}>
       <div style={{ width: "100%", height: `${Math.max(4, value/max*100)}%`, background: color, borderRadius: 4, transition: "height 0.4s" }} />
     </div>
   );
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: T.app }}>
       {/* Sub header */}
-      <div style={{ borderBottom: "1px solid #e9edef", padding: "0 24px", display: "flex", alignItems: "center", gap: 4, background: "#ffffff", flexShrink: 0 }}>
+      <div style={{ borderBottom: `1px solid ${T.border}`, padding: "0 24px", display: "flex", alignItems: "center", gap: 4, background: T.card, flexShrink: 0 }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             style={{ padding: "10px 14px", border: "none", borderBottom: `2px solid ${tab===t.id?"#00a884":"transparent"}`,
@@ -4456,7 +4456,7 @@ A mensagem deve:
         </div>
       </div>
 
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+      <div style={{ flex: 1, display: "flex", overflow: "hidden", background: T.app }}>
         {/* Disparos */}
         {view === "disparos" && (
           <BroadcastsView
@@ -4479,7 +4479,7 @@ A mensagem deve:
 
         {/* Relatórios */}
         {view === "relatorios" && auth.user.role === "admin" && (
-          <ReportsView auth={auth} />
+          <ReportsView auth={auth} T={T} />
         )}
 
         {/* Onboarding IA */}
