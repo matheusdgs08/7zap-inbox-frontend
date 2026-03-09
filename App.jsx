@@ -305,14 +305,9 @@ function LoginScreen({ onLogin }) {
 
   const Logo = () => (
     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 32, justifyContent: "center" }}>
-      <svg width="36" height="36" viewBox="0 0 28 28" fill="none">
-        <rect width="28" height="28" rx="7" fill="url(#glogin)"/>
-        <defs><linearGradient id="glogin" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor="#00a884"/><stop offset="100%" stopColor="#00695c"/></linearGradient></defs>
-        <text x="4" y="20" fontSize="14" fontWeight="900" fill="white" fontFamily="sans-serif">7</text>
-        <circle cx="19" cy="14" r="5" fill="none" stroke="white" strokeWidth="2"/>
-        <line x1="19" y1="9" x2="19" y2="19" stroke="white" strokeWidth="1.5"/>
-        <line x1="14" y1="14" x2="24" y2="14" stroke="white" strokeWidth="1.5"/>
-      </svg>
+      <div style={{ width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg, #00a884, #00695c)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 12px #00a88440" }}>
+        <span style={{ fontSize: 26, fontWeight: 900, color: "#fff", fontFamily: "sans-serif", lineHeight: 1 }}>7</span>
+      </div>
       <span style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.5px", color: "#111b21" }}>7<span style={{ color: "#00a884" }}>CRM</span></span>
     </div>
   );
