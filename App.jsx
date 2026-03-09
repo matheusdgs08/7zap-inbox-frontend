@@ -4255,7 +4255,9 @@ A mensagem deve:
       const daysAgo = (Date.now() - lastMsg) / (1000 * 60 * 60 * 24);
       matchInactive = daysAgo >= inactiveDays;
     }
-    const matchInstance = !instanceFilter || c.instance_name === instanceFilter;
+    const matchInstance = !instanceFilter || c.instance_name === instanceFilter || 
+      // If conv has no instance_name, assume it belongs to the first/only instance
+      (instanceFilter && !c.instance_name && waInstances.length === 1);
     return matchSearch && matchUnread && matchInactive && matchInstance;
   });
 
