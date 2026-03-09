@@ -2382,7 +2382,7 @@ function GlobalTasksView({ pendingTasksMap, conversations, agents, onSelectConv,
   );
 }
 
-function LeadsBoard({ conversations, kanbanCols, labels, onSelectConv, onManageLabels, onMoveLabel }) {
+function LeadsBoard({ conversations, kanbanCols, labels, onSelectConv, onManageLabels, onMoveLabel, instanceFilter, instances }) {
   const [dragging, setDragging] = useState(null);       // { convId, fromLabelId }
   const [dragOver, setDragOver] = useState(null);       // label.id or "unlabeled"
 
@@ -2441,12 +2441,41 @@ function LeadsBoard({ conversations, kanbanCols, labels, onSelectConv, onManageL
       <div style={{ padding: "14px 24px", borderBottom: "1px solid #e9edef", display: "flex", alignItems: "center", gap: 12 }}>
         <span style={{ fontSize: 15, fontWeight: 700 }}>🏷 Leads por Etiqueta</span>
         <span style={{ fontSize: 12, color: "#667781" }}>Arraste para mover entre etiquetas</span>
+        {instanceFilter && instances && (() => {
+          const inst = instances.find(i => i.instance_name === instanceFilter);
+          return inst ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 20, background: "#00a88415", border: "1px solid #00a88430" }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: inst.connected ? "#00a884" : "#f44336", display: "inline-block" }} />
+              <span style={{ fontSize: 11, fontWeight: 700, color: "#00a884" }}>📱 {inst.label || inst.instance_name}</span>
+            </div>
+          ) : null;
+        })()}
         <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
           <span style={{ fontSize: 12, color: "#667781", background: "#e9edef", padding: "4px 12px", borderRadius: 20 }}>{conversations.length} total</span>
           <button onClick={onManageLabels} style={{ padding: "6px 14px", borderRadius: 7, border: "1px solid #e9edef", background: "transparent", color: "#8696a0", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>⚙️ Gerenciar etiquetas</button>
         </div>
       </div>
       <div style={{ flex: 1, display: "flex", gap: 16, padding: "20px 24px", overflowX: "auto", overflowY: "hidden" }}>
+        {/* Sem etiqueta — sempre primeiro */}
+        <div
+          onDragOver={e => { e.preventDefault(); setDragOver("unlabeled"); }}
+          onDragLeave={() => setDragOver(null)}
+          onDrop={() => handleDrop("unlabeled")}
+          style={{ width: 270, flexShrink: 0, display: "flex", flexDirection: "column", background: dragOver === "unlabeled" ? "#e9edef" : "#ffffff", border: `1px solid ${dragOver === "unlabeled" ? "#55555566" : "#e9edef"}`, borderRadius: 12, overflow: "hidden", transition: "all 0.15s" }}
+        >
+          <div style={{ padding: "12px 14px", borderBottom: "2px solid #33333322", display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#667781", flexShrink: 0 }} />
+            <span style={{ fontWeight: 700, fontSize: 13, color: "#667781", flex: 1 }}>Sem etiqueta</span>
+            <span style={{ background: "#33333322", color: "#667781", fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20 }}>{unlabeled.length}</span>
+          </div>
+          <div style={{ flex: 1, overflowY: "auto", padding: "10px 8px", display: "flex", flexDirection: "column", gap: 8 }}>
+            {unlabeled.length === 0
+              ? <div style={{ border: `2px dashed ${dragOver === "unlabeled" ? "#55555588" : "#55555522"}`, borderRadius: 8, padding: 20, textAlign: "center", color: "#667781", fontSize: 12, transition: "all 0.15s" }}>{dragOver === "unlabeled" ? "➕ Soltar aqui" : "Nenhum lead"}</div>
+              : unlabeled.map(conv => renderCard(conv, null))
+            }
+          </div>
+        </div>
+
         {allLabels.map(label => {
           const cards = conversations.filter(c => (c.labels || []).some(l => l.id === label.id));
           const isOver = dragOver === label.id;
@@ -2477,27 +2506,7 @@ function LeadsBoard({ conversations, kanbanCols, labels, onSelectConv, onManageL
           );
         })}
 
-        {/* Coluna sem etiqueta */}
-        {(unlabeled.length > 0 || dragOver === "unlabeled") && (
-          <div
-            onDragOver={e => { e.preventDefault(); setDragOver("unlabeled"); }}
-            onDragLeave={() => setDragOver(null)}
-            onDrop={() => handleDrop("unlabeled")}
-            style={{ width: 270, flexShrink: 0, display: "flex", flexDirection: "column", background: dragOver === "unlabeled" ? "#e9edef" : "#ffffff", border: `1px solid ${dragOver === "unlabeled" ? "#55555566" : "#e9edef"}`, borderRadius: 12, overflow: "hidden", transition: "all 0.15s" }}
-          >
-            <div style={{ padding: "12px 14px", borderBottom: "2px solid #33333388", display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#667781", flexShrink: 0 }} />
-              <span style={{ fontWeight: 700, fontSize: 13, color: "#667781", flex: 1 }}>Sem etiqueta</span>
-              <span style={{ background: "#33333322", color: "#667781", fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20 }}>{unlabeled.length}</span>
-            </div>
-            <div style={{ flex: 1, overflowY: "auto", padding: "10px 8px", display: "flex", flexDirection: "column", gap: 8 }}>
-              {unlabeled.length === 0
-                ? <div style={{ border: "2px dashed #55555588", borderRadius: 8, padding: 20, textAlign: "center", color: "#667781", fontSize: 12 }}>➕ Soltar aqui para remover etiqueta</div>
-                : unlabeled.map(conv => renderCard(conv, null))
-              }
-            </div>
-          </div>
-        )}
+
       </div>
     </div>
   );
@@ -3786,7 +3795,10 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const [search, setSearch] = useState("");
   const [unreadFilter, setUnreadFilter] = useState("all"); // all | unread
   const [inactiveDays, setInactiveDays] = useState(null); // null | 3 | 7 | 15  (days without response)
-  const [instanceFilter, setInstanceFilter] = useState(null); // null = all | instance_name string
+  const [instanceFilter, setInstanceFilter] = useState(() => {
+    // Restore last selected instance from sessionStorage
+    try { return sessionStorage.getItem("7crm_instance") || null; } catch { return null; }
+  }); // null = all | instance_name string
   const [resumingConv, setResumingConv] = useState(null); // conv id being resumed
   const [agents, setAgents] = useState([]);
   const [pendingTasksMap, setPendingTasksMap] = useState({}); // convId → count
@@ -3796,6 +3808,13 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const [showUpgrade, setShowUpgrade] = useState(null); // feature name string
   const [showBuyCredits, setShowBuyCredits] = useState(false);
   const [waInstances, setWaInstances] = useState([]); // for disconnect banner
+  const selectInstance = (name) => {
+    setInstanceFilter(name);
+    try {
+      if (name) sessionStorage.setItem("7crm_instance", name);
+      else sessionStorage.removeItem("7crm_instance");
+    } catch {}
+  };
 
   useEffect(() => {
     const fetchWaStatus = async () => {
@@ -4317,6 +4336,28 @@ A mensagem deve:
           {!isMobile && <span style={{ fontWeight: 800, fontSize: 15, color: "#00a884", letterSpacing: "-0.3px" }}>CRM</span>}
         </div>
 
+        {/* 📱 Número ativo — sempre visível no topo */}
+        {instanceFilter && waInstances.length >= 1 && (() => {
+          const activeInst = waInstances.find(i => i.instance_name === instanceFilter);
+          if (!activeInst) return null;
+          return (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: isMobile ? "4px 8px" : "4px 12px", borderRadius: 20, background: "#00a88415", border: "1px solid #00a88430", flexShrink: 0, maxWidth: isMobile ? 130 : 200 }}>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: activeInst.connected ? "#00a884" : "#f44336", flexShrink: 0, display: "inline-block" }} />
+              <span style={{ fontSize: isMobile ? 10 : 12, fontWeight: 700, color: "#00a884", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                📱 {activeInst.label || activeInst.instance_name}
+              </span>
+              <button onClick={() => selectInstance(null)} title="Trocar número" style={{ background: "none", border: "none", cursor: "pointer", color: "#00a884", fontSize: 12, padding: 0, lineHeight: 1, flexShrink: 0 }}>✕</button>
+            </div>
+          );
+        })()}
+        {!instanceFilter && waInstances.length >= 2 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 5, padding: isMobile ? "4px 8px" : "4px 12px", borderRadius: 20, background: "#ff9800" + "18", border: "1px dashed #ff980055", flexShrink: 0, cursor: "pointer" }}
+            onClick={() => {/* scroll to selector */}}
+            title="Selecione um número para filtrar">
+            <span style={{ fontSize: isMobile ? 10 : 12, fontWeight: 700, color: "#ff9800" }}>📱 Todos os números</span>
+          </div>
+        )}
+
         {/* Work tabs — desktop only; mobile uses bottom nav */}
         {!isMobile && <div style={{ display: "flex", gap: 2 }}>
           {WORK_TABS.map(tab => (
@@ -4629,6 +4670,8 @@ A mensagem deve:
         {/* Leads */}
         {view === "leads" && (
           <LeadsBoard
+            instanceFilter={instanceFilter}
+            instances={waInstances}
             conversations={filtered}
             kanbanCols={kanbanCols}
             labels={labels}
@@ -4679,15 +4722,36 @@ A mensagem deve:
                 ))}
               </div>
 
-              {/* Number selector — only shown when 2+ instances exist */}
+              {/* ─── SELETOR DE NÚMERO PRINCIPAL ─── */}
+              {waInstances.length >= 2 && !instanceFilter && (
+                <div style={{ padding: "10px 12px", background: "linear-gradient(135deg, #00a88412, #00695c0a)", borderBottom: "2px solid #00a88430" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#00a884", marginBottom: 7, letterSpacing: 0.3 }}>📱 SELECIONE O NÚMERO</div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {waInstances.map(inst => (
+                      <button key={inst.id} onClick={() => selectInstance(inst.instance_name)}
+                        style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 10, border: "1px solid #00a88433", background: "#fff", color: "#111b21", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 1px 4px #0001", transition: "all 0.15s" }}
+                        onMouseEnter={e => e.currentTarget.style.background = "#00a88412"}
+                        onMouseLeave={e => e.currentTarget.style.background = "#fff"}>
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: inst.connected ? "#00a884" : "#f44336", display: "inline-block", flexShrink: 0 }} />
+                        <div style={{ textAlign: "left" }}>
+                          <div>{inst.label || inst.instance_name}</div>
+                          {inst.phone && <div style={{ fontSize: 10, color: "#667781", fontWeight: 500 }}>{inst.phone}</div>}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Number selector pills — only shown when 2+ instances exist */}
               {waInstances.length >= 2 && (
                 <div style={{ padding: "7px 10px", borderBottom: "1px solid #e9edef", display: "flex", gap: 5, alignItems: "center", overflowX: "auto" }}>
-                  <button onClick={() => setInstanceFilter(null)}
+                  <button onClick={() => selectInstance(null)}
                     style={{ padding: "3px 10px", borderRadius: 20, border: `1px solid ${!instanceFilter ? "#00a88466" : T.border}`, background: !instanceFilter ? "#00a88418" : "transparent", color: !instanceFilter ? "#00a884" : "#667781", fontSize: 11, fontWeight: !instanceFilter ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0 }}>
                     📥 Todos
                   </button>
                   {waInstances.map(inst => (
-                    <button key={inst.id} onClick={() => setInstanceFilter(instanceFilter === inst.instance_name ? null : inst.instance_name)}
+                    <button key={inst.id} onClick={() => selectInstance(instanceFilter === inst.instance_name ? null : inst.instance_name)}
                       style={{ padding: "3px 10px", borderRadius: 20, border: `1px solid ${instanceFilter === inst.instance_name ? "#00a88466" : T.border}`, background: instanceFilter === inst.instance_name ? "#00a88418" : "transparent", color: instanceFilter === inst.instance_name ? "#00a884" : "#667781", fontSize: 11, fontWeight: instanceFilter === inst.instance_name ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}>
                       <span style={{ width: 6, height: 6, borderRadius: "50%", background: inst.connected ? "#00a884" : "#f44336", display: "inline-block", flexShrink: 0 }} />
                       {inst.label || inst.instance_name}
