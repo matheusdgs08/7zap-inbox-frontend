@@ -4754,7 +4754,7 @@ A mensagem deve:
                 <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#00a884" }} />{conversations.length} conversa{conversations.length !== 1 ? "s" : ""}
               </div>
             </div>
-            </div>{/* end sidebar */}
+            </div>
 
             {/* Chat area */}
             {selected ? (
@@ -4861,8 +4861,8 @@ A mensagem deve:
                 <div style={{ fontSize: 13, color: "#54656f" }}>Escolha uma conversa na lista ao lado</div>
               </div>
             )}
-            </div>{/* end inbox row */}
-          </div>{/* end inbox column wrapper */}
+            </div>
+          </div>
         )}
       </div>
 
