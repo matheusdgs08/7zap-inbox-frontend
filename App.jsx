@@ -1283,7 +1283,9 @@ function WhatsAppScreen({ auth }) {
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
   const [syncProgress, setSyncProgress] = useState(0);
+  const [autoSyncInst, setAutoSyncInst] = useState(null); // inst that triggered auto-sync
   const syncJobRef = useRef(null);
+  const qrPollRef = useRef(null); // polling interval while QR is displayed
 
   const fetchInstances = async () => {
     try {
@@ -1310,20 +1312,74 @@ function WhatsAppScreen({ auth }) {
     }
   }, [activeInst?.id]);
 
+  const startAutoSync = (inst) => {
+    setAutoSyncInst(inst);
+    setSyncing(true); setSyncResult(null); setSyncProgress(5);
+    fetch(`${API_URL}/whatsapp/sync`, {
+      method: "POST", headers,
+      body: JSON.stringify({ tenant_id: TENANT_ID, instance: inst.instance_name, async: true })
+    }).then(r => r.json()).then(d => {
+      if (d.job_id) {
+        setSyncProgress(10);
+        const poll = setInterval(async () => {
+          try {
+            const sr = await fetch(`${API_URL}/whatsapp/sync/status?job_id=${d.job_id}`, { headers });
+            const sd = await sr.json();
+            if (sd.progress) setSyncProgress(Math.min(sd.progress, 95));
+            if (sd.status === "done" || sd.status === "error") {
+              clearInterval(poll); setSyncProgress(100);
+              setSyncResult({ ok: sd.status !== "error", ...sd });
+              setSyncing(false);
+            }
+          } catch(e) { clearInterval(poll); setSyncing(false); }
+        }, 2000);
+        setTimeout(() => { clearInterval(poll); setSyncing(false); }, 300000);
+      } else {
+        setSyncProgress(100); setSyncResult({ ok: true, ...d }); setSyncing(false);
+      }
+    }).catch(() => setSyncing(false));
+  };
+
   const fetchQr = async (instName) => {
     setLoadingQr(true); setQrCode("");
+    // Clear any existing QR poll
+    if (qrPollRef.current) { clearInterval(qrPollRef.current); qrPollRef.current = null; }
     try {
       const r = await fetch(`${API_URL}/whatsapp/qrcode?instance=${instName}`, { headers });
       const d = await r.json();
       if (d.connected) {
+        setQrCode("");
         fetchInstances();
+        const freshInst = instances.find(i => i.instance_name === instName) || activeInst;
         setActiveInst(prev => prev ? { ...prev, connected: true, phone: d.phone } : prev);
+        // 🚀 AUTO-SYNC: start importing history automatically
+        if (freshInst) startAutoSync({ ...freshInst, instance_name: instName });
       } else if (d.qr_code) {
         setQrCode(d.qr_code);
+        // Start polling every 5s to detect when user scans QR
+        if (qrPollRef.current) clearInterval(qrPollRef.current);
+        qrPollRef.current = setInterval(async () => {
+          try {
+            const pr = await fetch(`${API_URL}/whatsapp/qrcode?instance=${instName}`, { headers });
+            const pd = await pr.json();
+            if (pd.connected) {
+              clearInterval(qrPollRef.current); qrPollRef.current = null;
+              setQrCode("");
+              fetchInstances();
+              const freshInst = instances.find(i => i.instance_name === instName) || activeInst;
+              setActiveInst(prev => prev ? { ...prev, connected: true, phone: pd.phone } : prev);
+              // 🚀 AUTO-SYNC on QR scan detection
+              if (freshInst) startAutoSync({ ...freshInst, instance_name: instName });
+            }
+          } catch(e) {}
+        }, 5000);
       }
     } catch(e) {}
     setLoadingQr(false);
   };
+
+  // Cleanup QR poll on unmount
+  useEffect(() => () => { if (qrPollRef.current) clearInterval(qrPollRef.current); }, []);
 
   // Called when user clicks "Gerar QR Code" — soft-locks if inst already has a phone
   const handleGenerateQr = (inst) => {
@@ -1549,21 +1605,62 @@ function WhatsAppScreen({ auth }) {
                     ) : (
                       /* Sync panel when connected */
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>📲 Sincronizar histórico de mensagens</div>
-                        {syncing && (
+                        {/* Auto-sync in progress — shown right after connection */}
+                        {syncing && autoSyncInst?.instance_name === inst.instance_name ? (
+                          <div style={{ background: "#00c85312", border: "1px solid #00c85333", borderRadius: 12, padding: "16px 20px", marginBottom: 16 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                              <span style={{ fontSize: 20, animation: "spin 2s linear infinite", display: "inline-block" }}>⚡</span>
+                              <div>
+                                <div style={{ fontSize: 14, fontWeight: 700, color: "#00c853" }}>Importando histórico automaticamente...</div>
+                                <div style={{ fontSize: 12, color: "#555", marginTop: 2 }}>Suas conversas anteriores estão sendo importadas em segundo plano</div>
+                              </div>
+                            </div>
+                            <div style={{ background: "#0d0d18", borderRadius: 20, height: 8, overflow: "hidden" }}>
+                              <div style={{ height: "100%", borderRadius: 20, background: "linear-gradient(90deg,#00c853,#00bcd4)", width: `${syncProgress}%`, transition: "width 1s" }} />
+                            </div>
+                            <div style={{ fontSize: 11, color: "#555", marginTop: 6, textAlign: "right" }}>{syncProgress}%</div>
+                          </div>
+                        ) : syncResult && autoSyncInst?.instance_name === inst.instance_name ? (
+                          <div style={{ padding: "14px 18px", borderRadius: 12, background: syncResult.ok ? "#00c85315" : "#f4433315", border: `1px solid ${syncResult.ok ? "#00c85333" : "#f4433333"}`, marginBottom: 16 }}>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: syncResult.ok ? "#00c853" : "#f44336", marginBottom: 6 }}>
+                              {syncResult.ok ? "✅ Histórico importado com sucesso!" : "⚠️ Importação parcial"}
+                            </div>
+                            {syncResult.stats && (
+                              <div style={{ display: "flex", gap: 20, marginBottom: 8 }}>
+                                {[
+                                  { label: "Chats", value: syncResult.stats.chats, icon: "💬" },
+                                  { label: "Contatos", value: syncResult.stats.contacts_created, icon: "👤" },
+                                  { label: "Conversas", value: syncResult.stats.conversations_created, icon: "🗂" },
+                                  { label: "Mensagens", value: syncResult.stats.messages_saved, icon: "📩" },
+                                ].map(s => (
+                                  <div key={s.label} style={{ textAlign: "center" }}>
+                                    <div style={{ fontSize: 10, marginBottom: 2 }}>{s.icon}</div>
+                                    <div style={{ fontSize: 20, fontWeight: 800, color: "#00c853" }}>{s.value ?? 0}</div>
+                                    <div style={{ fontSize: 10, color: "#555" }}>{s.label}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            <div style={{ fontSize: 12, color: "#555" }}>Agora acesse o Inbox para ver todas as conversas.</div>
+                          </div>
+                        ) : null}
+
+                        {/* Manual sync section */}
+                        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, color: "#555" }}>📲 Reimportar histórico manualmente</div>
+                        <div style={{ fontSize: 12, color: "#333", marginBottom: 12 }}>Use para atualizar ou reimportar caso o histórico esteja incompleto.</div>
+                        {syncing && autoSyncInst?.instance_name !== inst.instance_name && (
                           <div style={{ marginBottom: 12 }}>
-                            <div style={{ fontSize: 12, color: "#00c853", marginBottom: 6 }}>⏳ Importando... pode levar alguns segundos</div>
+                            <div style={{ fontSize: 12, color: "#00c853", marginBottom: 6 }}>⏳ Importando...</div>
                             <div style={{ background: "#1a1a2e", borderRadius: 20, height: 6, overflow: "hidden" }}>
                               <div style={{ height: "100%", borderRadius: 20, background: "linear-gradient(90deg,#00c853,#00bcd4)", width: `${syncProgress}%`, transition: "width 1s" }} />
                             </div>
                           </div>
                         )}
-                        {syncResult && (
+                        {syncResult && autoSyncInst?.instance_name !== inst.instance_name && (
                           <div style={{ padding: "12px 16px", borderRadius: 10, background: syncResult.ok?"#00c85315":"#f4433315", border: `1px solid ${syncResult.ok?"#00c85333":"#f4433333"}`, marginBottom: 12 }}>
                             <div style={{ fontSize: 13, fontWeight: 700, color: syncResult.ok?"#00c853":"#f44336", marginBottom: 4 }}>
                               {syncResult.ok ? "✅ Sincronização concluída!" : "❌ Erro na sincronização"}
                             </div>
-                            {syncResult.message && <div style={{ fontSize: 12, color: "#888" }}>{syncResult.message}</div>}
                             {syncResult.stats && (
                               <div style={{ display: "flex", gap: 16, marginTop: 10 }}>
                                 {[
