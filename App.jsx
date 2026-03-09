@@ -1228,6 +1228,7 @@ function WhatsAppScreen({ auth }) {
   const [newLabel, setNewLabel] = useState("");
   const [showNewForm, setShowNewForm] = useState(false);
   const [deleting, setDeleting] = useState(null);
+  const [confirmPhone, setConfirmPhone] = useState(null); // { inst } when showing modal
 
   // Sync state
   const [syncing, setSyncing] = useState(false);
@@ -1251,9 +1252,9 @@ function WhatsAppScreen({ auth }) {
     return () => clearInterval(t);
   }, []);
 
-  // QR code for active instance
+  // QR code for active instance — skip auto-fetch if phone already registered (soft lock)
   useEffect(() => {
-    if (activeInst && !activeInst.connected) {
+    if (activeInst && !activeInst.connected && !activeInst.phone) {
       fetchQr(activeInst.instance_name);
     } else {
       setQrCode("");
@@ -1273,6 +1274,15 @@ function WhatsAppScreen({ auth }) {
       }
     } catch(e) {}
     setLoadingQr(false);
+  };
+
+  // Called when user clicks "Gerar QR Code" — soft-locks if inst already has a phone
+  const handleGenerateQr = (inst) => {
+    if (inst.phone) {
+      setConfirmPhone({ inst, value: "" });
+    } else {
+      fetchQr(inst.instance_name);
+    }
   };
 
   const createInstance = async () => {
@@ -1430,9 +1440,9 @@ function WhatsAppScreen({ auth }) {
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 15, fontWeight: 700 }}>{inst.label || "Número"}</div>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
-                      <span style={{ width: 7, height: 7, borderRadius: "50%", background: statusColor, display: "inline-block" }} />
+                      <span style={{ width: 7, height: 7, borderRadius: "50%", background: statusColor, display: "inline-block", animation: !inst.connected ? "pulse 1.5s infinite" : "none" }} />
                       <span style={{ fontSize: 12, color: statusColor, fontWeight: 600 }}>
-                        {inst.connected ? (inst.phone ? `+${inst.phone}` : "Conectado") : "Desconectado"}
+                        {inst.connected ? (inst.phone ? `+${inst.phone}` : "Conectado") : (inst.phone ? `Desconectado — era +${inst.phone}` : "Desconectado")}
                       </span>
                     </div>
                   </div>
@@ -1471,7 +1481,7 @@ function WhatsAppScreen({ auth }) {
                               <span style={{ fontSize: 13, color: "#555" }}>{loadingQr ? "Gerando QR Code..." : "Clique em Gerar QR Code"}</span>
                             </div>
                           )}
-                          <button onClick={() => fetchQr(inst.instance_name)} disabled={loadingQr}
+                          <button onClick={() => handleGenerateQr(inst)} disabled={loadingQr}
                             style={{ width: 312, padding: "13px 0", borderRadius: 10, border: "none", background: loadingQr?"#1a1a2e":"linear-gradient(135deg,#00c853,#00796b)", color: loadingQr?"#444":"#000", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
                             {loadingQr ? "⏳ Gerando..." : qrCode ? "🔄 Novo QR Code" : "📷 Gerar QR Code"}
                           </button>
@@ -1556,7 +1566,66 @@ function WhatsAppScreen({ auth }) {
           </div>
         </div>
       </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } } @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }`}</style>
+
+      {/* ── Confirm Phone Modal (soft lock) ─────────────────────── */}
+      {confirmPhone && (
+        <div style={{ position: "fixed", inset: 0, background: "#000000cc", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}
+          onClick={() => setConfirmPhone(null)}>
+          <div style={{ background: "#0d0d18", border: "1px solid #f4433344", borderRadius: 18, padding: 32, maxWidth: 460, width: "90%" }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 36, textAlign: "center", marginBottom: 12 }}>⚠️</div>
+            <div style={{ fontSize: 17, fontWeight: 800, textAlign: "center", marginBottom: 8 }}>Trocar número?</div>
+            <div style={{ fontSize: 13, color: "#ccc", textAlign: "center", marginBottom: 6, lineHeight: 1.6 }}>
+              Ao conectar um número diferente, <strong style={{ color: "#f44336" }}>todo o histórico de conversas</strong> deste número será perdido permanentemente.
+            </div>
+            <div style={{ background: "#f4433315", border: "1px solid #f4433333", borderRadius: 10, padding: "12px 16px", marginBottom: 20 }}>
+              <div style={{ fontSize: 12, color: "#f44336", fontWeight: 700, marginBottom: 4 }}>🚨 Ação irreversível</div>
+              <div style={{ fontSize: 12, color: "#aaa" }}>
+                Todas as <strong style={{ color: "#e8e8f0" }}>conversas, mensagens e contatos</strong> vinculados ao número
+                <strong style={{ color: "#e8e8f0" }}> +{confirmPhone.inst.phone}</strong> serão apagados do sistema.
+              </div>
+            </div>
+            <div style={{ marginBottom: 6 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: "#888", display: "block", marginBottom: 6 }}>
+                Digite o número atual para confirmar:
+              </label>
+              <div style={{ fontSize: 11, color: "#555", marginBottom: 8 }}>
+                Ex: {confirmPhone.inst.phone}
+              </div>
+              <input
+                autoFocus
+                value={confirmPhone.value || ""}
+                onChange={e => setConfirmPhone(prev => ({ ...prev, value: e.target.value.replace(/\D/g, "") }))}
+                placeholder={`${confirmPhone.inst.phone}`}
+                style={{ width: "100%", padding: "10px 14px", background: "#13131f", border: "1px solid #252540", borderRadius: 8, color: "#e8e8f0", fontSize: 15, outline: "none", boxSizing: "border-box", letterSpacing: 2, fontFamily: "monospace" }}
+              />
+              {confirmPhone.value && confirmPhone.value !== String(confirmPhone.inst.phone) && (
+                <div style={{ fontSize: 11, color: "#f44336", marginTop: 4 }}>❌ Número incorreto</div>
+              )}
+              {confirmPhone.value && confirmPhone.value === String(confirmPhone.inst.phone) && (
+                <div style={{ fontSize: 11, color: "#00c853", marginTop: 4 }}>✅ Número confirmado</div>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+              <button onClick={() => setConfirmPhone(null)}
+                style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1px solid #252540", background: "transparent", color: "#888", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+                Cancelar
+              </button>
+              <button
+                disabled={confirmPhone.value !== String(confirmPhone.inst.phone)}
+                onClick={() => {
+                  const inst = confirmPhone.inst;
+                  setConfirmPhone(null);
+                  fetchQr(inst.instance_name);
+                }}
+                style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "none", background: confirmPhone.value === String(confirmPhone.inst.phone) ? "linear-gradient(135deg,#f44336,#b71c1c)" : "#1a1a2e", color: confirmPhone.value === String(confirmPhone.inst.phone) ? "#fff" : "#333", fontSize: 13, fontWeight: 700, cursor: confirmPhone.value === String(confirmPhone.inst.phone) ? "pointer" : "not-allowed", fontFamily: "inherit", transition: "all 0.2s" }}>
+                ⚠️ Sim, trocar número
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -3536,6 +3605,20 @@ function AppInner({ auth, onLogout }) {
   const [aiCredits, setAiCredits] = useState(null); // { credits, limit, plan, pct, warning }
   const [showUpgrade, setShowUpgrade] = useState(null); // feature name string
   const [showBuyCredits, setShowBuyCredits] = useState(false);
+  const [waInstances, setWaInstances] = useState([]); // for disconnect banner
+
+  useEffect(() => {
+    const fetchWaStatus = async () => {
+      try {
+        const r = await fetch(`${API_URL}/whatsapp/tenant-instances?tenant_id=${TENANT_ID}`, { headers });
+        const d = await r.json();
+        setWaInstances(d.instances || []);
+      } catch (e) {}
+    };
+    fetchWaStatus();
+    const t = setInterval(fetchWaStatus, 30000);
+    return () => clearInterval(t);
+  }, []);
   const fetchLabels = useCallback(async () => {
     setLabelsError("");
     try {
@@ -4250,8 +4333,22 @@ function AppInner({ auth, onLogout }) {
         {/* Inbox */}
         {view === "inbox" && (
           <>
+            {/* Disconnect banner */}
+            {waInstances.some(i => !i.connected && i.phone) && (
+              <div style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 100, background: "linear-gradient(90deg,#b71c1c,#c62828)", padding: "9px 20px", display: "flex", alignItems: "center", gap: 10, boxShadow: "0 2px 12px #f4433640" }}>
+                <span style={{ fontSize: 16 }}>📵</span>
+                <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: "#fff" }}>
+                  {waInstances.filter(i => !i.connected && i.phone).map(i => `"${i.label || i.phone}"`).join(", ")} {waInstances.filter(i => !i.connected && i.phone).length === 1 ? "está desconectado" : "estão desconectados"} — nenhuma mensagem nova está sendo recebida.
+                </span>
+                <button onClick={() => setView("whatsapp")}
+                  style={{ padding: "5px 14px", borderRadius: 7, border: "1px solid #ffffff44", background: "#ffffff18", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+                  Reconectar →
+                </button>
+              </div>
+            )}
+
             {/* Sidebar */}
-            <div style={{ width: 300, flexShrink: 0, display: "flex", flexDirection: "column", borderRight: "1px solid #1a1a2e", background: "#0d0d18" }}>
+            <div style={{ width: 300, flexShrink: 0, display: "flex", flexDirection: "column", borderRight: "1px solid #1a1a2e", background: "#0d0d18", marginTop: waInstances.some(i => !i.connected && i.phone) ? 39 : 0 }}>
               <div style={{ padding: "12px 14px", borderBottom: "1px solid #1a1a2e" }}>
                 <div style={{ position: "relative" }}>
                   <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 13, opacity: 0.4 }}>🔍</span>
