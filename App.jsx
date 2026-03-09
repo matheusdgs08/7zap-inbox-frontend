@@ -1408,13 +1408,21 @@ function WhatsAppScreen({ auth }) {
     setCreating(false);
   };
 
+  const [confirmDelete, setConfirmDelete] = useState(null); // inst to delete
+
   const deleteInstance = async (inst) => {
-    if (!window.confirm(`Remover "${inst.label}"? O número será desconectado.`)) return;
+    // Show our own modal instead of window.confirm
+    setConfirmDelete({ inst, value: "" });
+  };
+
+  const confirmDeleteExecute = async () => {
+    const inst = confirmDelete.inst;
+    setConfirmDelete(null);
     setDeleting(inst.id);
     try {
       await fetch(`${API_URL}/whatsapp/delete-instance`, {
         method: "DELETE", headers,
-        body: JSON.stringify({ tenant_id: TENANT_ID, instance_id: inst.id, instance_name: inst.instance_name })
+        body: JSON.stringify({ tenant_id: TENANT_ID, instance_id: inst.id, instance_name: inst.instance_name, delete_history: true })
       });
       if (activeInst?.id === inst.id) setActiveInst(null);
       fetchInstances();
@@ -1713,6 +1721,45 @@ function WhatsAppScreen({ auth }) {
         </div>
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } } @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }`}</style>
+
+      {/* ── Confirm Delete Instance Modal ────────────────────── */}
+      {confirmDelete && (
+        <div style={{ position: "fixed", inset: 0, background: "#000000cc", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}
+          onClick={() => setConfirmDelete(null)}>
+          <div style={{ background: "#0d0d18", border: "1px solid #f4433344", borderRadius: 18, padding: 32, maxWidth: 460, width: "90%" }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 36, textAlign: "center", marginBottom: 12 }}>🗑️</div>
+            <div style={{ fontSize: 17, fontWeight: 800, textAlign: "center", marginBottom: 8 }}>Remover número?</div>
+            <div style={{ background: "#f4433318", border: "1px solid #f4433344", borderRadius: 10, padding: "14px 16px", marginBottom: 20 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#f44336", marginBottom: 8 }}>🚨 Ação irreversível — os seguintes dados serão apagados:</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                {[
+                  "📵 Número desconectado do WhatsApp",
+                  "💬 Todas as conversas deste número",
+                  "📩 Todo o histórico de mensagens",
+                  "✅ Todas as tarefas vinculadas",
+                ].map(item => (
+                  <div key={item} style={{ fontSize: 12, color: "#ccc" }}>{item}</div>
+                ))}
+              </div>
+            </div>
+            <div style={{ fontSize: 13, color: "#888", textAlign: "center", marginBottom: 20 }}>
+              Número: <strong style={{ color: "#e8e8f0" }}>{confirmDelete.inst.label}</strong>
+              {confirmDelete.inst.phone && <span style={{ color: "#555" }}> (+{confirmDelete.inst.phone})</span>}
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setConfirmDelete(null)}
+                style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1px solid #252540", background: "transparent", color: "#888", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+                Cancelar
+              </button>
+              <button onClick={confirmDeleteExecute}
+                style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#f44336,#b71c1c)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                🗑️ Sim, remover tudo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Confirm Phone Modal (soft lock) ─────────────────────── */}
       {confirmPhone && (
