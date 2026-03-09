@@ -36,7 +36,10 @@ function timeAgo(dateStr) {
 }
 function initials(name) {
   if (!name) return "?";
-  return name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase();
+  // Se for número de telefone (só tem dígitos, +, -, espaços), mostra ícone de pessoa
+  const isPhone = /^[+\d\s\-().@]+$/.test(name.trim());
+  if (isPhone) return "👤";
+  return name.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join("").toUpperCase();
 }
 function uid() { return Math.random().toString(36).slice(2, 10); }
 
@@ -4835,7 +4838,12 @@ A mensagem deve:
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           <span style={{ fontSize: 11, color: "#667781", flex: 1 }}>{conv.assigned_agent ? `👤 ${conv.assigned_agent}` : conv.contacts?.phone}</span>
-                          {conv.unread_count > 0 && <span style={{ background: "#00a884", color: "#000", fontSize: 10, fontWeight: 800, minWidth: 18, height: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", padding: "0 4px", flexShrink: 0 }}>{conv.unread_count}</span>}
+                          {conv.unread_count > 0 && (
+                            <span title={`${conv.unread_count} mensagem${conv.unread_count > 1 ? "s" : ""} não lida${conv.unread_count > 1 ? "s" : ""}`}
+                              style={{ background: "#00a884", color: "#fff", fontSize: 10, fontWeight: 800, minWidth: 18, height: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", padding: "0 5px", flexShrink: 0, letterSpacing: 0 }}>
+                              {conv.unread_count > 99 ? "99+" : conv.unread_count}
+                            </span>
+                          )}
                           {pendingTasksMap[conv.id] > 0 && <span title={`${pendingTasksMap[conv.id]} tarefa(s) pendente(s)`} style={{ background: "#ff6d0022", border: "1px solid #ff6d0066", color: "#ff6d00", fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 10, flexShrink: 0 }}>✅ {pendingTasksMap[conv.id]}</span>}
                           {isAutoActive(conv) && <span title="Co-pilot automático ativo" style={{ fontSize: 12 }}>🤖</span>}
                         </div>
