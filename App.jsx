@@ -3901,6 +3901,13 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     shadow:   "#0000001a",
   };
 
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+
   const [view, setView] = useState("inbox");
   const [trialInfo, setTrialInfo] = useState(null); // {status, days_left, is_blocked, plan}
 
@@ -4382,35 +4389,38 @@ A mensagem deve:
   ];
 
   return (
-    <div style={{ display: "flex", height: "100vh", width: "100vw", flexDirection: "column", background: T.app, color: T.text, fontFamily: "'DM Sans', 'Segoe UI', sans-serif", overflow: "hidden" }}>
+    <div style={{ display: "flex", height: "100dvh", width: "100vw", flexDirection: "column", background: T.app, color: T.text, fontFamily: "'DM Sans', 'Segoe UI', sans-serif", overflow: "hidden" }}>
       {/* TopBar */}
-      <div style={{ height: 48, flexShrink: 0, borderBottom: "1px solid #e9edef", background: T.topbar, display: "flex", alignItems: "center", padding: "0 20px", gap: 24 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ height: isMobile ? 52 : 48, flexShrink: 0, borderBottom: "1px solid #e9edef", background: T.topbar, display: "flex", alignItems: "center", padding: isMobile ? "0 12px" : "0 20px", gap: isMobile ? 4 : 24 }}>
+        {/* Logo */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
           <div style={{ width: 26, height: 26, borderRadius: 7, background: "linear-gradient(135deg, #00a884, #017561)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>⚡</div>
-          <span style={{ fontWeight: 700, fontSize: 15 }}>7CRM</span>
+          {!isMobile && <span style={{ fontWeight: 700, fontSize: 15 }}>7CRM</span>}
         </div>
-        {/* Work tabs — esquerda */}
-        <div style={{ display: "flex", gap: 2 }}>
+        {/* Work tabs */}
+        <div style={{ display: "flex", gap: isMobile ? 0 : 2, flex: isMobile ? 1 : "unset", justifyContent: isMobile ? "space-around" : "flex-start" }}>
           {WORK_TABS.map(tab => (
-            <button key={tab.id} onClick={() => setView(tab.id)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 6, border: "none", background: view === tab.id ? "#00a88420" : "transparent", color: view === tab.id ? "#00a884" : T.text2, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
-              {tab.label}
-              {tab.id === "tasks_global" && totalPendingTasks > 0 && <span style={{ background: "#ff6d00", color: "#000", fontSize: 10, fontWeight: 800, padding: "1px 6px", borderRadius: 10, lineHeight: 1.4 }}>{totalPendingTasks}</span>}
+            <button key={tab.id} onClick={() => setView(tab.id)} style={{ display: "inline-flex", alignItems: "center", flexDirection: isMobile ? "column" : "row", gap: isMobile ? 1 : 5, padding: isMobile ? "4px 8px" : "5px 12px", borderRadius: 6, border: "none", background: view === tab.id ? "#00a88420" : "transparent", color: view === tab.id ? "#00a884" : T.text2, fontSize: isMobile ? 10 : 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", position: "relative" }}>
+              <span style={{ fontSize: isMobile ? 18 : 13 }}>{tab.label.split(" ")[0]}</span>
+              {!isMobile && <span>{tab.label.split(" ").slice(1).join(" ")}</span>}
+              {isMobile && tab.label.split(" ").length > 1 && <span style={{ fontSize: 9, lineHeight: 1 }}>{tab.label.split(" ").slice(1).join(" ")}</span>}
+              {tab.id === "tasks_global" && totalPendingTasks > 0 && <span style={{ position: isMobile ? "absolute" : "static", top: isMobile ? 2 : "auto", right: isMobile ? 4 : "auto", background: "#ff6d00", color: "#000", fontSize: 9, fontWeight: 800, padding: "1px 5px", borderRadius: 10, lineHeight: 1.4 }}>{totalPendingTasks}</span>}
             </button>
           ))}
         </div>
 
-        {/* Spacer */}
-        <div style={{ flex: 1 }} />
+        {/* Spacer — only on desktop */}
+        {!isMobile && <div style={{ flex: 1 }} />}
 
-        {/* Admin tabs — direita */}
-        <div style={{ display: "flex", alignItems: "center", gap: 2, paddingLeft: 10, borderLeft: "1px solid #e9edef" }}>
+        {/* Admin tabs — hidden on mobile (moved to within admin section) */}
+        {!isMobile && <div style={{ display: "flex", alignItems: "center", gap: 2, paddingLeft: 10, borderLeft: "1px solid #e9edef" }}>
           {ADMIN_TABS.map(tab => (
             <button key={tab.id} onClick={() => setView(tab.id)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 6, border: tab.id === "upgrade" ? "1px solid #ff6d0044" : "none", background: view === tab.id ? "#00a88420" : tab.id === "upgrade" ? "#ff6d0012" : "transparent", color: view === tab.id ? "#00a884" : tab.id === "upgrade" ? "#ff6d00" : T.text2, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
               {tab.label}
             </button>
           ))}
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, paddingLeft: 12, borderLeft: "1px solid #e9edef" }}>
+        </div>}
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 6 : 10, paddingLeft: isMobile ? 0 : 12, borderLeft: isMobile ? "none" : "1px solid #e9edef" }}>
           {/* Trial days badge */}
           {trialInfo?.status === "trial" && trialInfo?.days_left !== null && (
             <div style={{ fontSize: 11, fontWeight: 700, color: trialInfo.days_left <= 2 ? "#f44336" : "#ff6d00" }}>
@@ -4694,7 +4704,7 @@ A mensagem deve:
         {view === "tasks_global" && (
           <GlobalTasksView
             pendingTasksMap={pendingTasksMap}
-            conversations={conversations}
+            conversations={filtered}
             agents={agents}
             onSelectConv={(conv) => { setSelected(conv); setView("inbox"); }}
             onRefresh={fetchPendingTasks}
@@ -4704,7 +4714,7 @@ A mensagem deve:
         {/* Leads */}
         {view === "leads" && (
           <LeadsBoard
-            conversations={conversations}
+            conversations={filtered}
             kanbanCols={kanbanCols}
             labels={labels}
             onSelectConv={(conv) => { setSelected(conv); setView("inbox"); }}
@@ -4714,7 +4724,7 @@ A mensagem deve:
         )}
 
         {/* Kanban */}
-        {view === "kanban" && <KanbanBoard conversations={conversations} columns={kanbanCols} onMoveCard={moveKanbanCard} onSelectConv={(conv) => { setSelected(conv); setView("inbox"); }} onManageCols={() => setShowColManager(true)} />}
+        {view === "kanban" && <KanbanBoard conversations={filtered} columns={kanbanCols} onMoveCard={moveKanbanCard} onSelectConv={(conv) => { setSelected(conv); setView("inbox"); }} onManageCols={() => setShowColManager(true)} />}
 
         {/* Inbox */}
         {view === "inbox" && (
@@ -4733,11 +4743,11 @@ A mensagem deve:
               </div>
             )}
 
-            {/* Inbox row: sidebar + chat */}
+            {/* Inbox row: sidebar + chat — responsive */}
             <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
 
-            {/* Sidebar */}
-            <div style={{ width: 300, flexShrink: 0, display: "flex", flexDirection: "column", borderRight: `1px solid ${T.border}`, background: T.sidebar }}>
+            {/* Sidebar — full width on mobile when no conversation selected */}
+            <div style={{ width: isMobile ? (selected ? 0 : "100%") : 300, flexShrink: 0, display: isMobile && selected ? "none" : "flex", flexDirection: "column", borderRight: isMobile ? "none" : `1px solid ${T.border}`, background: T.sidebar, transition: "width 0.2s" }}>
               <div style={{ padding: "12px 14px", borderBottom: `1px solid ${T.border}` }}>
                 <div style={{ position: "relative" }}>
                   <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 13, opacity: 0.4 }}>🔍</span>
@@ -4828,6 +4838,13 @@ A mensagem deve:
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
                   {/* Chat header */}
                   <div style={{ padding: "10px 14px", borderBottom: "1px solid #e9edef", display: "flex", alignItems: "center", gap: 10, background: T.topbar, flexWrap: "wrap" }}>
+                    {/* Mobile back button */}
+                    {isMobile && (
+                      <button onClick={() => setSelected(null)}
+                        style={{ padding: "4px 8px", borderRadius: 7, border: "none", background: "transparent", color: "#00a884", fontSize: 20, cursor: "pointer", lineHeight: 1, flexShrink: 0 }}>
+                        ←
+                      </button>
+                    )}
                     <Avatar name={selected.contacts?.name || selected.contacts?.phone} size={34} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 700, fontSize: 13 }}>{selected.contacts?.name || selected.contacts?.phone}</div>
