@@ -3916,6 +3916,9 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const [conversations, setConversations] = useState([]);
   const [selected, setSelected] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [messagesOffset, setMessagesOffset] = useState(0);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [loadingMoreMsgs, setLoadingMoreMsgs] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -3998,6 +4001,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const [savingPrompt, setSavingPrompt] = useState(false);
   const [promptSaved, setPromptSaved] = useState(false);
   const bottomRef = useRef(null);
+  const chatScrollRef = useRef(null);
   const pollRef = useRef(null);
   const labelOverrideRef = useRef({}); // { convId: { labels, until } }
   const autoProcessedRef = useRef(new Set()); // msgIds already auto-replied
@@ -4072,8 +4076,28 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     } catch (e) {}
   }, []);
 
+  const PAGE_SIZE = 50;
   const fetchMessages = useCallback(async (convId) => {
-    try { const r = await fetch(`${API_URL}/conversations/${convId}/messages`, { headers }); const d = await r.json(); setMessages(d.messages || []); } catch (e) {}
+    try {
+      const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=${PAGE_SIZE}&offset=0`, { headers });
+      const d = await r.json();
+      const msgs = d.messages || [];
+      setMessages(msgs);
+      setMessagesOffset(msgs.length);
+      setHasMoreMessages(msgs.length >= PAGE_SIZE);
+    } catch (e) {}
+  }, []);
+  const fetchMoreMessages = useCallback(async (convId, currentOffset) => {
+    setLoadingMoreMsgs(true);
+    try {
+      const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=${PAGE_SIZE}&offset=${currentOffset}`, { headers });
+      const d = await r.json();
+      const older = d.messages || [];
+      setMessages(prev => [...older, ...prev]);
+      setMessagesOffset(currentOffset + older.length);
+      setHasMoreMessages(older.length >= PAGE_SIZE);
+    } catch (e) {}
+    setLoadingMoreMsgs(false);
   }, []);
   const fetchAgents = useCallback(async () => {
     try { const r = await fetch(`${API_URL}/users?tenant_id=${TENANT_ID}`, { headers }); const d = await r.json(); setAgents(d.users || []); } catch (e) {}
@@ -4123,13 +4147,28 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   }, [fetchConversations, fetchAllConversations, view, filter]);
   useEffect(() => {
     if (!selected) return;
+    setMessages([]);
+    setMessagesOffset(0);
+    setHasMoreMessages(false);
     fetchMessages(selected.id);
-    // Lazy load — busca histórico do WhatsApp ao abrir conversa (só 1x por sessão)
     // lazySyncChat removido — endpoint não existe mais
     const t = setInterval(() => fetchMessages(selected.id), 5000);
     return () => clearInterval(t);
   }, [selected, fetchMessages]);
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  const prevMsgCountRef = useRef(0);
+  useEffect(() => {
+    const count = messages.length;
+    // Scroll to bottom only when: first load OR new message appended (not when prepending older ones)
+    if (count > 0 && count >= prevMsgCountRef.current) {
+      const lastMsg = messages[messages.length - 1];
+      const prevLast = prevMsgCountRef._lastId;
+      if (prevMsgCountRef.current === 0 || lastMsg?.id !== prevLast) {
+        bottomRef.current?.scrollIntoView({ behavior: prevMsgCountRef.current === 0 ? "instant" : "smooth" });
+        prevMsgCountRef._lastId = lastMsg?.id;
+      }
+    }
+    prevMsgCountRef.current = count;
+  }, [messages]);
   useEffect(() => { fetchAgents(); fetchTenant(); fetchCredits(); fetchPendingTasks(); fetchLabels(); const t = setInterval(fetchPendingTasks, 30000); const t2 = setInterval(fetchCredits, 60000); return () => { clearInterval(t); clearInterval(t2); }; }, [fetchAgents, fetchTenant, fetchCredits, fetchPendingTasks, fetchLabels]);
 
   const resumeConversation = async (conv) => {
@@ -4880,7 +4919,29 @@ A mensagem deve:
                   </div>
 
                   {/* Messages */}
-                  <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 2, background: T.chatBg }}>
+                  <div ref={chatScrollRef} style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 2, background: T.chatBg }}>
+                    {/* Load More button */}
+                    {hasMoreMessages && (
+                      <div style={{ textAlign: "center", marginBottom: 12 }}>
+                        <button
+                          onClick={async () => {
+                            const scrollEl = chatScrollRef.current;
+                            const prevScrollHeight = scrollEl?.scrollHeight || 0;
+                            await fetchMoreMessages(selected.id, messagesOffset);
+                            // Preserve scroll position after prepending older messages
+                            if (scrollEl) {
+                              requestAnimationFrame(() => {
+                                scrollEl.scrollTop = scrollEl.scrollHeight - prevScrollHeight;
+                              });
+                            }
+                          }}
+                          disabled={loadingMoreMsgs}
+                          style={{ padding: "6px 18px", borderRadius: 20, border: "1px solid #d1d7db", background: loadingMoreMsgs ? "#f0f2f5" : "#fff", color: "#54656f", fontSize: 12, fontWeight: 600, cursor: loadingMoreMsgs ? "not-allowed" : "pointer", fontFamily: "inherit", boxShadow: "0 1px 2px #0000001a" }}
+                        >
+                          {loadingMoreMsgs ? "Carregando..." : "⬆ Carregar mais"}
+                        </button>
+                      </div>
+                    )}
                     {messages.length === 0 ? <div style={{ textAlign: "center", color: "#667781", fontSize: 13, marginTop: 40 }}>Nenhuma mensagem ainda</div>
                       : messages.map((msg, i) => {
                         const isOut = msg.direction === "outbound";
