@@ -3838,6 +3838,11 @@ function DashboardSocios({ auth, clientes_reais }) {
 }
 
 export default function App() {
+  // Rota /admin → painel da Andressa
+  if (window.location.pathname === "/admin" || window.location.pathname === "/admin/") {
+    return <AdminPanel />;
+  }
+
   const [auth, setAuth] = useState(getStoredAuth);
   const theme = "light";
   const toggleTheme = () => {};
