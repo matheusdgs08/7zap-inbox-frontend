@@ -4754,7 +4754,6 @@ A mensagem deve:
                 <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#00a884" }} />{conversations.length} conversa{conversations.length !== 1 ? "s" : ""}
               </div>
             </div>
-            </div>
 
             {/* Chat area */}
             {selected ? (
