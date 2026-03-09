@@ -3849,6 +3849,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const [loadingMoreMsgs, setLoadingMoreMsgs] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
+  const [initialLoad, setInitialLoad] = useState(true); // true até primeira carga completar
   const [sending, setSending] = useState(false);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
@@ -3989,6 +3990,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       });
     } catch (e) {}
     setLoading(false);
+    setInitialLoad(false);
   }, [filter, mergeConvs]);
 
   const fetchMoreConversations = useCallback(async () => {
@@ -4024,6 +4026,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       });
     } catch (e) {}
     setLoading(false);
+    setInitialLoad(false);
   }, [mergeConvs]);
   const lazySyncChat = useCallback(async (conv) => {
     // Busca mensagens do WhatsApp para essa conversa específica
@@ -4902,7 +4905,7 @@ A mensagem deve:
                     fetchMoreConversations();
                   }
                 }}>
-                {loading ? (
+                {(loading || initialLoad) ? (
                   <div style={{ padding: "8px 14px" }}>
                     {[...Array(8)].map((_,i) => (
                       <div key={i} style={{ display: "flex", gap: 10, padding: "11px 0", borderBottom: "1px solid #f0f2f5", opacity: 1 - i*0.1 }}>
