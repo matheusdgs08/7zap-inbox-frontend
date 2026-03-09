@@ -1266,7 +1266,7 @@ function OnboardingView({ auth, aiCredits }) {
 
 
 // ─── WhatsApp Connection Screen ───────────────────────────────────────────────
-function WhatsAppScreen({ auth }) {
+function WhatsAppScreen({ auth, T, theme }) {
   const [instances, setInstances] = useState([]);
   const [maxNumbers, setMaxNumbers] = useState(1);
   const [plan, setPlan] = useState("starter");
@@ -4486,7 +4486,7 @@ A mensagem deve:
 
         {/* WhatsApp Connection */}
         {view === "whatsapp" && auth.user.role === "admin" && (
-          <WhatsAppScreen auth={auth} />
+          <WhatsAppScreen auth={auth} T={T} theme={theme} />
         )}
 
         {/* Upgrade */}
