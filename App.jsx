@@ -36,10 +36,35 @@ function timeAgo(dateStr) {
 }
 function initials(name) {
   if (!name) return "?";
-  // Se for número de telefone (só tem dígitos, +, -, espaços), mostra ícone de pessoa
-  const isPhone = /^[+\d\s\-().@]+$/.test(name.trim());
+  // Se for número de telefone (só tem dígitos, +, -, espaços, @), mostra ícone de pessoa
+  const isPhone = /^[+\d\s\-().@lid]+$/.test(name.trim());
   if (isPhone) return "👤";
   return name.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join("").toUpperCase();
+}
+
+// Limpa nomes como "84097321234@lid" → exibe como "+55 84 9732-1234" (se for número)
+// ou mantém o nome real se não for número
+function displayName(name, phone) {
+  if (!name || name === phone) return formatPhone(phone || name || "");
+  // Se o "nome" for um JID tipo @lid ou @c.us
+  if (/@(lid|c\.us|s\.whatsapp\.net)/.test(name)) return formatPhone(phone || name);
+  return name;
+}
+
+function formatPhone(raw) {
+  if (!raw) return "Desconhecido";
+  // Remove sufixos WhatsApp
+  const clean = raw.replace(/@(lid|c\.us|s\.whatsapp\.net|g\.us)/g, "").replace(/\D/g, "");
+  if (!clean) return raw;
+  // Formata BR: 55 + DDD (2) + número (8 ou 9)
+  if (clean.startsWith("55") && clean.length >= 12) {
+    const ddd = clean.slice(2, 4);
+    const num = clean.slice(4);
+    if (num.length === 9) return `+55 ${ddd} ${num.slice(0,5)}-${num.slice(5)}`;
+    if (num.length === 8) return `+55 ${ddd} ${num.slice(0,4)}-${num.slice(4)}`;
+  }
+  if (clean.length >= 10) return `+${clean}`;
+  return raw;
 }
 function uid() { return Math.random().toString(36).slice(2, 10); }
 
@@ -76,9 +101,51 @@ function loadColumns() {
 }
 function saveColumns(cols) { try { localStorage.setItem("7zap_kanban_columns", JSON.stringify(cols)); } catch (e) {} }
 
-function Avatar({ name, size = 36 }) {
+// Cache de fotos de perfil: phone → url (ou false se não tem)
+const _photoCache = {};
+
+function Avatar({ name, size = 36, phone, instanceFilter }) {
   const colors = ["#00a884","#00a884","#7c4dff","#ff6d00","#e91e63","#3d5afe"];
   const color = colors[(name || "").charCodeAt(0) % colors.length];
+  const [photoUrl, setPhotoUrl] = React.useState(() => {
+    const key = phone || name;
+    return _photoCache[key] || null;
+  });
+
+  React.useEffect(() => {
+    if (!phone || !instanceFilter) return;
+    const key = phone;
+    if (_photoCache[key] !== undefined) {
+      if (_photoCache[key]) setPhotoUrl(_photoCache[key]);
+      return;
+    }
+    // Mark as loading to avoid duplicate requests
+    _photoCache[key] = false;
+    const API_URL_LOCAL = "https://7zap-inbox-production.up.railway.app";
+    const API_KEY_LOCAL = "7zap_inbox_secret";
+    fetch(`${API_URL_LOCAL}/contacts/profile-picture?phone=${encodeURIComponent(phone)}&instance=${encodeURIComponent(instanceFilter)}`, {
+      headers: { "x-api-key": API_KEY_LOCAL }
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.url) {
+          _photoCache[key] = d.url;
+          setPhotoUrl(d.url);
+        }
+      })
+      .catch(() => {});
+  }, [phone, instanceFilter]);
+
+  if (photoUrl) {
+    return (
+      <div style={{ width: size, height: size, borderRadius: "50%", flexShrink: 0, overflow: "hidden", background: color }}>
+        <img src={photoUrl} alt={name} width={size} height={size}
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          onError={() => { _photoCache[phone] = false; setPhotoUrl(null); }}
+        />
+      </div>
+    );
+  }
   return <div style={{ width: size, height: size, borderRadius: "50%", background: color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.38, fontWeight: 700, color: "#fff", flexShrink: 0, fontFamily: "inherit" }}>{initials(name)}</div>;
 }
 function StatusDot({ status }) {
@@ -2479,9 +2546,9 @@ function LeadsBoard({ conversations, kanbanCols, labels, onSelectConv, onManageL
       onMouseLeave={e => { if (dragging?.convId !== conv.id) e.currentTarget.style.borderColor = "#d1d7db"; }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-        <Avatar name={conv.contacts?.name || conv.contacts?.phone} size={26} />
+        <Avatar name={displayName(conv.contacts?.name, conv.contacts?.phone)} size={26} phone={conv.contacts?.phone} instanceFilter={instanceFilter} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{conv.contacts?.name || conv.contacts?.phone}</div>
+          <div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayName(conv.contacts?.name, conv.contacts?.phone)}</div>
           <div style={{ fontSize: 11, color: "#667781" }}>{conv.contacts?.phone}</div>
         </div>
         <span style={{ fontSize: 10, color: "#667781", flexShrink: 0 }}>{timeAgo(conv.last_message_at)}</span>
@@ -2855,9 +2922,9 @@ function KanbanBoard({ conversations, columns, onMoveCard, onSelectConv, onManag
                 {cards.map(conv => (
                   <div key={conv.id} draggable onDragStart={() => setDragging(conv.id)} onDragEnd={() => { setDragging(null); setDragOver(null); }} onClick={() => onSelectConv(conv)} style={{ background: "#f0f2f5", border: `1px solid ${dragging === conv.id ? col.color + "55" : "#d1d7db"}`, borderRadius: 10, padding: "11px 13px", cursor: "grab", opacity: dragging === conv.id ? 0.4 : 1 }} onMouseEnter={e => e.currentTarget.style.borderColor = col.color + "44"} onMouseLeave={e => e.currentTarget.style.borderColor = "#d1d7db"}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                      <Avatar name={conv.contacts?.name || conv.contacts?.phone} size={26} />
+                      <Avatar name={displayName(conv.contacts?.name, conv.contacts?.phone)} size={26} phone={conv.contacts?.phone} instanceFilter={instanceFilter} />
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{conv.contacts?.name || conv.contacts?.phone}</div>
+                        <div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayName(conv.contacts?.name, conv.contacts?.phone)}</div>
                         <div style={{ fontSize: 11, color: "#667781" }}>{timeAgo(conv.last_message_at)}</div>
                       </div>
                       {conv.unread_count > 0 && <span style={{ background: col.color, color: "#000", fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 10 }}>{conv.unread_count}</span>}
@@ -4920,10 +4987,10 @@ A mensagem deve:
                 ) : filtered.length === 0 ? <div style={{ padding: 24, textAlign: "center", color: "#667781", fontSize: 13 }}>Nenhuma conversa</div>
                   : filtered.map(conv => (
                     <div key={conv.id} onClick={() => { setSelected(conv); setSuggestion(""); setShowTasks(false); setNoteMode(false); }} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "11px 14px", cursor: "pointer", background: selected?.id === conv.id ? T.selected : "transparent", borderLeft: selected?.id === conv.id ? "3px solid #00a884" : "3px solid transparent" }}>
-                      <Avatar name={conv.contacts?.name || conv.contacts?.phone} />
+                      <Avatar name={displayName(conv.contacts?.name, conv.contacts?.phone)} phone={conv.contacts?.phone} instanceFilter={instanceFilter} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
-                          <span style={{ fontWeight: conv.unread_count > 0 ? 800 : 600, fontSize: 13, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: conv.unread_count > 0 ? T.text : T.text2 }}>{conv.contacts?.name || conv.contacts?.phone}</span>
+                          <span style={{ fontWeight: conv.unread_count > 0 ? 800 : 600, fontSize: 13, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: conv.unread_count > 0 ? T.text : T.text2 }}>{displayName(conv.contacts?.name, conv.contacts?.phone)}</span>
                           <span style={{ fontSize: 11, color: inactiveDays ? "#ff6d00" : (conv.unread_count > 0 ? "#00a884" : "#667781"), flexShrink: 0, fontWeight: conv.unread_count > 0 ? 700 : 400 }}>{timeAgo(conv.last_message_at)}</span>
                         </div>
                         <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 4 }}>
@@ -4983,9 +5050,9 @@ A mensagem deve:
                         ←
                       </button>
                     )}
-                    <Avatar name={selected.contacts?.name || selected.contacts?.phone} size={34} />
+                    <Avatar name={displayName(selected.contacts?.name, selected.contacts?.phone)} size={34} phone={selected.contacts?.phone} instanceFilter={instanceFilter} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: 13 }}>{selected.contacts?.name || selected.contacts?.phone}</div>
+                      <div style={{ fontWeight: 700, fontSize: 13 }}>{displayName(selected.contacts?.name, selected.contacts?.phone)}</div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 2 }}>
                         <span style={{ fontSize: 11, color: "#667781" }}>{selected.contacts?.phone}</span>
                         {selected.assigned_agent && <span style={{ fontSize: 11, color: "#00a884" }}>· 👤 {selected.assigned_agent}</span>}
