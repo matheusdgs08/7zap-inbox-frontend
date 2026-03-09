@@ -308,7 +308,7 @@ function LoginScreen({ onLogin }) {
       <div style={{ width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg, #00a884, #00695c)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 12px #00a88440" }}>
         <span style={{ fontSize: 26, fontWeight: 900, color: "#fff", fontFamily: "sans-serif", lineHeight: 1 }}>7</span>
       </div>
-      <span style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.5px", color: "#111b21" }}>7<span style={{ color: "#00a884" }}>CRM</span></span>
+      <span style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.5px", color: "#00a884" }}>CRM</span>
     </div>
   );
 
@@ -441,7 +441,7 @@ function LoginScreen({ onLogin }) {
         <div style={{ textAlign: "center" }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Conta criada!</div>
-          <div style={{ fontSize: 13, color: "#667781", marginBottom: 24 }}>Bem-vindo ao 7CRM. Faça login para começar.</div>
+          <div style={{ fontSize: 13, color: "#667781", marginBottom: 24 }}>Bem-vindo ao CRM. Faça login para começar.</div>
           <button onClick={() => { setScreen("login"); window.history.replaceState({}, "", "/"); }} style={btn(true)}>Fazer login →</button>
         </div>
       ) : (
@@ -563,7 +563,7 @@ function LoginScreen({ onLogin }) {
           ))}
         </div>
 
-        <div style={{ textAlign: "center", fontSize: 12, color: "#54656f" }}>7CRM v1.0 · Estúdio Se7e</div>
+        <div style={{ textAlign: "center", fontSize: 12, color: "#54656f" }}>CRM v1.0 · Estúdio Se7e</div>
       </div>
     </div>
   );
@@ -876,7 +876,7 @@ function AdminPanel({ auth, onLogout }) {
         {tab === "users" && (
           <div style={{ maxWidth: 860 }}>
             <div style={{ display: "flex", alignItems: "center", marginBottom: 20 }}>
-              <div><div style={{ fontSize: 18, fontWeight: 700 }}>👥 Usuários</div><div style={{ fontSize: 12, color: "#667781", marginTop: 2 }}>Gerencie quem tem acesso ao 7CRM</div></div>
+              <div><div style={{ fontSize: 18, fontWeight: 700 }}>👥 Usuários</div><div style={{ fontSize: 12, color: "#667781", marginTop: 2 }}>Gerencie quem tem acesso ao CRM</div></div>
               <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
                 <button onClick={async () => {
                   const r = await fetch(`${API_URL}/auth/invite`, { method: "POST", headers: aHeaders, body: JSON.stringify({}) });
@@ -4561,7 +4561,7 @@ A mensagem deve:
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
                 {[
                   { label: "Plano atual", value: "Pro", color: "#7c4dff" },
-                  { label: "Versão", value: "7CRM v1.0", color: "#00a884" },
+                  { label: "Versão", value: "CRM v1.0", color: "#00a884" },
                   { label: "Atendentes", value: `${agents.length} ativo${agents.length !== 1 ? "s" : ""}`, color: "#00a884" },
                   { label: "Status", value: "🟢 Online", color: "#00a884" },
                 ].map(({ label, value, color }) => (
