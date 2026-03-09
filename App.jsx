@@ -4287,8 +4287,10 @@ A mensagem deve:
       <div style={{ height: isMobile ? 52 : 48, flexShrink: 0, borderBottom: `1px solid ${T.border}`, background: T.topbar, display: "flex", alignItems: "center", padding: isMobile ? "0 12px" : "0 20px", gap: isMobile ? 8 : 24 }}>
         {/* Logo */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-          <div style={{ width: 26, height: 26, borderRadius: 7, background: "linear-gradient(135deg, #00a884, #017561)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>⚡</div>
-          {!isMobile && <span style={{ fontWeight: 700, fontSize: 15 }}>7CRM</span>}
+          <div style={{ width: 26, height: 26, borderRadius: 7, background: "linear-gradient(135deg, #00a884, #017561)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontSize: 15, fontWeight: 900, color: "#fff", lineHeight: 1 }}>7</span>
+          </div>
+          {!isMobile && <span style={{ fontWeight: 800, fontSize: 15, color: "#00a884", letterSpacing: "-0.3px" }}>CRM</span>}
         </div>
 
         {/* Work tabs — desktop only; mobile uses bottom nav */}
