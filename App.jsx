@@ -1741,34 +1741,7 @@ function WhatsAppScreen({ auth, T, theme }) {
                             </div>
                           </div>
                         </div>
-                      ) : (
-                        /* Manual re-sync panel */
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6, color: "#54656f" }}>📲 Reimportar histórico manualmente</div>
-                          <div style={{ fontSize: 12, color: "#8696a0", marginBottom: 14 }}>Use para atualizar caso o histórico esteja incompleto.</div>
-                          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-                            <button onClick={() => startAutoSync(inst)} disabled={syncing}
-                              style={{ padding: "11px 24px", borderRadius: 10, border: "none", background: syncing ? "#e9edef" : "linear-gradient(135deg,#00a884,#017561)", color: syncing ? "#667781" : "#fff", fontSize: 13, fontWeight: 700, cursor: syncing ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
-                              {syncing ? "⏳ Sincronizando..." : "📲 Sincronizar histórico"}
-                            </button>
-                            <button onClick={async () => {
-                              try {
-                                const r = await fetch(`${API_URL}/whatsapp/backfill-instances`, { method: "POST", headers, body: JSON.stringify({ tenant_id: TENANT_ID, instance: inst.instance_name }) });
-                                const d = await r.json();
-                                alert(`✅ Backfill concluído!\n${d.updated} conversas vinculadas ao número "${inst.instance_name}".`);
-                                fetchConversations();
-                              } catch(e) { alert("Erro no backfill. Verifique os logs."); }
-                            }} disabled={syncing}
-                              style={{ padding: "11px 18px", borderRadius: 10, border: "1px solid #e9edef", background: "transparent", color: "#54656f", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
-                              title="Vincula conversas existentes sem número associado a este número">
-                              🔗 Vincular conversas
-                            </button>
-                          </div>
-                          <div style={{ fontSize: 11, color: "#8696a0", marginTop: 8 }}>
-                            💡 Use <b>Vincular conversas</b> se os filtros por número não estiverem funcionando.
-                          </div>
-                        </div>
-                      )}
+                      ) : null}
                     </div>
                   );
                 })()}
@@ -3700,13 +3673,8 @@ function DashboardSocios({ auth, clientes_reais }) {
 
 export default function App() {
   const [auth, setAuth] = useState(getStoredAuth);
-  const [theme, setTheme] = useState(() => localStorage.getItem("7crm_theme") || "light");
-
-  const toggleTheme = () => setTheme(t => {
-    const next = t === "light" ? "dark" : "light";
-    localStorage.setItem("7crm_theme", next);
-    return next;
-  });
+  const theme = "light";
+  const toggleTheme = () => {};
 
   const handleLogin = (data) => { setStoredAuth(data); setAuth(data); };
   const handleLogout = () => { setStoredAuth(null); setAuth(null); };
@@ -4518,10 +4486,6 @@ A mensagem deve:
             <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#00a884" }} />
             <span style={{ color: T.text2 }}>{auth.user.name}</span>
           </div>
-          <button onClick={toggleTheme} title={theme === "light" ? "Modo escuro" : "Modo claro"}
-            style={{ padding: "5px 8px", borderRadius: 6, border: `1px solid ${T.border}`, background: "transparent", fontSize: 15, cursor: "pointer", lineHeight: 1 }}>
-            {theme === "light" ? "🌙" : "☀️"}
-          </button>
           <button onClick={onLogout} style={{ padding: "4px 10px", borderRadius: 6, border: `1px solid ${T.border}`, background: "transparent", color: T.text2, fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Sair</button>
         </div>
       </div>
@@ -5120,9 +5084,6 @@ A mensagem deve:
             <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ fontSize: 13, color: T.text2 }}>👤 {auth.user.name}</div>
               <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={toggleTheme} style={{ padding: "6px 10px", borderRadius: 8, border: `1px solid ${T.border}`, background: "transparent", fontSize: 16, cursor: "pointer" }}>
-                  {theme === "light" ? "🌙" : "☀️"}
-                </button>
                 <button onClick={onLogout} style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #f4433333", background: "transparent", color: "#f44336", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Sair</button>
               </div>
             </div>
