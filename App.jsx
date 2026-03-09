@@ -3978,30 +3978,25 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [messagesError, setMessagesError] = useState(null);
 
-  const fetchMessages = useCallback(async (convId, showSpinner = true) => {
-    if (showSpinner) setLoadingMessages(true);
+  const fetchMessages = useCallback(async (convId) => {
+    // Load full history from WAHA + DB (called once on conversation open)
     setMessagesError(null);
     try {
-      // Try /history first (merges WAHA + DB for full conversation)
       const r = await fetch(`${API_URL}/conversations/${convId}/history?limit=40`, { headers });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
-      const msgs = d.messages || [];
-      setMessages(msgs);
-      setHasMoreMessages(false); // history already gives the latest
+      setMessages(d.messages || []);
+      setHasMoreMessages(false);
       setMessagesOffset(0);
     } catch (e) {
-      // Fallback to DB-only messages
       try {
         const r2 = await fetch(`${API_URL}/conversations/${convId}/messages?limit=50`, { headers });
         const d2 = await r2.json();
         setMessages(d2.messages || []);
         setHasMoreMessages(d2.has_more === true);
-      } catch (e2) {
-        setMessagesError("Não foi possível carregar as mensagens. Toque para tentar novamente.");
+      } catch {
+        setMessagesError("Não foi possível carregar. Toque para tentar novamente.");
       }
-    } finally {
-      if (showSpinner) setLoadingMessages(false);
     }
   }, []);
   const fetchMoreMessages = useCallback(async (convId, currentMessages) => {
@@ -4063,16 +4058,34 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     fn(); clearInterval(pollRef.current); pollRef.current = setInterval(fn, 8000);
     return () => clearInterval(pollRef.current);
   }, [fetchConversations, fetchAllConversations, view, filter]);
+  const backgroundRefreshMessages = useCallback(async (convId) => {
+    // Silent background refresh — no spinner, no skeleton, just appends new messages
+    try {
+      const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=50`, { headers });
+      if (!r.ok) return;
+      const d = await r.json();
+      const fresh = d.messages || [];
+      if (fresh.length === 0) return;
+      setMessages(prev => {
+        // Merge: keep existing, append truly new ones (by id)
+        const existingIds = new Set(prev.map(m => m.id || m.waha_id));
+        const newOnes = fresh.filter(m => !existingIds.has(m.id) && !existingIds.has(m.waha_id));
+        if (newOnes.length === 0) return prev; // no change — avoid re-render
+        return [...prev, ...newOnes];
+      });
+    } catch (e) {}
+  }, []);
+
   useEffect(() => {
     if (!selected) return;
     setMessages([]);
     setMessagesOffset(0);
     setHasMoreMessages(false);
-    fetchMessages(selected.id);
-    // lazySyncChat removido — endpoint não existe mais
-    const t = setInterval(() => fetchMessages(selected.id), 5000);
+    setLoadingMessages(true);
+    fetchMessages(selected.id, false).finally(() => setLoadingMessages(false));
+    const t = setInterval(() => backgroundRefreshMessages(selected.id), 5000);
     return () => clearInterval(t);
-  }, [selected, fetchMessages]);
+  }, [selected?.id]);
   const prevMsgCountRef = useRef(0);
   useEffect(() => {
     const count = messages.length;
@@ -4140,7 +4153,7 @@ A mensagem deve:
   const sendMessage = async () => {
     if (!input.trim() || !selected || sending) return;
     setSending(true);
-    try { await fetch(`${API_URL}/conversations/${selected.id}/messages`, { method: "POST", headers, body: JSON.stringify({ conversation_id: selected.id, text: input.trim(), is_internal_note: noteMode }) }); setInput(""); setNoteMode(false); await fetchMessages(selected.id); await fetchConversations(); } catch (e) {}
+    try { await fetch(`${API_URL}/conversations/${selected.id}/messages`, { method: "POST", headers, body: JSON.stringify({ conversation_id: selected.id, text: input.trim(), is_internal_note: noteMode }) }); setInput(""); setNoteMode(false); await backgroundRefreshMessages(selected.id); await fetchConversations(); } catch (e) {}
     setSending(false);
   };
 
@@ -4933,7 +4946,7 @@ A mensagem deve:
                         </button>
                       </div>
                     )}
-                    {loadingMessages ? (
+                    {loadingMessages && messages.length === 0 ? (
                       <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "20px 16px" }}>
                         {[...Array(6)].map((_,i) => (
                           <div key={i} style={{ display: "flex", justifyContent: i%2===0 ? "flex-start" : "flex-end" }}>
