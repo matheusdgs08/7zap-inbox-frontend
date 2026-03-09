@@ -1,17 +1,19 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 const API_URL = "https://7zap-inbox-production.up.railway.app";
 const API_KEY = "7zap_inbox_secret";
-// Supabase config para OAuth social
-const SUPABASE_URL = "https://kiqxdkpzbnzxbhzzmoto.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtpcXhka3B6Ym56eGJoenptb3RvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDkwMzE2MDAsImV4cCI6MjAyNDYwNzYwMH0.placeholder";
-let _supabaseClient = null;
-const getSupabase = () => {
-  if (_supabaseClient) return _supabaseClient;
-  if (window.supabase) {
-    _supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  }
-  return _supabaseClient;
+// Supabase OAuth — redirect direto, sem SDK
+const SUPABASE_URL = "https://raxnwyjcsplctrfcyeqs.supabase.co";
+const oauthRedirect = (provider) => {
+  const redirectTo = encodeURIComponent(window.location.origin + "/?social_callback=1");
+  window.location.href = `${SUPABASE_URL}/auth/v1/authorize?provider=${provider}&redirect_to=${redirectTo}`;
 };
+// parse hash token after OAuth redirect
+const parseOAuthHash = () => {
+  const hash = window.location.hash.substring(1);
+  const params = new URLSearchParams(hash);
+  return params.get("access_token") || null;
+};
+const getSupabase = () => null; // legacy compat
 const TENANT_ID = "98c38c97-2796-471f-bfc9-f093ff3ae6e9";
 const headers = { "x-api-key": API_KEY, "Content-Type": "application/json" };
 
@@ -333,43 +335,30 @@ function LoginScreen({ onLogin }) {
 
   // ── SOCIAL LOGIN ──
   const [socialLoading, setSocialLoading] = useState("");
-  const socialLogin = async (provider) => {
-    setSocialLoading(provider); setError("");
-    try {
-      const sb = getSupabase();
-      if (!sb) { setError("Supabase não carregado. Recarregue a página."); setSocialLoading(""); return; }
-      const { data, error: sbErr } = await sb.auth.signInWithOAuth({
-        provider,
-        options: { redirectTo: window.location.origin + "/?social_callback=1" }
-      });
-      if (sbErr) { setError(sbErr.message); setSocialLoading(""); }
-      // Redirect happens automatically
-    } catch(e) { setError("Erro ao iniciar login social."); setSocialLoading(""); }
+  const socialLogin = (provider) => {
+    setSocialLoading(provider);
+    oauthRedirect(provider); // redirect to Supabase OAuth
   };
 
-  // Handle OAuth callback — check for session on load
+  // Handle OAuth callback — Supabase returns token in URL hash
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (!params.get("social_callback")) return;
-    const sb = getSupabase();
-    if (!sb) return;
-    sb.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session?.access_token) return;
-      try {
-        const r = await fetch(`${API_URL}/auth/social`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ access_token: session.access_token })
-        });
-        const d = await r.json();
-        if (r.ok) {
-          window.history.replaceState({}, "", "/");
-          onLogin(d);
-        } else {
-          setError(d.detail || "Erro no login social");
-        }
-      } catch(e) { setError("Erro de conexão."); }
-    });
+    // Token comes in hash fragment after redirect
+    const token = parseOAuthHash();
+    if (!token) { setError("Não foi possível obter o token de autenticação."); return; }
+    // Clean URL
+    window.history.replaceState({}, "", "/");
+    setLoading(true);
+    fetch(`${API_URL}/auth/social`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ access_token: token })
+    }).then(r => r.json()).then(d => {
+      if (d.token) { onLogin(d); }
+      else { setError(d.detail || "Conta não encontrada. Solicite um convite ao administrador."); }
+    }).catch(() => setError("Erro de conexão."))
+    .finally(() => setLoading(false));
   }, []);
 
   // ── FORGOT PASSWORD ──
@@ -556,22 +545,25 @@ function LoginScreen({ onLogin }) {
         </div>
 
         {/* Social buttons */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
           {[
-            { provider: "google",   label: "Google",    icon: "G", color: "#ea4335" },
-            { provider: "facebook", label: "Facebook",  icon: "f", color: "#1877f2" },
-            { provider: "azure",    label: "Microsoft", icon: "M", color: "#00a4ef" },
-            { provider: "apple",    label: "Apple",     icon: "🍎", color: "#111b21" },
-          ].map(({ provider, label, icon, color }) => (
+            { provider: "google", label: "Continuar com Google", icon: (
+              <svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+            )},
+
+          ].map(({ provider, label, icon }) => (
             <button key={provider} onClick={() => socialLogin(provider)} disabled={!!socialLoading}
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                padding: "11px 0", borderRadius: 10, border: `1px solid ${color}44`,
-                background: socialLoading === provider ? color + "20" : "#f0f2f5",
-                color: "#111b21", fontSize: 13, fontWeight: 600, cursor: "pointer",
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                padding: "12px 0", borderRadius: 10,
+                border: "1px solid #e9edef",
+                background: socialLoading === provider ? "#f0f2f5" : "#ffffff",
+                color: "#111b21", fontSize: 14, fontWeight: 600, cursor: socialLoading ? "default" : "pointer",
                 fontFamily: "inherit", opacity: socialLoading && socialLoading !== provider ? 0.4 : 1,
-                transition: "opacity 0.2s" }}>
-              <span style={{ fontSize: 14, fontWeight: 900, color }}>{icon}</span>
-              {socialLoading === provider ? "Abrindo..." : label}
+                transition: "all 0.15s", boxShadow: "0 1px 3px #0000000d" }}>
+              {socialLoading === provider
+                ? <span style={{ animation: "spin 1s linear infinite", display: "inline-block", fontSize: 16 }}>⏳</span>
+                : icon}
+              {socialLoading === provider ? "Redirecionando..." : label}
             </button>
           ))}
         </div>
