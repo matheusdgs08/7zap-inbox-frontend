@@ -3780,9 +3780,6 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const [hasMoreConvs, setHasMoreConvs] = useState(false);
   const [loadingMoreConvs, setLoadingMoreConvs] = useState(false);
   const convListRef = useRef(null);
-  const [hasMoreConvs, setHasMoreConvs] = useState(false);
-  const [loadingMoreConvs, setLoadingMoreConvs] = useState(false);
-  const convListRef = useRef(null);
   const [selected, setSelected] = useState(null);
   const [messages, setMessages] = useState([]);
   const [messagesOffset, setMessagesOffset] = useState(0);
