@@ -4754,6 +4754,7 @@ A mensagem deve:
                 <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#00a884" }} />{conversations.length} conversa{conversations.length !== 1 ? "s" : ""}
               </div>
             </div>
+            </div>{/* end sidebar */}
 
             {/* Chat area */}
             {selected ? (
@@ -4853,6 +4854,7 @@ A mensagem deve:
                 </div>
                 {showTasks && <TasksPanel convId={selected.id} agents={agents} onClose={() => { setShowTasks(false); fetchPendingTasks(); }} onTaskDone={fetchPendingTasks} />}
               </div>
+              </div>{/* end chat outer */}
             ) : (
               <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 14, color: "#54656f" }}>
                 <div style={{ fontSize: 44 }}>💬</div>
