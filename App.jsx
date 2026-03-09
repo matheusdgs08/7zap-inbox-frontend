@@ -4687,6 +4687,18 @@ A mensagem deve:
                 </button>
               </div>
 
+              {/* Sync contact names */}
+              <div style={{ padding: "14px 18px", border: "1px solid #e9edef", borderRadius: 10, display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>👥 Sincronizar nomes dos contatos</div>
+                  <div style={{ fontSize: 12, color: "#667781" }}>Busca o nome real de cada contato direto do WhatsApp</div>
+                </div>
+                <button onClick={syncContactNames}
+                  style={{ padding: "6px 14px", borderRadius: 7, border: "1px solid #00a88444", background: "#00a88415", color: "#00a884", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                  Sincronizar →
+                </button>
+              </div>
+
 
             </div>
           </div>
