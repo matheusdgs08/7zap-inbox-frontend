@@ -3978,15 +3978,24 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     if (showSpinner) setLoadingMessages(true);
     setMessagesError(null);
     try {
-      const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=50`, { headers });
+      // Try /history first (merges WAHA + DB for full conversation)
+      const r = await fetch(`${API_URL}/conversations/${convId}/history?limit=40`, { headers });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
       const msgs = d.messages || [];
       setMessages(msgs);
-      setHasMoreMessages(d.has_more === true);
+      setHasMoreMessages(false); // history already gives the latest
       setMessagesOffset(0);
     } catch (e) {
-      setMessagesError("Não foi possível carregar as mensagens. Toque para tentar novamente.");
+      // Fallback to DB-only messages
+      try {
+        const r2 = await fetch(`${API_URL}/conversations/${convId}/messages?limit=50`, { headers });
+        const d2 = await r2.json();
+        setMessages(d2.messages || []);
+        setHasMoreMessages(d2.has_more === true);
+      } catch (e2) {
+        setMessagesError("Não foi possível carregar as mensagens. Toque para tentar novamente.");
+      }
     } finally {
       if (showSpinner) setLoadingMessages(false);
     }
