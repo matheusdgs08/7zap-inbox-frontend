@@ -1754,10 +1754,27 @@ function WhatsAppScreen({ auth }) {
                         <div>
                           <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6, color: "#54656f" }}>📲 Reimportar histórico manualmente</div>
                           <div style={{ fontSize: 12, color: "#8696a0", marginBottom: 14 }}>Use para atualizar caso o histórico esteja incompleto.</div>
-                          <button onClick={() => startAutoSync(inst)} disabled={syncing}
-                            style={{ padding: "11px 24px", borderRadius: 10, border: "none", background: syncing ? "#e9edef" : "linear-gradient(135deg,#00a884,#017561)", color: syncing ? "#667781" : "#fff", fontSize: 13, fontWeight: 700, cursor: syncing ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
-                            {syncing ? "⏳ Sincronizando..." : "📲 Sincronizar histórico"}
-                          </button>
+                          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                            <button onClick={() => startAutoSync(inst)} disabled={syncing}
+                              style={{ padding: "11px 24px", borderRadius: 10, border: "none", background: syncing ? "#e9edef" : "linear-gradient(135deg,#00a884,#017561)", color: syncing ? "#667781" : "#fff", fontSize: 13, fontWeight: 700, cursor: syncing ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+                              {syncing ? "⏳ Sincronizando..." : "📲 Sincronizar histórico"}
+                            </button>
+                            <button onClick={async () => {
+                              try {
+                                const r = await fetch(`${API_URL}/whatsapp/backfill-instances`, { method: "POST", headers, body: JSON.stringify({ tenant_id: TENANT_ID, instance: inst.instance_name }) });
+                                const d = await r.json();
+                                alert(`✅ Backfill concluído!\n${d.updated} conversas vinculadas ao número "${inst.instance_name}".`);
+                                fetchConversations();
+                              } catch(e) { alert("Erro no backfill. Verifique os logs."); }
+                            }} disabled={syncing}
+                              style={{ padding: "11px 18px", borderRadius: 10, border: "1px solid #e9edef", background: "transparent", color: "#54656f", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+                              title="Vincula conversas existentes sem número associado a este número">
+                              🔗 Vincular conversas
+                            </button>
+                          </div>
+                          <div style={{ fontSize: 11, color: "#8696a0", marginTop: 8 }}>
+                            💡 Use <b>Vincular conversas</b> se os filtros por número não estiverem funcionando.
+                          </div>
                         </div>
                       )}
                     </div>
