@@ -3974,15 +3974,25 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   }, []);
 
   const PAGE_SIZE = 50;
-  const fetchMessages = useCallback(async (convId) => {
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [messagesError, setMessagesError] = useState(null);
+
+  const fetchMessages = useCallback(async (convId, showSpinner = true) => {
+    if (showSpinner) setLoadingMessages(true);
+    setMessagesError(null);
     try {
       const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=50`, { headers });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
       const msgs = d.messages || [];
       setMessages(msgs);
       setHasMoreMessages(d.has_more === true);
       setMessagesOffset(0);
-    } catch (e) {}
+    } catch (e) {
+      setMessagesError("Não foi possível carregar as mensagens. Toque para tentar novamente.");
+    } finally {
+      if (showSpinner) setLoadingMessages(false);
+    }
   }, []);
   const fetchMoreMessages = useCallback(async (convId, currentMessages) => {
     setLoadingMoreMsgs(true);
@@ -4916,7 +4926,23 @@ A mensagem deve:
                         </button>
                       </div>
                     )}
-                    {messages.length === 0 ? <div style={{ textAlign: "center", color: "#667781", fontSize: 13, marginTop: 40 }}>Nenhuma mensagem ainda</div>
+                    {loadingMessages ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "20px 16px" }}>
+                        {[...Array(6)].map((_,i) => (
+                          <div key={i} style={{ display: "flex", justifyContent: i%2===0 ? "flex-start" : "flex-end" }}>
+                            <div style={{ width: `${180 + (i*37)%120}px`, height: 38, borderRadius: 10, background: "linear-gradient(90deg,#f0f2f5 25%,#e9edef 50%,#f0f2f5 75%)", backgroundSize: "200% 100%", animation: "shimmer 1.2s infinite" }} />
+                          </div>
+                        ))}
+                      </div>
+                    ) : messagesError ? (
+                      <div style={{ textAlign: "center", marginTop: 60, padding: "0 24px" }}>
+                        <div style={{ fontSize: 32, marginBottom: 10 }}>⚠️</div>
+                        <div style={{ color: "#667781", fontSize: 13, marginBottom: 16 }}>{messagesError}</div>
+                        <button onClick={() => fetchMessages(selected.id)} style={{ padding: "8px 20px", borderRadius: 8, background: "#00a884", color: "#fff", border: "none", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+                          Tentar novamente
+                        </button>
+                      </div>
+                    ) : messages.length === 0 ? <div style={{ textAlign: "center", color: "#667781", fontSize: 13, marginTop: 40 }}>Nenhuma mensagem ainda</div>
                       : messages.map((msg, i) => {
                         const isOut = msg.direction === "outbound";
                         const isInternal = msg.is_internal_note;
