@@ -4399,25 +4399,6 @@ A mensagem deve:
           {!isMobile && <span style={{ fontWeight: 700, fontSize: 15 }}>7CRM</span>}
         </div>
 
-        {/* Global number selector — shown when 2+ instances */}
-        {waInstances.length >= 2 && (
-          <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-            {[null, ...waInstances].map(inst => {
-              const isActive = inst === null ? instanceFilter === null : instanceFilter === inst.instance_name;
-              const label = inst === null ? "Todos" : (inst.label || inst.instance_name);
-              const isOnline = inst === null ? true : inst.connected;
-              return (
-                <button key={inst?.id ?? "all"}
-                  onClick={() => setInstanceFilter(inst === null ? null : inst.instance_name)}
-                  style={{ display: "flex", alignItems: "center", gap: 4, padding: isMobile ? "3px 8px" : "3px 10px", borderRadius: 20, border: `1px solid ${isActive ? "#00a88466" : T.border}`, background: isActive ? "#00a88418" : "transparent", color: isActive ? "#00a884" : T.text2, fontSize: isMobile ? 11 : 12, fontWeight: isActive ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", transition: "all 0.15s" }}>
-                  {inst !== null && <span style={{ width: 6, height: 6, borderRadius: "50%", background: isOnline ? "#00a884" : "#f44336", flexShrink: 0, display: "inline-block" }} />}
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
         {/* Work tabs — desktop only; mobile uses bottom nav */}
         {!isMobile && <div style={{ display: "flex", gap: 2 }}>
           {WORK_TABS.map(tab => (
