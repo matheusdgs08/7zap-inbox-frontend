@@ -1591,10 +1591,7 @@ function WhatsAppScreen({ auth, T, theme }) {
                     </div>
                   );
 
-                  /* ── NEVER REACHED (kept to avoid dead code errors) ── */
-                  if (false) return (
-                    <div style={{ borderTop: "1px solid #e9edef" }}>
-                                    /* ── DEFAULT: QR or manual sync ── */
+                  /* ── DEFAULT: QR Code panel ── */
                   return (
                     <div style={{ borderTop: "1px solid #e9edef", padding: 20 }}>
                       {!inst.connected ? (
