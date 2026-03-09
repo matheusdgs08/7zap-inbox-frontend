@@ -1769,7 +1769,7 @@ function WhatsAppScreen({ auth }) {
         </div>
 
         {/* Info cards */}
-        <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 14, padding: 20 }}>
+        <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: 20 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: "#667781", marginBottom: 12, letterSpacing: 1 }}>ℹ️ INFORMAÇÕES IMPORTANTES</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {[
@@ -2657,7 +2657,7 @@ function TaskDetailModal({ task, agents, onClose, onComplete }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "#00000055", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300 }} onClick={onClose}>
       <div onClick={e => e.stopPropagation()} style={{ background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 16, width: 500, maxHeight: "85vh", display: "flex", flexDirection: "column", boxShadow: "0 2px 5px #0000001a, 0 8px 20px #00000012" }}>
-        <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid #e9edef" }}>
+        <div style={{ padding: "20px 24px 16px", borderBottom: `1px solid ${T.border}` }}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 16, fontWeight: 700, color: "#111b21", marginBottom: 6 }}>{task.title}</div>
@@ -2764,7 +2764,7 @@ function TasksPanel({ convId, agents, onClose, onTaskDone }) {
           <span style={{ background: "#00a88422", color: "#00a884", fontSize: 11, fontWeight: 700, padding: "1px 7px", borderRadius: 20 }}>{tasks.length}</span>
           <span onClick={onClose} style={{ marginLeft: "auto", cursor: "pointer", color: "#667781", fontSize: 18, lineHeight: 1 }}>×</span>
         </div>
-        <div style={{ padding: "14px 16px", borderBottom: "1px solid #e9edef" }}>
+        <div style={{ padding: "14px 16px", borderBottom: `1px solid ${T.border}` }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: "#667781", marginBottom: 8 }}>NOVA TAREFA</div>
           <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Título da tarefa *" style={{ width: "100%", padding: "8px 10px", background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 7, color: "#111b21", fontSize: 12, outline: "none", boxSizing: "border-box", fontFamily: "inherit", marginBottom: 6 }} />
           <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Descrição (opcional)..." rows={2} style={{ width: "100%", padding: "8px 10px", background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 7, color: "#111b21", fontSize: 12, outline: "none", boxSizing: "border-box", fontFamily: "inherit", resize: "none", marginBottom: 6, lineHeight: 1.5 }} />
@@ -3048,7 +3048,7 @@ function ReportsView({ auth }) {
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               {/* Por hora */}
-              <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 14, padding: 20 }}>
+              <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: 20 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16 }}>🕐 Pico de mensagens por hora</div>
                 <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 80 }}>
                   {(data.messages.by_hour || []).map((h, i) => {
@@ -3067,7 +3067,7 @@ function ReportsView({ auth }) {
               </div>
 
               {/* Por dia da semana */}
-              <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 14, padding: 20 }}>
+              <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: 20 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16 }}>📊 Por dia da semana</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {(data.messages.by_weekday || []).map((d, i) => (
@@ -3100,12 +3100,12 @@ function ReportsView({ auth }) {
                 </div>
               ))}
             </div>
-            <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 14, padding: 20 }}>
+            <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: 20 }}>
               <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16 }}>Ranking de atendentes</div>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
                   <tr>{["Atendente","Função","Conversas","Resolvidas","Msgs enviadas","Taxa resolução"].map(h => (
-                    <th key={h} style={{ textAlign: "left", padding: "8px 12px", fontSize: 10, color: "#667781", letterSpacing: 1, borderBottom: "1px solid #e9edef" }}>{h.toUpperCase()}</th>
+                    <th key={h} style={{ textAlign: "left", padding: "8px 12px", fontSize: 10, color: "#667781", letterSpacing: 1, borderBottom: `1px solid ${T.border}` }}>{h.toUpperCase()}</th>
                   ))}</tr>
                 </thead>
                 <tbody>
@@ -3179,7 +3179,7 @@ function ReportsView({ auth }) {
               {(data.broadcasts.broadcasts || []).map(b => {
                 const roiColor = b.roi_pct > 10 ? "#00a884" : b.roi_pct > 4 ? "#ff9800" : "#f44336";
                 return (
-                  <div key={b.id} style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 14, padding: 20 }}>
+                  <div key={b.id} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: 20 }}>
                     {/* Header */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
                       <div style={{ flex: 1 }}>
@@ -3258,7 +3258,7 @@ function ReportsView({ auth }) {
               ))}
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-              <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 14, padding: 20 }}>
+              <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: 20 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16 }}>⚡ Consumo por atendente</div>
                 {(data.credits.by_agent || []).length === 0 && <div style={{ color: "#667781", fontSize: 12 }}>Nenhum uso registrado.</div>}
                 {(data.credits.by_agent || []).map((a, i) => {
@@ -3276,7 +3276,7 @@ function ReportsView({ auth }) {
                   );
                 })}
               </div>
-              <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 14, padding: 20 }}>
+              <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: 20 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16 }}>📅 Uso por dia</div>
                 <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 100 }}>
                   {(data.credits.by_day || []).slice(-30).map((d, i) => {
@@ -3691,13 +3691,20 @@ function DashboardSocios({ auth, clientes_reais }) {
 
 export default function App() {
   const [auth, setAuth] = useState(getStoredAuth);
+  const [theme, setTheme] = useState(() => localStorage.getItem("7crm_theme") || "light");
+
+  const toggleTheme = () => setTheme(t => {
+    const next = t === "light" ? "dark" : "light";
+    localStorage.setItem("7crm_theme", next);
+    return next;
+  });
 
   const handleLogin = (data) => { setStoredAuth(data); setAuth(data); };
   const handleLogout = () => { setStoredAuth(null); setAuth(null); };
 
-  if (!auth) return <LoginScreen onLogin={handleLogin} />;
+  if (!auth) return <LoginScreen onLogin={handleLogin} theme={theme} toggleTheme={toggleTheme} />;
 
-  return <AppInner auth={auth} onLogout={handleLogout} />;
+  return <AppInner auth={auth} onLogout={handleLogout} theme={theme} toggleTheme={toggleTheme} />;
 }
 
 // Permission helpers
@@ -3837,7 +3844,46 @@ function BuyCreditsModal({ tenantId, authHeaders, onClose, onSuccess, plan }) {
   );
 }
 
-function AppInner({ auth, onLogout }) {
+function AppInner({ auth, onLogout, theme, toggleTheme }) {
+  // ── Theme tokens ──
+  const T = theme === "dark" ? {
+    app:      "#0a0a0f",
+    topbar:   "#0d0d18",
+    sidebar:  "#0d0d18",
+    card:     "#13131f",
+    border:   "#1a1a2e",
+    border2:  "#252540",
+    chatBg:   "#0a0a0f",
+    msgIn:    "#1a1a2e",
+    msgOut:   "#003d2e",
+    input:    "#13131f",
+    inputBdr: "#252540",
+    text:     "#e8e8f0",
+    text2:    "#888",
+    text3:    "#555",
+    hover:    "#1a1a2e",
+    selected: "#1a1a2e",
+    shadow:   "#00000080",
+  } : {
+    app:      "#f0f2f5",
+    topbar:   "#f0f2f5",
+    sidebar:  "#ffffff",
+    card:     "#ffffff",
+    border:   "#e9edef",
+    border2:  "#d1d7db",
+    chatBg:   "#efeae2",
+    msgIn:    "#ffffff",
+    msgOut:   "#d9fdd3",
+    input:    "#f0f2f5",
+    inputBdr: "#d1d7db",
+    text:     "#111b21",
+    text2:    "#667781",
+    text3:    "#8696a0",
+    hover:    "#f5f6f6",
+    selected: "#e9edef",
+    shadow:   "#0000001a",
+  };
+
   const [view, setView] = useState("inbox");
   const [trialInfo, setTrialInfo] = useState(null); // {status, days_left, is_blocked, plan}
 
@@ -3859,7 +3905,7 @@ function AppInner({ auth, onLogout }) {
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [unreadFilter, setUnreadFilter] = useState("all"); // all | unread
-  const [inactiveDays, setInactiveDays] = useState(null); // null | 3 | 5 | 10 | 15
+  const [inactiveDays, setInactiveDays] = useState(null); // null | 3 | 7 | 15  (days without response)
   const [instanceFilter, setInstanceFilter] = useState(null); // null = all | instance_name string
   const [resumingConv, setResumingConv] = useState(null); // conv id being resumed
   const [agents, setAgents] = useState([]);
@@ -4319,9 +4365,9 @@ A mensagem deve:
   ];
 
   return (
-    <div style={{ display: "flex", height: "100vh", width: "100vw", flexDirection: "column", background: "#f0f2f5", color: "#111b21", fontFamily: "'DM Sans', 'Segoe UI', sans-serif", overflow: "hidden" }}>
+    <div style={{ display: "flex", height: "100vh", width: "100vw", flexDirection: "column", background: T.app, color: T.text, fontFamily: "'DM Sans', 'Segoe UI', sans-serif", overflow: "hidden" }}>
       {/* TopBar */}
-      <div style={{ height: 48, flexShrink: 0, borderBottom: "1px solid #e9edef", background: "#f0f2f5", display: "flex", alignItems: "center", padding: "0 20px", gap: 24 }}>
+      <div style={{ height: 48, flexShrink: 0, borderBottom: "1px solid #e9edef", background: T.topbar, display: "flex", alignItems: "center", padding: "0 20px", gap: 24 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ width: 26, height: 26, borderRadius: 7, background: "linear-gradient(135deg, #00a884, #017561)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>⚡</div>
           <span style={{ fontWeight: 700, fontSize: 15 }}>7CRM</span>
@@ -4329,7 +4375,7 @@ A mensagem deve:
         {/* Work tabs — esquerda */}
         <div style={{ display: "flex", gap: 2 }}>
           {WORK_TABS.map(tab => (
-            <button key={tab.id} onClick={() => setView(tab.id)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 6, border: "none", background: view === tab.id ? "#00a88420" : "transparent", color: view === tab.id ? "#00a884" : "#667781", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+            <button key={tab.id} onClick={() => setView(tab.id)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 6, border: "none", background: view === tab.id ? "#00a88420" : "transparent", color: view === tab.id ? "#00a884" : T.text2, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
               {tab.label}
               {tab.id === "tasks_global" && totalPendingTasks > 0 && <span style={{ background: "#ff6d00", color: "#000", fontSize: 10, fontWeight: 800, padding: "1px 6px", borderRadius: 10, lineHeight: 1.4 }}>{totalPendingTasks}</span>}
             </button>
@@ -4342,7 +4388,7 @@ A mensagem deve:
         {/* Admin tabs — direita */}
         <div style={{ display: "flex", alignItems: "center", gap: 2, paddingLeft: 10, borderLeft: "1px solid #e9edef" }}>
           {ADMIN_TABS.map(tab => (
-            <button key={tab.id} onClick={() => setView(tab.id)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 6, border: tab.id === "upgrade" ? "1px solid #ff6d0044" : "none", background: view === tab.id ? "#00a88420" : tab.id === "upgrade" ? "#ff6d0012" : "transparent", color: view === tab.id ? "#00a884" : tab.id === "upgrade" ? "#ff6d00" : "#667781", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+            <button key={tab.id} onClick={() => setView(tab.id)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 6, border: tab.id === "upgrade" ? "1px solid #ff6d0044" : "none", background: view === tab.id ? "#00a88420" : tab.id === "upgrade" ? "#ff6d0012" : "transparent", color: view === tab.id ? "#00a884" : tab.id === "upgrade" ? "#ff6d00" : T.text2, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
               {tab.label}
             </button>
           ))}
@@ -4378,11 +4424,15 @@ A mensagem deve:
             );
           })()}
 
-          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#667781" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: T.text2 }}>
             <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#00a884" }} />
-            <span style={{ color: "#667781" }}>{auth.user.name}</span>
+            <span style={{ color: T.text2 }}>{auth.user.name}</span>
           </div>
-          <button onClick={onLogout} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Sair</button>
+          <button onClick={toggleTheme} title={theme === "light" ? "Modo escuro" : "Modo claro"}
+            style={{ padding: "5px 8px", borderRadius: 6, border: `1px solid ${T.border}`, background: "transparent", fontSize: 15, cursor: "pointer", lineHeight: 1 }}>
+            {theme === "light" ? "🌙" : "☀️"}
+          </button>
+          <button onClick={onLogout} style={{ padding: "4px 10px", borderRadius: 6, border: `1px solid ${T.border}`, background: "transparent", color: T.text2, fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Sair</button>
         </div>
       </div>
 
@@ -4670,16 +4720,16 @@ A mensagem deve:
             <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
 
             {/* Sidebar */}
-            <div style={{ width: 300, flexShrink: 0, display: "flex", flexDirection: "column", borderRight: "1px solid #e9edef", background: "#ffffff" }}>
-              <div style={{ padding: "12px 14px", borderBottom: "1px solid #e9edef" }}>
+            <div style={{ width: 300, flexShrink: 0, display: "flex", flexDirection: "column", borderRight: `1px solid ${T.border}`, background: T.sidebar }}>
+              <div style={{ padding: "12px 14px", borderBottom: `1px solid ${T.border}` }}>
                 <div style={{ position: "relative" }}>
                   <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 13, opacity: 0.4 }}>🔍</span>
-                  <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar conversa..." style={{ width: "100%", padding: "7px 12px 7px 30px", background: "#e9edef", border: "1px solid #e9edef", borderRadius: 8, color: "#111b21", fontSize: 13, outline: "none", boxSizing: "border-box" }} />
+                  <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar conversa..." style={{ width: "100%", padding: "7px 12px 7px 30px", background: T.hover, border: `1px solid ${T.border}`, borderRadius: 8, color: T.text, fontSize: 13, outline: "none", boxSizing: "border-box" }} />
                 </div>
               </div>
 
               {/* Tudo / Não lidas */}
-              <div style={{ display: "flex", borderBottom: "1px solid #e9edef" }}>
+              <div style={{ display: "flex", borderBottom: `1px solid ${T.border}` }}>
                 {[["all", "Tudo"], ["unread", "Não lidas"]].map(([id, label]) => (
                   <button key={id} onClick={() => setUnreadFilter(id)} style={{ flex: 1, padding: "8px 0", border: "none", background: "transparent", color: unreadFilter === id ? "#00a884" : "#667781", fontSize: 12, fontWeight: unreadFilter === id ? 700 : 500, cursor: "pointer", fontFamily: "inherit", borderBottom: `2px solid ${unreadFilter === id ? "#00a884" : "transparent"}`, transition: "all 0.15s" }}>
                     {label}{id === "unread" && unreadCount > 0 ? ` (${unreadCount})` : ""}
@@ -4691,12 +4741,12 @@ A mensagem deve:
               {waInstances.length >= 2 && (
                 <div style={{ padding: "7px 10px", borderBottom: "1px solid #e9edef", display: "flex", gap: 5, alignItems: "center", overflowX: "auto" }}>
                   <button onClick={() => setInstanceFilter(null)}
-                    style={{ padding: "3px 10px", borderRadius: 20, border: `1px solid ${!instanceFilter ? "#00a88466" : "#e9edef"}`, background: !instanceFilter ? "#00a88418" : "transparent", color: !instanceFilter ? "#00a884" : "#667781", fontSize: 11, fontWeight: !instanceFilter ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0 }}>
+                    style={{ padding: "3px 10px", borderRadius: 20, border: `1px solid ${!instanceFilter ? "#00a88466" : T.border}`, background: !instanceFilter ? "#00a88418" : "transparent", color: !instanceFilter ? "#00a884" : "#667781", fontSize: 11, fontWeight: !instanceFilter ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0 }}>
                     📥 Todos
                   </button>
                   {waInstances.map(inst => (
                     <button key={inst.id} onClick={() => setInstanceFilter(instanceFilter === inst.instance_name ? null : inst.instance_name)}
-                      style={{ padding: "3px 10px", borderRadius: 20, border: `1px solid ${instanceFilter === inst.instance_name ? "#00a88466" : "#e9edef"}`, background: instanceFilter === inst.instance_name ? "#00a88418" : "transparent", color: instanceFilter === inst.instance_name ? "#00a884" : "#667781", fontSize: 11, fontWeight: instanceFilter === inst.instance_name ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}>
+                      style={{ padding: "3px 10px", borderRadius: 20, border: `1px solid ${instanceFilter === inst.instance_name ? "#00a88466" : T.border}`, background: instanceFilter === inst.instance_name ? "#00a88418" : "transparent", color: instanceFilter === inst.instance_name ? "#00a884" : "#667781", fontSize: 11, fontWeight: instanceFilter === inst.instance_name ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}>
                       <span style={{ width: 6, height: 6, borderRadius: "50%", background: inst.connected ? "#00a884" : "#f44336", display: "inline-block", flexShrink: 0 }} />
                       {inst.label || inst.instance_name}
                     </button>
@@ -4706,10 +4756,10 @@ A mensagem deve:
 
               {/* Inactive days filter */}
               <div style={{ padding: "8px 10px", borderBottom: "1px solid #e9edef", display: "flex", flexWrap: "wrap", gap: 5, alignItems: "center" }}>
-                <span style={{ fontSize: 10, color: "#667781", fontWeight: 700, letterSpacing: 0.5, marginRight: 2 }}>SEM RESPOSTA:</span>
-                {[null, 3, 5, 10, 15].map(d => (
+                <span style={{ fontSize: 10, color: T.text2, fontWeight: 700, letterSpacing: 0.5, marginRight: 2 }}>SEM RESPOSTA:</span>
+                {[null, 3, 7, 15].map(d => (
                   <button key={d ?? "all"} onClick={() => setInactiveDays(d === inactiveDays ? null : d)}
-                    style={{ padding: "3px 9px", borderRadius: 20, border: `1px solid ${inactiveDays === d && d !== null ? "#ff6d0066" : "#e9edef"}`, background: inactiveDays === d && d !== null ? "#ff6d0018" : "transparent", color: inactiveDays === d && d !== null ? "#ff6d00" : d === null ? "#54656f" : "#667781", fontSize: 11, fontWeight: inactiveDays === d ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+                    style={{ padding: "3px 9px", borderRadius: 20, border: `1px solid ${inactiveDays === d && d !== null ? "#ff6d0066" : T.border}`, background: inactiveDays === d && d !== null ? "#ff6d0018" : "transparent", color: inactiveDays === d && d !== null ? "#ff6d00" : d === null ? "#54656f" : "#667781", fontSize: 11, fontWeight: inactiveDays === d ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
                     {d === null ? "Todos" : d === 15 ? "15d+" : `${d}d`}
                   </button>
                 ))}
@@ -4720,11 +4770,11 @@ A mensagem deve:
                 {loading ? <div style={{ padding: 24, textAlign: "center", color: "#667781", fontSize: 13 }}>Carregando...</div>
                   : filtered.length === 0 ? <div style={{ padding: 24, textAlign: "center", color: "#667781", fontSize: 13 }}>Nenhuma conversa</div>
                   : filtered.map(conv => (
-                    <div key={conv.id} onClick={() => { setSelected(conv); setSuggestion(""); setShowTasks(false); setNoteMode(false); }} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "11px 14px", cursor: "pointer", background: selected?.id === conv.id ? "#e9edef" : "transparent", borderLeft: selected?.id === conv.id ? "3px solid #00a884" : "3px solid transparent" }}>
+                    <div key={conv.id} onClick={() => { setSelected(conv); setSuggestion(""); setShowTasks(false); setNoteMode(false); }} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "11px 14px", cursor: "pointer", background: selected?.id === conv.id ? T.selected : "transparent", borderLeft: selected?.id === conv.id ? "3px solid #00a884" : "3px solid transparent" }}>
                       <Avatar name={conv.contacts?.name || conv.contacts?.phone} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
-                          <span style={{ fontWeight: conv.unread_count > 0 ? 800 : 600, fontSize: 13, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: conv.unread_count > 0 ? "#111b21" : "#54656f" }}>{conv.contacts?.name || conv.contacts?.phone}</span>
+                          <span style={{ fontWeight: conv.unread_count > 0 ? 800 : 600, fontSize: 13, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: conv.unread_count > 0 ? T.text : T.text2 }}>{conv.contacts?.name || conv.contacts?.phone}</span>
                           <span style={{ fontSize: 11, color: inactiveDays ? "#ff6d00" : (conv.unread_count > 0 ? "#00a884" : "#667781"), flexShrink: 0, fontWeight: conv.unread_count > 0 ? 700 : 400 }}>{timeAgo(conv.last_message_at)}</span>
                         </div>
                         <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 4 }}>
@@ -4750,7 +4800,7 @@ A mensagem deve:
                     </div>
                   ))}
               </div>
-              <div style={{ padding: "10px 14px", borderTop: "1px solid #e9edef", fontSize: 12, color: "#667781", display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ padding: "10px 14px", borderTop: `1px solid ${T.border}`, fontSize: 12, color: T.text2, display: "flex", alignItems: "center", gap: 6 }}>
                 <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#00a884" }} />{conversations.length} conversa{conversations.length !== 1 ? "s" : ""}
               </div>
             </div>
@@ -4760,7 +4810,7 @@ A mensagem deve:
               <div style={{ flex: 1, display: "flex", minWidth: 0 }}>
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
                   {/* Chat header */}
-                  <div style={{ padding: "10px 14px", borderBottom: "1px solid #e9edef", display: "flex", alignItems: "center", gap: 10, background: "#f0f2f5", flexWrap: "wrap" }}>
+                  <div style={{ padding: "10px 14px", borderBottom: "1px solid #e9edef", display: "flex", alignItems: "center", gap: 10, background: T.topbar, flexWrap: "wrap" }}>
                     <Avatar name={selected.contacts?.name || selected.contacts?.phone} size={34} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 700, fontSize: 13 }}>{selected.contacts?.name || selected.contacts?.phone}</div>
@@ -4803,14 +4853,14 @@ A mensagem deve:
                   </div>
 
                   {/* Messages */}
-                  <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 2, background: "#efeae2" }}>
+                  <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 2, background: T.chatBg }}>
                     {messages.length === 0 ? <div style={{ textAlign: "center", color: "#667781", fontSize: 13, marginTop: 40 }}>Nenhuma mensagem ainda</div>
                       : messages.map((msg, i) => {
                         const isOut = msg.direction === "outbound";
                         const isInternal = msg.is_internal_note;
                         return (
                           <div key={msg.id || i} style={{ display: "flex", justifyContent: isOut ? "flex-end" : "flex-start", marginBottom: 2 }}>
-                            <div style={{ maxWidth: "65%", padding: "7px 12px 8px 12px", borderRadius: isOut ? "8px 0px 8px 8px" : "0px 8px 8px 8px", background: isInternal ? "#fff8dc" : isOut ? "#d9fdd3" : "#ffffff", boxShadow: "0 1px 2px #0000001a", fontSize: 14, lineHeight: 1.5, color: "#111b21" }}>
+                            <div style={{ maxWidth: "65%", padding: "7px 12px 8px 12px", borderRadius: isOut ? "8px 0px 8px 8px" : "0px 8px 8px 8px", background: isInternal ? "#fff8dc" : isOut ? T.msgOut : T.msgIn, boxShadow: `0 1px 2px ${T.shadow}`, fontSize: 14, lineHeight: 1.5, color: T.text }}>
                               {isInternal && <div style={{ fontSize: 10, fontWeight: 700, color: "#8a6914", marginBottom: 4 }}>📝 NOTA INTERNA</div>}
                               <div style={{ wordBreak: "break-word" }}>{msg.content}</div>
                               <div style={{ fontSize: 10, color: "#667781", marginTop: 2, textAlign: isOut ? "right" : "left" }}>{new Date(msg.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}{isOut && <span style={{ marginLeft: 4, color: "#53bdeb" }}>✓✓</span>}</div>
@@ -4822,7 +4872,7 @@ A mensagem deve:
                   </div>
 
                   {/* Input */}
-                  <div style={{ padding: "10px 14px", borderTop: "1px solid #e9edef", background: "#f0f2f5" }}>
+                  <div style={{ padding: "10px 14px", borderTop: `1px solid ${T.border}`, background: T.input }}>
                     {suggestion && (
                       <div style={{ marginBottom: 10, padding: "12px 14px", background: "#f5f0ff", border: "1px solid #7c4dff33", borderRadius: 10 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
@@ -4846,7 +4896,7 @@ A mensagem deve:
                     )}
                     <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
                       <button onClick={() => setNoteMode(n => !n)} style={{ padding: "9px 10px", borderRadius: 9, border: `1px solid ${noteMode ? "#ffd60044" : "#d1d7db"}`, background: noteMode ? "#ffd60015" : "transparent", color: noteMode ? "#ffd600" : "#667781", fontSize: 14, cursor: "pointer", flexShrink: 0 }}>📝</button>
-                      <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }} placeholder={noteMode ? "Escreva uma nota interna..." : "Digite uma mensagem... (Enter para enviar)"} rows={1} style={{ flex: 1, padding: "9px 13px", background: noteMode ? "#fffbeb" : "#f0f2f5", border: `1px solid ${noteMode ? "#ffd60033" : "#d1d7db"}`, borderRadius: 9, color: noteMode ? "#92400e" : "#111b21", fontSize: 14, outline: "none", resize: "none", fontFamily: "inherit", lineHeight: 1.5, maxHeight: 120, overflowY: "auto" }} />
+                      <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }} placeholder={noteMode ? "Escreva uma nota interna..." : "Digite uma mensagem... (Enter para enviar)"} rows={1} style={{ flex: 1, padding: "9px 13px", background: noteMode ? "#fffbeb" : T.input, border: `1px solid ${noteMode ? "#ffd60033" : T.inputBdr}`, borderRadius: 9, color: noteMode ? "#92400e" : "#111b21", fontSize: 14, outline: "none", resize: "none", fontFamily: "inherit", lineHeight: 1.5, maxHeight: 120, overflowY: "auto" }} />
                       <button onClick={sendMessage} disabled={sending || !input.trim()} style={{ padding: "9px 16px", borderRadius: 9, border: "none", background: sending || !input.trim() ? "#e9edef" : noteMode ? "linear-gradient(135deg, #ffd600, #f57f17)" : "linear-gradient(135deg, #00a884, #017561)", color: sending || !input.trim() ? "#667781" : "#000", fontSize: 14, fontWeight: 700, cursor: sending || !input.trim() ? "not-allowed" : "pointer", fontFamily: "inherit", flexShrink: 0 }}>{sending ? "..." : noteMode ? "Nota" : "Enviar"}</button>
                     </div>
                   </div>
@@ -4857,7 +4907,7 @@ A mensagem deve:
               <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 14, color: "#54656f" }}>
                 <div style={{ fontSize: 44 }}>💬</div>
                 <div style={{ fontSize: 17, fontWeight: 600, color: "#667781" }}>Selecione uma conversa</div>
-                <div style={{ fontSize: 13, color: "#54656f" }}>Escolha uma conversa na lista ao lado</div>
+                <div style={{ fontSize: 13, color: T.text2 }}>Escolha uma conversa na lista ao lado</div>
               </div>
             )}
             </div>
