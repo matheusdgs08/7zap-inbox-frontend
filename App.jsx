@@ -815,6 +815,13 @@ function AdminPanel({ auth, onLogout }) {
   const [editUser, setEditUser] = useState(null);
   const [toast, setToast] = useState(null);
   const [fName, setFName] = useState(""); const [fEmail, setFEmail] = useState(""); const [fPw, setFPw] = useState(""); const [fRole, setFRole] = useState("agent"); const [fColor, setFColor] = useState("#00c853"); const [fPerms, setFPerms] = useState("read_write"); const [saving, setSaving] = useState(false);
+  const [fInstances, setFInstances] = useState([]); // allowed instance IDs — empty = all
+  const [availableInstances, setAvailableInstances] = useState([]);
+
+  useEffect(() => {
+    fetch(`${API_URL}/whatsapp/tenant-instances?tenant_id=${TENANT_ID}`, { headers: aHeaders })
+      .then(r => r.json()).then(d => setAvailableInstances(d.instances || [])).catch(() => {});
+  }, []);
   const [showChangePw, setShowChangePw] = useState(false); const [curPw, setCurPw] = useState(""); const [newPw, setNewPw] = useState(""); const [changingPw, setChangingPw] = useState(false);
 
   const aHeaders = { ...headers, "Authorization": `Bearer ${auth.token}` };
@@ -827,20 +834,20 @@ function AdminPanel({ auth, onLogout }) {
   };
   useEffect(() => { fetchUsers(); }, []);
 
-  const openCreate = () => { setEditUser(null); setFName(""); setFEmail(""); setFPw(""); setFRole("agent"); setFColor("#00c853"); setFPerms("read_write"); setShowForm(true); };
-  const openEdit = (u) => { setEditUser(u); setFName(u.name); setFEmail(u.email); setFPw(""); setFRole(u.role); setFColor(u.avatar_color || "#00c853"); setFPerms(u.permissions || "read_write"); setShowForm(true); };
+  const openCreate = () => { setEditUser(null); setFName(""); setFEmail(""); setFPw(""); setFRole("agent"); setFColor("#00c853"); setFPerms("read_write"); setFInstances([]); setShowForm(true); };
+  const openEdit = (u) => { setEditUser(u); setFName(u.name); setFEmail(u.email); setFPw(""); setFRole(u.role); setFColor(u.avatar_color || "#00c853"); setFPerms(u.permissions || "read_write"); setFInstances(u.allowed_instances || []); setShowForm(true); };
 
   const saveUser = async () => {
     if (!fName.trim() || !fEmail.trim() || (!editUser && !fPw.trim())) return;
     setSaving(true);
     try {
       if (editUser) {
-        const body = { name: fName, email: fEmail, role: fRole, avatar_color: fColor, permissions: fPerms };
+        const body = { name: fName, email: fEmail, role: fRole, avatar_color: fColor, permissions: fPerms, allowed_instances: fInstances };
         if (fPw.trim()) body.password = fPw;
         await fetch(`${API_URL}/admin/users/${editUser.id}`, { method: "PUT", headers: aHeaders, body: JSON.stringify(body) });
         showToast("✓ Usuário atualizado!");
       } else {
-        await fetch(`${API_URL}/admin/users`, { method: "POST", headers: aHeaders, body: JSON.stringify({ tenant_id: auth.user.tenant_id, name: fName, email: fEmail, password: fPw, role: fRole, avatar_color: fColor, permissions: fPerms }) });
+        await fetch(`${API_URL}/admin/users`, { method: "POST", headers: aHeaders, body: JSON.stringify({ tenant_id: auth.user.tenant_id, name: fName, email: fEmail, password: fPw, role: fRole, avatar_color: fColor, permissions: fPerms, allowed_instances: fInstances }) });
         showToast("✓ Usuário criado!");
       }
       setShowForm(false); fetchUsers();
@@ -909,6 +916,18 @@ function AdminPanel({ auth, onLogout }) {
                       </div>
                       <div style={{ fontSize: 12, color: "#555" }}>{u.email}</div>
                       {u.last_login && <div style={{ fontSize: 11, color: "#333", marginTop: 2 }}>Último acesso: {new Date(u.last_login).toLocaleString("pt-BR")}</div>}
+                      {u.allowed_instances?.length > 0 && (
+                        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 4 }}>
+                          {u.allowed_instances.map(iid => {
+                            const inst = availableInstances.find(i => i.id === iid);
+                            return inst ? (
+                              <span key={iid} style={{ fontSize: 10, background: "#00c85315", color: "#00c853", border: "1px solid #00c85333", padding: "1px 7px", borderRadius: 10, fontWeight: 700 }}>
+                                📱 {inst.label || inst.phone}
+                              </span>
+                            ) : null;
+                          })}
+                        </div>
+                      )}
                     </div>
                     <div style={{ display: "flex", gap: 6 }}>
                       <button onClick={() => openEdit(u)} style={{ padding: "6px 14px", borderRadius: 7, border: "1px solid #252540", background: "transparent", color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>✏️ Editar</button>
@@ -988,6 +1007,36 @@ function AdminPanel({ auth, onLogout }) {
               <div><label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 8 }}>COR DO AVATAR</label>
                 <div style={{ display: "flex", gap: 8 }}>{COLORS.map(c => <div key={c} onClick={() => setFColor(c)} style={{ width: 28, height: 28, borderRadius: "50%", background: c, cursor: "pointer", border: fColor === c ? "3px solid #fff" : "3px solid transparent", boxSizing: "border-box" }} />)}</div>
               </div>
+              {/* Instance access — only show if there are instances */}
+              {availableInstances.length > 0 && fRole !== "admin" && (
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "#555", display: "block", marginBottom: 4 }}>ACESSO AOS NÚMEROS</label>
+                  <div style={{ fontSize: 11, color: "#333", marginBottom: 8 }}>Vazio = acesso a todos os números. Selecione para restringir.</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {availableInstances.map(inst => {
+                      const isSelected = fInstances.includes(inst.id);
+                      return (
+                        <div key={inst.id} onClick={() => setFInstances(prev => isSelected ? prev.filter(id => id !== inst.id) : [...prev, inst.id])}
+                          style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 8, border: `1px solid ${isSelected ? "#00c85344" : "#252540"}`, background: isSelected ? "#00c85310" : "transparent", cursor: "pointer" }}>
+                          <span style={{ fontSize: 16 }}>{inst.connected ? "📱" : "📵"}</span>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: isSelected ? "#00c853" : "#ccc" }}>{inst.label || "Número"}</div>
+                            <div style={{ fontSize: 11, color: "#555" }}>{inst.phone ? `+${inst.phone}` : inst.instance_name}</div>
+                          </div>
+                          <div style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${isSelected ? "#00c853" : "#333"}`, background: isSelected ? "#00c853" : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            {isSelected && <span style={{ fontSize: 10, color: "#000", fontWeight: 900 }}>✓</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {fInstances.length > 0 && (
+                    <div style={{ fontSize: 11, color: "#00c853", marginTop: 6 }}>
+                      ✓ Acesso restrito a {fInstances.length} número{fInstances.length > 1 ? "s" : ""}
+                    </div>
+                  )}
+                </div>
+              )}
               <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
                 <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: "1px solid #252540", background: "transparent", color: "#666", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
                 <button onClick={saveUser} disabled={saving} style={{ flex: 2, padding: "10px 0", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#00c853,#00796b)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{saving ? "Salvando..." : (editUser ? "Salvar" : "Criar usuário")}</button>
@@ -3598,6 +3647,9 @@ function AppInner({ auth, onLogout }) {
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [unreadFilter, setUnreadFilter] = useState("all"); // all | unread
+  const [inactiveDays, setInactiveDays] = useState(null); // null | 3 | 5 | 10 | 15
+  const [instanceFilter, setInstanceFilter] = useState(null); // null = all | instance_name string
+  const [resumingConv, setResumingConv] = useState(null); // conv id being resumed
   const [agents, setAgents] = useState([]);
   const [pendingTasksMap, setPendingTasksMap] = useState({}); // convId → count
   const [labels, setLabels] = useState([]);
@@ -3679,7 +3731,7 @@ function AppInner({ auth, onLogout }) {
 
   const fetchConversations = useCallback(async () => {
     try {
-      const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}`, { headers });
+      const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}`, { headers });
       if (r.status === 401) {
         const err = await r.json().catch(() => ({}));
         if ((err.detail || "").includes("Sess\u00e3o encerrada")) {
@@ -3709,7 +3761,7 @@ function AppInner({ auth, onLogout }) {
     setLoading(false);
   }, [filter]);
   const fetchAllConversations = useCallback(async () => {
-    try { const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}`, { headers }); const d = await r.json();
+    try { const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}`, { headers }); const d = await r.json();
       const now = Date.now();
       const merged = (d.conversations || []).map(c => {
         const ov = labelOverrideRef.current[c.id];
@@ -3804,6 +3856,54 @@ function AppInner({ auth, onLogout }) {
   }, [selected, fetchMessages]);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
   useEffect(() => { fetchAgents(); fetchTenant(); fetchCredits(); fetchPendingTasks(); fetchLabels(); const t = setInterval(fetchPendingTasks, 30000); const t2 = setInterval(fetchCredits, 60000); return () => { clearInterval(t); clearInterval(t2); }; }, [fetchAgents, fetchTenant, fetchCredits, fetchPendingTasks, fetchLabels]);
+
+  const resumeConversation = async (conv) => {
+    if (resumingConv) return;
+    setResumingConv(conv.id);
+    setSelected(conv);
+    setSuggestion("");
+    try {
+      // Fetch messages to give AI context
+      const mr = await fetch(`${API_URL}/conversations/${conv.id}/messages`, { headers });
+      const md = await mr.json();
+      const msgs = (md.messages || []).slice(-20); // last 20 msgs for context
+      const lastMsgDate = conv.last_message_at ? new Date(conv.last_message_at).toLocaleDateString("pt-BR") : "desconhecida";
+      const daysInactive = conv.last_message_at
+        ? Math.floor((Date.now() - new Date(conv.last_message_at).getTime()) / (1000 * 60 * 60 * 24))
+        : 0;
+      const history = msgs.map(m => `${m.direction === "inbound" ? "Cliente" : "Atendente"}: ${m.content}`).join("\n");
+      const contactName = conv.contacts?.name || conv.contacts?.phone || "o cliente";
+
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 300,
+          system: `Você é um assistente de atendimento ao cliente. Gere uma mensagem curta e natural para retomar contato com um cliente que não responde há ${daysInactive} dias. 
+A mensagem deve:
+- Ser informal e amigável, como uma pessoa real escreveria
+- Fazer referência ao contexto da última conversa
+- Ter no máximo 2-3 frases curtas
+- NÃO mencionar que é IA
+- NÃO usar emojis em excesso (máximo 1)
+- Responda APENAS com a mensagem, sem explicações`,
+          messages: [{
+            role: "user",
+            content: `Nome do cliente: ${contactName}\nÚltima mensagem: ${lastMsgDate}\nDias sem resposta: ${daysInactive}\n\nHistórico recente:\n${history}\n\nGere uma mensagem de retomada de contato.`
+          }]
+        })
+      });
+      const data = await response.json();
+      const msg = data.content?.[0]?.text?.trim() || "";
+      if (msg) {
+        setSuggestion(msg);
+        setInput(msg);
+        setView("inbox");
+      }
+    } catch (e) { console.error("Resume error:", e); }
+    setResumingConv(null);
+  };
 
   const sendMessage = async () => {
     if (!input.trim() || !selected || sending) return;
@@ -3976,7 +4076,14 @@ function AppInner({ auth, onLogout }) {
   const filtered = conversations.filter(c => {
     const matchSearch = (c.contacts?.name || c.contacts?.phone || "").toLowerCase().includes(search.toLowerCase());
     const matchUnread = unreadFilter === "all" || c.unread_count > 0;
-    return matchSearch && matchUnread;
+    let matchInactive = true;
+    if (inactiveDays) {
+      const lastMsg = c.last_message_at ? new Date(c.last_message_at).getTime() : 0;
+      const daysAgo = (Date.now() - lastMsg) / (1000 * 60 * 60 * 24);
+      matchInactive = daysAgo >= inactiveDays;
+    }
+    const matchInstance = !instanceFilter || c.instance_name === instanceFilter;
+    return matchSearch && matchUnread && matchInactive && matchInstance;
   });
 
   const totalPendingTasks = Object.values(pendingTasksMap).reduce((a, b) => a + b, 0);
@@ -4368,6 +4475,35 @@ function AppInner({ auth, onLogout }) {
                 ))}
               </div>
 
+              {/* Number selector — only shown when 2+ instances exist */}
+              {waInstances.length >= 2 && (
+                <div style={{ padding: "7px 10px", borderBottom: "1px solid #1a1a2e", display: "flex", gap: 5, alignItems: "center", overflowX: "auto" }}>
+                  <button onClick={() => setInstanceFilter(null)}
+                    style={{ padding: "3px 10px", borderRadius: 20, border: `1px solid ${!instanceFilter ? "#00c85366" : "#1a1a2e"}`, background: !instanceFilter ? "#00c85318" : "transparent", color: !instanceFilter ? "#00c853" : "#555", fontSize: 11, fontWeight: !instanceFilter ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0 }}>
+                    📥 Todos
+                  </button>
+                  {waInstances.map(inst => (
+                    <button key={inst.id} onClick={() => setInstanceFilter(instanceFilter === inst.instance_name ? null : inst.instance_name)}
+                      style={{ padding: "3px 10px", borderRadius: 20, border: `1px solid ${instanceFilter === inst.instance_name ? "#00c85366" : "#1a1a2e"}`, background: instanceFilter === inst.instance_name ? "#00c85318" : "transparent", color: instanceFilter === inst.instance_name ? "#00c853" : "#555", fontSize: 11, fontWeight: instanceFilter === inst.instance_name ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: inst.connected ? "#00c853" : "#f44336", display: "inline-block", flexShrink: 0 }} />
+                      {inst.label || inst.instance_name}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Inactive days filter */}
+              <div style={{ padding: "8px 10px", borderBottom: "1px solid #1a1a2e", display: "flex", flexWrap: "wrap", gap: 5, alignItems: "center" }}>
+                <span style={{ fontSize: 10, color: "#444", fontWeight: 700, letterSpacing: 0.5, marginRight: 2 }}>SEM RESPOSTA:</span>
+                {[null, 3, 5, 10, 15].map(d => (
+                  <button key={d ?? "all"} onClick={() => setInactiveDays(d === inactiveDays ? null : d)}
+                    style={{ padding: "3px 9px", borderRadius: 20, border: `1px solid ${inactiveDays === d && d !== null ? "#ff6d0066" : "#1a1a2e"}`, background: inactiveDays === d && d !== null ? "#ff6d0018" : "transparent", color: inactiveDays === d && d !== null ? "#ff6d00" : d === null ? "#333" : "#555", fontSize: 11, fontWeight: inactiveDays === d ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+                    {d === null ? "Todos" : d === 15 ? "15d+" : `${d}d`}
+                  </button>
+                ))}
+                {inactiveDays && <span style={{ fontSize: 10, color: "#ff6d00" }}>({filtered.length})</span>}
+              </div>
+
               <div style={{ flex: 1, overflowY: "auto" }}>
                 {loading ? <div style={{ padding: 24, textAlign: "center", color: "#555", fontSize: 13 }}>Carregando...</div>
                   : filtered.length === 0 ? <div style={{ padding: 24, textAlign: "center", color: "#555", fontSize: 13 }}>Nenhuma conversa</div>
@@ -4377,7 +4513,7 @@ function AppInner({ auth, onLogout }) {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
                           <span style={{ fontWeight: conv.unread_count > 0 ? 800 : 600, fontSize: 13, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: conv.unread_count > 0 ? "#e8e8f0" : "#ccc" }}>{conv.contacts?.name || conv.contacts?.phone}</span>
-                          <span style={{ fontSize: 11, color: conv.unread_count > 0 ? "#00c853" : "#555", flexShrink: 0, fontWeight: conv.unread_count > 0 ? 700 : 400 }}>{timeAgo(conv.last_message_at)}</span>
+                          <span style={{ fontSize: 11, color: inactiveDays ? "#ff6d00" : (conv.unread_count > 0 ? "#00c853" : "#555"), flexShrink: 0, fontWeight: conv.unread_count > 0 ? 700 : 400 }}>{timeAgo(conv.last_message_at)}</span>
                         </div>
                         <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 4 }}>
                           {conv.labels?.map(l => <LabelChip key={l.id} label={l} />)}
@@ -4389,6 +4525,15 @@ function AppInner({ auth, onLogout }) {
                           {pendingTasksMap[conv.id] > 0 && <span title={`${pendingTasksMap[conv.id]} tarefa(s) pendente(s)`} style={{ background: "#ff6d0022", border: "1px solid #ff6d0066", color: "#ff6d00", fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 10, flexShrink: 0 }}>✅ {pendingTasksMap[conv.id]}</span>}
                           {isAutoActive(conv) && <span title="Co-pilot automático ativo" style={{ fontSize: 12 }}>🤖</span>}
                         </div>
+                        {/* Retomar button — shown when inactive filter is active */}
+                        {inactiveDays && (
+                          <button
+                            onClick={e => { e.stopPropagation(); resumeConversation(conv); }}
+                            disabled={resumingConv === conv.id}
+                            style={{ marginTop: 6, width: "100%", padding: "5px 0", borderRadius: 6, border: "1px solid #7c4dff44", background: resumingConv === conv.id ? "#1a1a2e" : "#7c4dff18", color: resumingConv === conv.id ? "#444" : "#a78bfa", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                            {resumingConv === conv.id ? <><span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⏳</span> Gerando...</> : "✨ Retomar conversa"}
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
