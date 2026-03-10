@@ -4841,7 +4841,7 @@ A mensagem deve:
             agents={agents}
             kanbanCols={kanbanCols}
             instanceFilter={instanceFilter}
-            instances={instances}
+            instances={waInstances}
           />
         )}
 
@@ -4918,9 +4918,11 @@ A mensagem deve:
 
         {/* Config */}
         {view === "config" && (
-          <div style={{ flex: 1, overflowY: "auto", padding: 40, maxWidth: 720 }}>
-            <div style={{ marginBottom: 32 }}><div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>⚙️ Configurações</div><div style={{ fontSize: 13, color: "#667781" }}>Personalize o comportamento do 7zap para sua empresa</div></div>
-            <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 14, padding: 28, marginBottom: 24 }}>
+          <div style={{ flex: 1, overflowY: "auto", padding: "32px 40px" }}>
+            <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+            <div style={{ marginBottom: 28 }}><div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>⚙️ Configurações</div><div style={{ fontSize: 13, color: "#667781" }}>Personalize o comportamento do 7zap para sua empresa</div></div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 24, alignItems: "start" }}>
+            <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 14, padding: 28, marginBottom: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><span style={{ fontSize: 18 }}>✨</span><span style={{ fontSize: 16, fontWeight: 700 }}>Co-pilot IA</span><span style={{ background: "#7c4dff22", color: "#a78bfa", fontSize: 11, fontWeight: 700, padding: "2px 10px", borderRadius: 20 }}>Co-pilot IA</span></div>
               <div style={{ fontSize: 13, color: "#667781", marginBottom: 20 }}>Prompt + modo automático do Co-pilot para sua empresa.</div>
 
@@ -5058,50 +5060,57 @@ A mensagem deve:
                   + Comprar créditos
                 </button>
               </div>
-            </div>
-            <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 14, padding: 24 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>🏢 Sua Empresa</div>
-              <div style={{ fontSize: 12, color: "#667781", marginBottom: 20 }}>Informações do plano e uso atual</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
-                {[
-                  { label: "Plano atual", value: "Pro", color: "#7c4dff" },
-                  { label: "Versão", value: "CRM v1.0", color: "#00a884" },
-                  { label: "Atendentes", value: `${agents.length} ativo${agents.length !== 1 ? "s" : ""}`, color: "#00a884" },
-                  { label: "Status", value: "🟢 Online", color: "#00a884" },
-                ].map(({ label, value, color }) => (
-                  <div key={label} style={{ background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 10, padding: "12px 16px" }}>
-                    <div style={{ fontSize: 11, color: "#667781", marginBottom: 4 }}>{label}</div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color }}>{value}</div>
+            </div>{/* end Co-pilot IA card */}
+
+            {/* Right column — company info sidebar */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 14, padding: 24 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>🏢 Sua Empresa</div>
+                <div style={{ fontSize: 12, color: "#667781", marginBottom: 20 }}>Informações do plano e uso atual</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
+                  {[
+                    { label: "Plano atual", value: (aiCredits?.plan || "pro").charAt(0).toUpperCase() + (aiCredits?.plan || "pro").slice(1), color: "#7c4dff" },
+                    { label: "Versão", value: "CRM v1.0", color: "#00a884" },
+                    { label: "Atendentes", value: `${agents.length} ativo${agents.length !== 1 ? "s" : ""}`, color: "#00a884" },
+                    { label: "Status", value: "🟢 Online", color: "#00a884" },
+                  ].map(({ label, value, color }) => (
+                    <div key={label} style={{ background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 10, padding: "12px 16px" }}>
+                      <div style={{ fontSize: 11, color: "#667781", marginBottom: 4 }}>{label}</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color }}>{value}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ padding: "12px 16px", background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 10, display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 18 }}>🔐</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#8696a0", marginBottom: 2 }}>Gestão de usuários</div>
+                    <div style={{ fontSize: 11, color: "#667781" }}>Convites, permissões e acesso</div>
                   </div>
-                ))}
-              </div>
-              {/* Users management */}
-              <div style={{ padding: "12px 16px", background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 10, display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 18 }}>🔐</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "#8696a0", marginBottom: 2 }}>Gestão de usuários e atendentes</div>
-                  <div style={{ fontSize: 11, color: "#667781" }}>Convites, permissões e controle de acesso</div>
+                  <button onClick={() => setView("admin")}
+                    style={{ padding: "6px 14px", borderRadius: 7, border: "1px solid #7c4dff44", background: "#7c4dff15", color: "#a78bfa", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                    Gerenciar →
+                  </button>
                 </div>
-                <button onClick={() => { setView("admin"); }}
-                  style={{ padding: "6px 14px", borderRadius: 7, border: "1px solid #7c4dff44", background: "#7c4dff15", color: "#a78bfa", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
-                  Gerenciar →
-                </button>
               </div>
 
-              {/* Sync contact names */}
-              <div style={{ padding: "14px 18px", border: "1px solid #e9edef", borderRadius: 10, display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>👥 Sincronizar nomes dos contatos</div>
-                  <div style={{ fontSize: 12, color: "#667781" }}>Busca o nome real de cada contato direto do WhatsApp</div>
+              <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 14, padding: 20 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>👥 Contatos</div>
+                <div style={{ fontSize: 12, color: "#667781", marginBottom: 14 }}>Manutenção dos dados de contato</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 2 }}>Sincronizar nomes</div>
+                    <div style={{ fontSize: 11, color: "#667781" }}>Busca o nome real de cada contato no WhatsApp</div>
+                  </div>
+                  <button onClick={syncContactNames}
+                    style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid #00a88444", background: "#00a88415", color: "#00a884", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+                    Sincronizar →
+                  </button>
                 </div>
-                <button onClick={syncContactNames}
-                  style={{ padding: "6px 14px", borderRadius: 7, border: "1px solid #00a88444", background: "#00a88415", color: "#00a884", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
-                  Sincronizar →
-                </button>
               </div>
+            </div>{/* end right column */}
 
-
-            </div>
+            </div>{/* end grid */}
+            </div>{/* end maxWidth wrapper */}
           </div>
         )}
 
