@@ -2,7 +2,7 @@ import SuperAdminPanel from "./AdminPanel";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
 const API_URL = "https://7zap-inbox-production.up.railway.app";
-const API_KEY = "7zap_inbox_secret";
+const API_KEY = import.meta.env.VITE_API_KEY || "7zap_inbox_secret";
 // Supabase — client com anon key para Realtime WebSocket
 const SUPABASE_URL = "https://raxnwyjcsplctrfcyeqs.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJheG53eWpjc3BsY3RyZmN5ZXFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MzMzNTQsImV4cCI6MjA4ODMwOTM1NH0.WYoIECuaJSEpN-25oPFRkmA6jHaRQj1Fh3jNSEsbn8k";
@@ -20,7 +20,8 @@ const parseOAuthHash = () => {
   return params.get("access_token") || null;
 };
 const getSupabase = () => null; // legacy compat
-const TENANT_ID = "98c38c97-2796-471f-bfc9-f093ff3ae6e9";
+// TENANT_ID is derived from auth at runtime — see getTenantId() below
+const getTenantId = () => { try { return JSON.parse(localStorage.getItem("7crm_auth") || "null")?.user?.tenant_id || ""; } catch { return ""; } };
 const headers = { "x-api-key": API_KEY, "Content-Type": "application/json" };
 
 // Auth helpers
@@ -1089,7 +1090,7 @@ function AdminPanel({ auth, onLogout }) {
   const [availableInstances, setAvailableInstances] = useState([]);
 
   useEffect(() => {
-    fetch(`${API_URL}/whatsapp/tenant-instances?tenant_id=${TENANT_ID}`, { headers: aHeaders })
+    fetch(`${API_URL}/whatsapp/tenant-instances?tenant_id=${getTenantId()}`, { headers: aHeaders })
       .then(r => r.json()).then(d => setAvailableInstances(d.instances || [])).catch(() => {});
   }, []);
   const [showChangePw, setShowChangePw] = useState(false); const [curPw, setCurPw] = useState(""); const [newPw, setNewPw] = useState(""); const [changingPw, setChangingPw] = useState(false);
@@ -1343,7 +1344,7 @@ function OnboardingView({ auth, aiCredits }) {
     try {
       const r = await fetch(`${API_URL}/onboarding/analyze`, {
         method: "POST", headers,
-        body: JSON.stringify({ tenant_id: TENANT_ID, days })
+        body: JSON.stringify({ tenant_id: getTenantId(), days })
       });
       const d = await r.json();
       clearInterval(progressInterval);
@@ -1600,7 +1601,7 @@ function WhatsAppScreen({ auth, T, theme }) {
   const fetchInstances = async (showLoading = false) => {
     if (showLoading) setInstancesLoading(true);
     try {
-      const r = await fetch(`${API_URL}/whatsapp/tenant-instances?tenant_id=${TENANT_ID}`, { headers });
+      const r = await fetch(`${API_URL}/whatsapp/tenant-instances?tenant_id=${getTenantId()}`, { headers });
       const d = await r.json();
       setInstances(d.instances || []);
       setMaxNumbers(d.max_numbers || 1);
@@ -1633,13 +1634,13 @@ function WhatsAppScreen({ auth, T, theme }) {
     setSyncPhase("syncing");
     fetch(`${API_URL}/whatsapp/sync`, {
       method: "POST", headers,
-      body: JSON.stringify({ tenant_id: TENANT_ID, instance: inst.instance_name, async: true })
+      body: JSON.stringify({ tenant_id: getTenantId(), instance: inst.instance_name, async: true })
     }).then(r => r.json()).then(d => {
       if (d.job_id) {
         setSyncProgress(10);
         const poll = setInterval(async () => {
           try {
-            const sr = await fetch(`${API_URL}/whatsapp/sync/status?job_id=${d.job_id}`, { headers });
+            const sr = await fetch(`${API_URL}/whatsapp/sync-status?job_id=${d.job_id}`, { headers });
             const sd = await sr.json();
             if (sd.progress) setSyncProgress(Math.min(sd.progress, 95));
             if (sd.status === "done" || sd.status === "error") {
@@ -1724,7 +1725,7 @@ function WhatsAppScreen({ auth, T, theme }) {
     try {
       const r = await fetch(`${API_URL}/whatsapp/create-instance`, {
         method: "POST", headers,
-        body: JSON.stringify({ tenant_id: TENANT_ID, label: newLabel.trim() })
+        body: JSON.stringify({ tenant_id: getTenantId(), label: newLabel.trim() })
       });
       const d = await r.json();
       if (d.ok) {
@@ -1750,7 +1751,7 @@ function WhatsAppScreen({ auth, T, theme }) {
     try {
       await fetch(`${API_URL}/whatsapp/delete-instance`, {
         method: "DELETE", headers,
-        body: JSON.stringify({ tenant_id: TENANT_ID, instance_id: inst.id, instance_name: inst.instance_name, delete_history: true })
+        body: JSON.stringify({ tenant_id: getTenantId(), instance_id: inst.id, instance_name: inst.instance_name, delete_history: true })
       });
       if (activeInst?.id === inst.id) setActiveInst(null);
       fetchInstances();
@@ -1775,14 +1776,14 @@ function WhatsAppScreen({ auth, T, theme }) {
     try {
       const r = await fetch(`${API_URL}/whatsapp/sync`, {
         method: "POST", headers,
-        body: JSON.stringify({ tenant_id: TENANT_ID, instance: inst.instance_name, async: true })
+        body: JSON.stringify({ tenant_id: getTenantId(), instance: inst.instance_name, async: true })
       });
       const d = await r.json();
       if (d.job_id) {
         setSyncProgress(10);
         const poll = setInterval(async () => {
           try {
-            const sr = await fetch(`${API_URL}/whatsapp/sync/status?job_id=${d.job_id}`, { headers });
+            const sr = await fetch(`${API_URL}/whatsapp/sync-status?job_id=${d.job_id}`, { headers });
             const sd = await sr.json();
             if (sd.progress) setSyncProgress(Math.min(sd.progress, 95));
             if (sd.status === "done" || sd.status === "error") {
@@ -2203,7 +2204,7 @@ function WhatsAppScreen({ auth, T, theme }) {
 // ─── Leads Board (por etiqueta) ───────────────────────────────────────────────
 
 // ─── Broadcasts / Disparos View ──────────────────────────────────────────────
-function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFilter, instances }) {
+function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFilter, instances, tenantId }) {
   const [tab, setTab] = useState("new"); // new | queue | scheduled
   const [broadcasts, setBroadcasts] = useState([]);
   const [scheduledMsgs, setScheduledMsgs] = useState([]);
@@ -2245,7 +2246,7 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
   const fetchBroadcasts = async () => {
     setLoading(true);
     try {
-      const r = await fetch(`${API_URL}/broadcasts?tenant_id=${TENANT_ID}`, { headers });
+      const r = await fetch(`${API_URL}/broadcasts?tenant_id=${getTenantId()}`, { headers });
       const d = await r.json();
       setBroadcasts(d.broadcasts || []);
     } catch (e) {}
@@ -2253,7 +2254,7 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
   };
   const fetchScheduled = async () => {
     try {
-      const r = await fetch(`${API_URL}/scheduled-messages?tenant_id=${TENANT_ID}`, { headers });
+      const r = await fetch(`${API_URL}/scheduled-messages?tenant_id=${getTenantId()}`, { headers });
       const d = await r.json();
       setScheduledMsgs(d.scheduled_messages || []);
     } catch (e) {}
@@ -2294,7 +2295,7 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
     if (!aiObjective.trim() || loadingAI) return;
     setLoadingAI(true);
     try {
-      const r = await fetch(`${API_URL}/broadcasts/suggest-message`, { method: "POST", headers, body: JSON.stringify({ tenant_id: TENANT_ID, objective: aiObjective }) });
+      const r = await fetch(`${API_URL}/broadcasts/suggest-message`, { method: "POST", headers, body: JSON.stringify({ tenant_id: getTenantId(), objective: aiObjective }) });
       const d = await r.json();
       setBMessage(d.suggestion || "");
     } catch (e) {}
@@ -2312,7 +2313,7 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
     setCreating(true);
     try {
       await fetch(`${API_URL}/broadcasts`, { method: "POST", headers, body: JSON.stringify({
-        tenant_id: TENANT_ID, name: bName, message: bMessage || "(IA personaliza)",
+        tenant_id: getTenantId(), name: bName, message: bMessage || "(IA personaliza)",
         interval_min: bIntervalMin, interval_max: bIntervalMax,
         scheduled_at: bScheduledAt || null, recipients: recs,
         ai_personalize: bAiPersonalize
@@ -2336,7 +2337,7 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
     setCreatingSched(true);
     try {
       await fetch(`${API_URL}/scheduled-messages`, { method: "POST", headers, body: JSON.stringify({
-        tenant_id: TENANT_ID, contact_phone: sPhone.replace(/\D/g, ""), contact_name: sName,
+        tenant_id: getTenantId(), contact_phone: sPhone.replace(/\D/g, ""), contact_name: sName,
         message: sMessage, scheduled_at: sDate, recurrence: sRecurrence || null,
         conversation_id: sConvId || null
       })});
@@ -2709,7 +2710,7 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
 }
 
 // ─── Global Tasks View ───────────────────────────────────────────────────────
-function GlobalTasksView({ pendingTasksMap, conversations, agents, onSelectConv, onRefresh }) {
+function GlobalTasksView({ pendingTasksMap, conversations, agents, onSelectConv, onRefresh, tenantId }) {
   const [tab, setTab] = useState("open"); // "open" | "done"
   const [openTasks, setOpenTasks] = useState([]);
   const [doneTasks, setDoneTasks] = useState([]);
@@ -2720,14 +2721,14 @@ function GlobalTasksView({ pendingTasksMap, conversations, agents, onSelectConv,
 
   const fetchOpen = async () => {
     try {
-      const r = await fetch(`${API_URL}/tasks?tenant_id=${TENANT_ID}`, { headers });
+      const r = await fetch(`${API_URL}/tasks?tenant_id=${getTenantId()}`, { headers });
       const d = await r.json();
       setOpenTasks((d.tasks || []).filter(t => !t.done));
     } catch (e) {}
   };
   const fetchDone = async () => {
     try {
-      const r = await fetch(`${API_URL}/tasks/completed?tenant_id=${TENANT_ID}&days=7`, { headers });
+      const r = await fetch(`${API_URL}/tasks/completed?tenant_id=${getTenantId()}&days=7`, { headers });
       const d = await r.json();
       setDoneTasks(d.tasks || []);
     } catch (e) {}
@@ -3091,7 +3092,7 @@ function TaskDetailModal({ task, agents, onClose, onComplete }) {
 }
 
 // ─── Tasks Panel ──────────────────────────────────────────────────────────────
-function TasksPanel({ convId, agents, onClose, onTaskDone }) {
+function TasksPanel({ convId, agents, onClose, onTaskDone, tenantId }) {
   const T = { border: "#e9edef", card: "#ffffff", bg: "#f0f2f5", text: "#111b21", text2: "#667781", input: "#ffffff", hover: "#f5f6f6", app: "#f0f2f5" };
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -3105,7 +3106,7 @@ function TasksPanel({ convId, agents, onClose, onTaskDone }) {
   const fetchTasks = async () => {
     try {
       // Try conversation-scoped endpoint first, fallback to /tasks filtered
-      const r = await fetch(`${API_URL}/tasks?tenant_id=${TENANT_ID}&conversation_id=${convId}`, { headers });
+      const r = await fetch(`${API_URL}/tasks?tenant_id=${getTenantId()}&conversation_id=${convId}`, { headers });
       if (r.ok) {
         const d = await r.json();
         const list = d.tasks || d || [];
@@ -3120,7 +3121,7 @@ function TasksPanel({ convId, agents, onClose, onTaskDone }) {
     setCreating(true);
     setTaskError("");
     try {
-      const payload = { tenant_id: TENANT_ID, conversation_id: convId, title: title.trim(), description: description.trim() || null, assigned_to: assignedTo || null, due_at: dueAt || null };
+      const payload = { tenant_id: getTenantId(), conversation_id: convId, title: title.trim(), description: description.trim() || null, assigned_to: assignedTo || null, due_at: dueAt || null };
       const resp = await fetch(`${API_URL}/tasks`, { method: "POST", headers, body: JSON.stringify(payload) });
       if (resp.ok) {
         setTitle(""); setDescription(""); setDueAt(""); setAssignedTo("");
@@ -3332,7 +3333,7 @@ function ReportsView({ auth, T = { app: "#f0f2f5", card: "#ffffff", border: "#e9
   const fetchReport = async (type) => {
     setLoading(true);
     try {
-      const r = await fetch(`${API_URL}/reports/${type}?tenant_id=${TENANT_ID}&days=${days}`, { headers });
+      const r = await fetch(`${API_URL}/reports/${type}?tenant_id=${getTenantId()}&days=${days}`, { headers });
       const d = await r.json();
       setData(prev => ({ ...prev, [type]: d }));
     } catch(e) {}
@@ -4282,7 +4283,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
 
   const fetchTrialStatus = async () => {
     try {
-      const r = await fetch(`${API_URL}/tenant/trial-status?tenant_id=${TENANT_ID}`, { headers });
+      const r = await fetch(`${API_URL}/tenant/trial-status?tenant_id=${getTenantId()}`, { headers });
       const d = await r.json();
       setTrialInfo(d);
     } catch (e) {}
@@ -4351,7 +4352,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   useEffect(() => {
     const fetchWaStatus = async () => {
       try {
-        const r = await fetch(`${API_URL}/whatsapp/tenant-instances?tenant_id=${TENANT_ID}`, { headers });
+        const r = await fetch(`${API_URL}/whatsapp/tenant-instances?tenant_id=${getTenantId()}`, { headers });
         const d = await r.json();
         setWaInstances(d.instances || []);
       } catch (e) {}
@@ -4363,7 +4364,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const fetchLabels = useCallback(async () => {
     setLabelsError("");
     try {
-      const r = await fetch(`${API_URL}/labels?tenant_id=${TENANT_ID}`, { headers });
+      const r = await fetch(`${API_URL}/labels?tenant_id=${getTenantId()}`, { headers });
       if (!r.ok) {
         const fallback = loadLabels();
         setLabels(fallback);
@@ -4381,7 +4382,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
         for (const lbl of localUnsynced) {
           try {
             const cr = await fetch(`${API_URL}/labels`, { method: "POST", headers,
-              body: JSON.stringify({ tenant_id: TENANT_ID, name: lbl.name, color: lbl.color }) });
+              body: JSON.stringify({ tenant_id: getTenantId(), name: lbl.name, color: lbl.color }) });
             if (cr.ok) { const cd = await cr.json(); migrated.push(cd.label); }
           } catch (_) {}
         }
@@ -4444,7 +4445,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
 
   const fetchConversations = useCallback(async () => {
     try {
-      const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}&limit=50`, { headers });
+      const r = await fetch(`${API_URL}/conversations?tenant_id=${getTenantId()}&user_id=${auth.user.id}&limit=50`, { headers });
       if (r.status === 401) {
         const err = await r.json().catch(() => ({}));
         if ((err.detail || "").includes("Sessão encerrada")) {
@@ -4484,7 +4485,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       const last = conversations[conversations.length - 1];
       if (!last?.last_message_at) return;
       const before = encodeURIComponent(last.last_message_at);
-      const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}&limit=50&before=${before}`, { headers });
+      const r = await fetch(`${API_URL}/conversations?tenant_id=${getTenantId()}&user_id=${auth.user.id}&limit=50&before=${before}`, { headers });
       const d = await r.json();
       const more = mergeConvs(d.conversations || []);
       // Append avoiding duplicates
@@ -4498,7 +4499,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   }, [conversations, loadingMoreConvs, mergeConvs]);
   const fetchAllConversations = useCallback(async () => {
     try {
-      const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}&limit=50`, { headers });
+      const r = await fetch(`${API_URL}/conversations?tenant_id=${getTenantId()}&user_id=${auth.user.id}&limit=50`, { headers });
       const d = await r.json();
       const fresh = mergeConvs(d.conversations || []);
       setConversations(prev => {
@@ -4605,7 +4606,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     setLoadingMoreMsgs(false);
   }, []);
   const fetchAgents = useCallback(async () => {
-    try { const r = await fetch(`${API_URL}/users?tenant_id=${TENANT_ID}`, { headers }); const d = await r.json(); setAgents(d.users || []); } catch (e) {}
+    try { const r = await fetch(`${API_URL}/users?tenant_id=${getTenantId()}`, { headers }); const d = await r.json(); setAgents(d.users || []); } catch (e) {}
   }, []);
   const loadUserPreferences = useCallback(async () => {
     try {
@@ -4621,7 +4622,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   }, []);
 
   const fetchTenant = useCallback(async () => {
-    try { const r = await fetch(`${API_URL}/tenant?tenant_id=${TENANT_ID}`, { headers }); const d = await r.json();
+    try { const r = await fetch(`${API_URL}/tenant?tenant_id=${getTenantId()}`, { headers }); const d = await r.json();
       setCopilotPrompt(d.copilot_prompt || "");
       if (d.copilot_prompt_summary) setCopilotPromptSummary(d.copilot_prompt_summary);
       setCopilotAutoMode(d.copilot_auto_mode || "off");
@@ -4633,14 +4634,14 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
 
   const fetchCredits = useCallback(async () => {
     try {
-      const r = await fetch(`${API_URL}/credits?tenant_id=${TENANT_ID}`, { headers });
+      const r = await fetch(`${API_URL}/credits?tenant_id=${getTenantId()}`, { headers });
       const d = await r.json();
       setAiCredits({ credits: d.credits, limit: d.limit, plan: d.plan, pct: d.pct, warning: d.warning });
     } catch(e) {}
   }, []);
   const fetchPendingTasks = useCallback(async () => {
     try {
-      const r = await fetch(`${API_URL}/tasks?tenant_id=${TENANT_ID}`, { headers });
+      const r = await fetch(`${API_URL}/tasks?tenant_id=${getTenantId()}`, { headers });
       const d = await r.json();
       const map = {};
       (d.tasks || []).forEach(t => {
@@ -4652,7 +4653,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const savePrompt = async () => {
     setSavingPrompt(true); setPromptSaved(false);
     try {
-      await fetch(`${API_URL}/tenant/copilot-prompt`, { method: "PUT", headers, body: JSON.stringify({ tenant_id: TENANT_ID, copilot_prompt: copilotPrompt, copilot_auto_mode: copilotAutoMode, copilot_schedule_start: copilotScheduleStart, copilot_schedule_end: copilotScheduleEnd }) });
+      await fetch(`${API_URL}/tenant/copilot-prompt`, { method: "PUT", headers, body: JSON.stringify({ tenant_id: getTenantId(), copilot_prompt: copilotPrompt, copilot_auto_mode: copilotAutoMode, copilot_schedule_start: copilotScheduleStart, copilot_schedule_end: copilotScheduleEnd }) });
       setPromptSaved(true); setTimeout(() => setPromptSaved(false), 3000);
     } catch (e) {}
     setSavingPrompt(false);
@@ -4663,7 +4664,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     try {
       showToast("🔄 Sincronizando nomes...");
       const inst = instanceFilter || instances[0]?.name || "default";
-      const r = await fetch(`${API_URL}/contacts/sync-names`, { method: "POST", headers, body: JSON.stringify({ tenant_id: TENANT_ID, instance: inst }) });
+      const r = await fetch(`${API_URL}/contacts/sync-names`, { method: "POST", headers, body: JSON.stringify({ tenant_id: getTenantId(), instance: inst }) });
       const d = await r.json();
       showToast(`✅ ${d.updated || 0} nomes sincronizados!`);
       fetchConversations();
@@ -4688,7 +4689,6 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     const onVisibility = () => { if (!document.hidden) { fn(); startPoll(); } };
     document.addEventListener("visibilitychange", onVisibility);
     return () => { document.removeEventListener("visibilitychange", onVisibility); clearInterval(pollRef.current); };
-    return () => clearInterval(pollRef.current);
   }, [fetchConversations, fetchAllConversations, view, filter]);
 
   // ── Supabase Realtime: conversas ──────────────────────────────────────────
@@ -4704,18 +4704,18 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     }
 
     const channel = supabase
-      .channel(`convs-${TENANT_ID}-${view}`)
+      .channel(`convs-${getTenantId()}-${view}`)
       .on("postgres_changes", {
         event: "*",
         schema: "public",
         table: "conversations",
-        filter: `tenant_id=eq.${TENANT_ID}`,
+        filter: `tenant_id=eq.${getTenantId()}`,
       }, () => { fn(); }) // atualiza lista instantaneamente
       .on("postgres_changes", {
         event: "INSERT",
         schema: "public",
         table: "messages",
-        filter: `tenant_id=eq.${TENANT_ID}`,
+        filter: `tenant_id=eq.${getTenantId()}`,
       }, () => { fn(); }) // nova msg = reordena lista e atualiza preview
       .subscribe();
 
@@ -5086,7 +5086,7 @@ A mensagem deve:
         if (aiCredits.plan === "starter") { setShowUpgrade("Co-pilot IA"); return; }
         setShowBuyCredits(true); return;
       }
-      const r = await fetch(`${API_URL}/conversations/${selected.id}/suggest?tenant_id=${TENANT_ID}`, { headers });
+      const r = await fetch(`${API_URL}/conversations/${selected.id}/suggest?tenant_id=${getTenantId()}`, { headers });
       if (r.status === 402) { const e = await r.json(); showToast(e.detail, "#f44336"); fetchCredits(); return; }
       const d = await r.json();
       setSuggestion(d.suggestion || "");
@@ -5127,7 +5127,7 @@ A mensagem deve:
       if (!lastInbound) return;
       if (autoProcessedRef.current.has(lastInbound.id)) return;
       autoProcessedRef.current.add(lastInbound.id);
-      const sr = await fetch(`${API_URL}/conversations/${conv.id}/suggest?tenant_id=${TENANT_ID}`, { headers });
+      const sr = await fetch(`${API_URL}/conversations/${conv.id}/suggest?tenant_id=${getTenantId()}`, { headers });
       if (sr.status === 402) { console.warn("Auto-reply: sem créditos"); return; }
       if (!sr.ok) { console.error("Suggest failed:", sr.status); return; }
       const sd = await sr.json();
@@ -5313,6 +5313,7 @@ A mensagem deve:
         {/* Disparos */}
         {view === "disparos" && (
           <BroadcastsView
+            tenantId={getTenantId()}
             conversations={conversations}
             labels={labels}
             agents={agents}
@@ -5377,7 +5378,7 @@ A mensagem deve:
                       {p.features.map(f => <div key={f} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, color: "#8696a0" }}><span style={{ color: p.color }}>✓</span>{f}</div>)}
                     </div>
                     <button onClick={async () => {
-                      await fetch(`${API_URL}/tenant/activate-plan`, { method: "POST", headers, body: JSON.stringify({ tenant_id: TENANT_ID, plan: p.plan }) });
+                      await fetch(`${API_URL}/tenant/activate-plan`, { method: "POST", headers, body: JSON.stringify({ tenant_id: getTenantId(), plan: p.plan }) });
                       await fetchTrialStatus();
                       setView("inbox");
                     }} style={{ width: "100%", padding: "11px 0", borderRadius: 10, border: "none", background: p.highlight ? `linear-gradient(135deg, ${p.color}, #017561)` : `${p.color}22`, color: p.highlight ? "#000" : p.color, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
@@ -5597,7 +5598,7 @@ A mensagem deve:
                       setSyncingPhotos(true);
                       setPhotoSyncResult(null);
                       try {
-                        const r = await fetch(`${API_URL}/contacts/sync-profile-pictures?tenant_id=${TENANT_ID}`, { method: "POST", headers });
+                        const r = await fetch(`${API_URL}/contacts/sync-profile-pictures?tenant_id=${getTenantId()}`, { method: "POST", headers });
                         const d = await r.json();
                         setPhotoSyncResult(d);
                         if (d.updated > 0) showToast(`📸 ${d.updated} fotos sincronizadas!`);
@@ -6173,13 +6174,13 @@ A mensagem deve:
         />
       )}
       {showUpgrade && <UpgradeModal feature={showUpgrade} currentPlan={aiCredits?.plan} onClose={() => setShowUpgrade(null)} />}
-      {showBuyCredits && <BuyCreditsModal tenantId={TENANT_ID} authHeaders={headers} plan={aiCredits?.plan} onClose={() => setShowBuyCredits(false)} onSuccess={(n) => { setAiCredits(p => p ? { ...p, credits: p.credits + n } : p); showToast(`✅ +${n} créditos adicionados!`); }} />}
+      {showBuyCredits && <BuyCreditsModal tenantId={getTenantId()} authHeaders={headers} plan={aiCredits?.plan} onClose={() => setShowBuyCredits(false)} onSuccess={(n) => { setAiCredits(p => p ? { ...p, credits: p.credits + n } : p); showToast(`✅ +${n} créditos adicionados!`); }} />}
       {showLabelManager && (
         <LabelManagerModal
           labels={labels}
           onChange={(newLabels) => { setLabels(newLabels); saveLabels(newLabels); }}
           onClose={() => setShowLabelManager(false)}
-          tenantId={TENANT_ID}
+          tenantId={getTenantId()}
           authHeaders={headers}
           labelsApiError={labelsError}
         />
