@@ -4630,10 +4630,12 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
 
   useEffect(() => {
     if (!selected) return;
+    // Clear immediately so skeleton always shows on conversation switch
     setMessages([]);
+    setLoadingMessages(true);
     setMessagesOffset(0);
     setHasMoreMessages(false);
-    setLoadingMessages(true);
+    setSuggestion("");
     fetchMessages(selected.id, false).finally(() => setLoadingMessages(false));
     const t = setInterval(() => backgroundRefreshMessages(selected.id), 3000);
     return () => clearInterval(t);
@@ -5537,7 +5539,11 @@ A mensagem deve:
                     )}
                     <Avatar name={displayName(selected.contacts?.name, selected.contacts?.phone)} size={34} phone={selected.contacts?.phone} instanceFilter={instanceFilter} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: 13 }}>{displayName(selected.contacts?.name, selected.contacts?.phone)}</div>
+                      <div style={{ fontWeight: 700, fontSize: 13 }}>
+                        {loadingMessages && !selected.contacts?.name ? (
+                          <div style={{ width: 120, height: 12, borderRadius: 6, background: "linear-gradient(90deg,#f0f2f5 25%,#e9edef 50%,#f0f2f5 75%)", backgroundSize: "400% 100%", animation: "shimmer 1.4s infinite" }} />
+                        ) : displayName(selected.contacts?.name, selected.contacts?.phone)}
+                      </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 2 }}>
                         <span style={{ fontSize: 11, color: "#667781" }}>{formatPhone(selected.contacts?.phone)}</span>
                         {selected.assigned_agent && <span style={{ fontSize: 11, color: "#00a884" }}>· 👤 {selected.assigned_agent}</span>}
@@ -5601,13 +5607,31 @@ A mensagem deve:
                         </button>
                       </div>
                     )}
-                    {loadingMessages && messages.length === 0 ? (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "20px 16px" }}>
-                        {[...Array(6)].map((_,i) => (
-                          <div key={i} style={{ display: "flex", justifyContent: i%2===0 ? "flex-start" : "flex-end" }}>
-                            <div style={{ width: `${180 + (i*37)%120}px`, height: 38, borderRadius: 10, background: "linear-gradient(90deg,#f0f2f5 25%,#e9edef 50%,#f0f2f5 75%)", backgroundSize: "200% 100%", animation: "shimmer 1.2s infinite" }} />
+                    {loadingMessages ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "24px 16px", flex: 1 }}>
+                        {[
+                          { side: "left",  w: 220, h: 44 },
+                          { side: "left",  w: 160, h: 36 },
+                          { side: "right", w: 190, h: 36 },
+                          { side: "left",  w: 260, h: 56 },
+                          { side: "right", w: 140, h: 36 },
+                          { side: "right", w: 200, h: 44 },
+                          { side: "left",  w: 180, h: 36 },
+                          { side: "right", w: 240, h: 36 },
+                        ].map((b,i) => (
+                          <div key={i} style={{ display: "flex", justifyContent: b.side === "right" ? "flex-end" : "flex-start", opacity: 1 - i*0.07 }}>
+                            <div style={{
+                              width: b.w, height: b.h,
+                              borderRadius: b.side === "right" ? "8px 0px 8px 8px" : "0px 8px 8px 8px",
+                              background: "linear-gradient(90deg,#f0f2f5 25%,#e9edef 50%,#f0f2f5 75%)",
+                              backgroundSize: "400% 100%",
+                              animation: `shimmer 1.4s ${i*0.08}s infinite`
+                            }} />
                           </div>
                         ))}
+                        <div style={{ textAlign: "center", marginTop: 8 }}>
+                          <span style={{ fontSize: 12, color: "#b0bec5" }}>Carregando mensagens...</span>
+                        </div>
                       </div>
                     ) : messagesError ? (
                       <div style={{ textAlign: "center", marginTop: 60, padding: "0 24px" }}>
