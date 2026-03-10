@@ -4532,7 +4532,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     if (cached && Date.now() - cached.ts < 30000 && cached.messages.length > 0) {
       setMessages(cached.messages);
       setHasMoreMessages(false);
-      // Background refresh to pick up new messages silently
+      // Background refresh silently
       fetch(`${API_URL}/conversations/${convId}/messages?limit=50`, { headers })
         .then(r => r.json())
         .then(d => {
@@ -4548,7 +4548,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
         }).catch(() => {});
       return;
     }
-    // ── Full fetch ──────────────────────────────────────────────────────
+    // ── Full fetch — DB first, then trigger WAHA sync in background ──────
     try {
       const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=50`, { headers });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -4557,9 +4557,17 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       msgCacheRef.current[convId] = { messages: msgs, ts: Date.now() };
       setMessages(msgs);
       setHasMoreMessages(false);
-      if (msgs.length === 0) {
-        fetch(`${API_URL}/conversations/${convId}/history?limit=50`, { headers }).catch(() => {});
-      }
+      // ALWAYS trigger background WAHA sync so messages stay fresh
+      // /history endpoint returns DB + kicks WAHA sync in background
+      fetch(`${API_URL}/conversations/${convId}/history?limit=50`, { headers })
+        .then(r2 => r2.json())
+        .then(d2 => {
+          const synced = d2.messages || [];
+          if (synced.length > msgs.length) {
+            msgCacheRef.current[convId] = { messages: synced, ts: Date.now() };
+            setMessages(synced);
+          }
+        }).catch(() => {});
       setMessagesOffset(0);
     } catch (e) {
       try {
@@ -5653,7 +5661,7 @@ A mensagem deve:
                           <KanbanBadge stage={conv.kanban_stage} columns={kanbanCols} />
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ fontSize: 11, color: "#667781", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{conv.assigned_agent ? `👤 ${conv.assigned_agent}` : (conv.contacts?.name ? formatPhone(conv.contacts?.phone) : "")}</span>
+                          <span style={{ fontSize: 11, color: "#667781", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{conv.assigned_agent ? `👤 ${conv.assigned_agent}` : (() => { const fp = formatPhone(conv.contacts?.phone); const dn = displayName(conv.contacts?.name, conv.contacts?.phone); return (conv.contacts?.name && fp !== dn && !fp.includes("···")) ? fp : ""; })()}</span>
                           {conv.unread_count > 0 && (
                             <span title={`${conv.unread_count} mensagem${conv.unread_count > 1 ? "s" : ""} não lida${conv.unread_count > 1 ? "s" : ""}`}
                               style={{ background: "#00a884", color: "#fff", fontSize: 10, fontWeight: 800, minWidth: 18, height: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", padding: "0 5px", flexShrink: 0, letterSpacing: 0 }}>
