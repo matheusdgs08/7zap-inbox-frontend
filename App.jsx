@@ -4218,6 +4218,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const [suggestion, setSuggestion] = useState("");
   const [loadingSuggest, setLoadingSuggest] = useState(false);
   const [copilotPrompt, setCopilotPrompt] = useState("");
+  const [copilotPromptSummary, setCopilotPromptSummary] = useState("");
   const [copilotAutoMode, setCopilotAutoMode] = useState("off"); // off | schedule | always | per_conv
   const [copilotScheduleStart, setCopilotScheduleStart] = useState("18:00");
   const [copilotScheduleEnd, setCopilotScheduleEnd] = useState("09:00");
@@ -4379,7 +4380,8 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
 
   const fetchTenant = useCallback(async () => {
     try { const r = await fetch(`${API_URL}/tenant?tenant_id=${TENANT_ID}`, { headers }); const d = await r.json();
-      setCopilotPrompt(d.copilot_prompt_summary || "");
+      setCopilotPrompt(d.copilot_prompt || "");
+      if (d.copilot_prompt_summary) setCopilotPromptSummary(d.copilot_prompt_summary);
       setCopilotAutoMode(d.copilot_auto_mode || "off");
       setCopilotScheduleStart(d.copilot_schedule_start || "18:00");
       setCopilotScheduleEnd(d.copilot_schedule_end || "09:00");
@@ -4991,25 +4993,47 @@ A mensagem deve:
                 )}
               </div>
 
-              {/* Prompt — summary only, real prompt protected */}
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#667781", marginBottom: 8 }}>PROMPT DO CO-PILOT</div>
+              {/* Prompt — read-only display */}
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#667781", marginBottom: 8 }}>🧠 O QUE A IA SABE SOBRE SEU NEGÓCIO</div>
               {copilotPrompt ? (
-                <div style={{ background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 10, padding: "14px 16px", marginBottom: 16 }}>
-                  <div style={{ fontSize: 11, color: "#667781", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
-                    🔒 Configurado via Onboarding Inteligente — mantido de forma segura pela plataforma.
+                <div style={{ background: "linear-gradient(135deg, #f5f0ff, #faf5ff)", border: "1px solid #a78bfa55", borderRadius: 12, padding: "18px 20px", marginBottom: 16, maxHeight: 340, overflowY: "auto" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, paddingBottom: 12, borderBottom: "1px solid #a78bfa22" }}>
+                    <span style={{ fontSize: 18 }}>✨</span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#5e35b1" }}>Personalidade da IA configurada</div>
+                      <div style={{ fontSize: 11, color: "#9e7cc9" }}>Gerado pelo Onboarding Inteligente com base no seu histórico real</div>
+                    </div>
                   </div>
-                  {copilotPrompt.split("\n").filter(l => l.trim()).map((line, i) => (
-                    <div key={i} style={{ fontSize: 13, color: "#c8c8e0", marginBottom: 6, lineHeight: 1.5 }}>{line}</div>
-                  ))}
-                  <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid #e9edef", fontSize: 11, color: "#667781" }}>
-                    Para atualizar: use <strong style={{ color: "#a78bfa" }}>🧠 Onboarding Inteligente</strong> e refaça a análise.
+                  {copilotPrompt.split("\n").filter(l => l.trim()).map((line, i) => {
+                    const isHeader = line.startsWith("#");
+                    const isBullet = line.startsWith("•") || line.startsWith("-") || line.startsWith("*");
+                    const isNumbered = /^\d+\./.test(line.trim());
+                    const clean = line.replace(/^#+\s*/, "").replace(/\*\*/g, "");
+                    if (isHeader) return (
+                      <div key={i} style={{ fontSize: 13, fontWeight: 800, color: "#5e35b1", margin: "14px 0 8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>{clean}</div>
+                    );
+                    if (isBullet || isNumbered) return (
+                      <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6, alignItems: "flex-start" }}>
+                        <span style={{ color: "#a78bfa", fontWeight: 700, flexShrink: 0, marginTop: 1 }}>▸</span>
+                        <span style={{ fontSize: 13, color: "#3d1a78", lineHeight: 1.55 }}>{clean.replace(/^[•\-*]\s*/, "").replace(/^\d+\.\s*/, "")}</span>
+                      </div>
+                    );
+                    return (
+                      <div key={i} style={{ fontSize: 13, color: "#4a2080", lineHeight: 1.6, marginBottom: 5 }}>{clean}</div>
+                    );
+                  })}
+                  <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid #a78bfa22", fontSize: 11, color: "#9e7cc9", display: "flex", alignItems: "center", gap: 6 }}>
+                    <span>🔄</span> Para atualizar: use <strong style={{ color: "#a78bfa", cursor: "pointer" }} onClick={() => setView("onboarding")}>Onboarding Inteligente</strong> e refaça a análise.
                   </div>
                 </div>
               ) : (
-                <div style={{ background: "#f0f2f5", border: "1px dashed #252540", borderRadius: 10, padding: "24px 16px", textAlign: "center", marginBottom: 16 }}>
-                  <div style={{ fontSize: 20, marginBottom: 8 }}>🧠</div>
-                  <div style={{ fontSize: 13, color: "#667781", marginBottom: 6 }}>Nenhum prompt configurado ainda.</div>
-                  <div style={{ fontSize: 12, color: "#54656f" }}>Use o <strong style={{ color: "#a78bfa" }}>Onboarding Inteligente</strong> para gerar um prompt baseado no histórico real da sua empresa.</div>
+                <div style={{ background: "#f5f0ff", border: "1px dashed #a78bfa55", borderRadius: 12, padding: "28px 20px", textAlign: "center", marginBottom: 16 }}>
+                  <div style={{ fontSize: 32, marginBottom: 10 }}>🧠</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#5e35b1", marginBottom: 6 }}>A IA ainda não conhece seu negócio</div>
+                  <div style={{ fontSize: 12, color: "#9e7cc9", marginBottom: 14 }}>Use o Onboarding Inteligente para a IA aprender como sua empresa funciona, seu tom de voz, produtos e regras.</div>
+                  <button onClick={() => setView("onboarding")} style={{ padding: "9px 22px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #a78bfa, #7c4dff)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                    🧠 Fazer Onboarding agora →
+                  </button>
                 </div>
               )}
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
