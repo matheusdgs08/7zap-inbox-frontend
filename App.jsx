@@ -4366,6 +4366,10 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     }
   };
 
+  // Ref to always have the latest instanceFilter inside the interval (avoids stale closure flicker)
+  const instanceFilterRef = useRef(instanceFilter);
+  useEffect(() => { instanceFilterRef.current = instanceFilter; }, [instanceFilter]);
+
   useEffect(() => {
     const fetchWaStatus = async () => {
       try {
@@ -4378,8 +4382,10 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
           ? all.filter(i => allowed.includes(i.id))
           : all;
         setWaInstances(visible);
-        // If current instanceFilter is no longer accessible, clear it
-        if (instanceFilter && !visible.find(i => i.instance_name === instanceFilter)) {
+        // Use ref to get current filter value — avoids stale closure causing flicker
+        const currentFilter = instanceFilterRef.current;
+        if (currentFilter && visible.length > 0 && !visible.find(i => i.instance_name === currentFilter)) {
+          // Instance genuinely no longer exists — switch to first available (only once, not on every poll)
           selectInstance(visible[0]?.instance_name || null);
         }
       } catch (e) {}
