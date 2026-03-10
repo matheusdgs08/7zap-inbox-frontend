@@ -4478,21 +4478,8 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     setInitialLoad(false);
   }, [mergeConvs]);
   const lazySyncChat = useCallback(async (conv) => {
-    // Busca mensagens do WhatsApp para essa conversa específica
-    // Chamado uma vez quando o atendente abre a conversa
-    const phone = conv?.contacts?.phone;
-    if (!phone || !conv?.id) return;
-    try {
-      await fetch(`${API_URL}/whatsapp/sync-chat`, {
-        method: "POST", headers,
-        body: JSON.stringify({
-          tenant_id: TENANT_ID,
-          conversation_id: conv.id,
-          phone: phone,
-          instance: "default"
-        })
-      });
-    } catch (e) {}
+    // Removed — history is now served from DB directly via /messages
+    // Background WAHA sync is triggered automatically if DB is empty
   }, []);
 
   const PAGE_SIZE = 50;
@@ -4500,14 +4487,18 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const [messagesError, setMessagesError] = useState(null);
 
   const fetchMessages = useCallback(async (convId) => {
-    // Load full history from WAHA + DB (called once on conversation open)
+    // Load from DB instantly (webhook already saved messages there)
     setMessagesError(null);
     try {
-      const r = await fetch(`${API_URL}/conversations/${convId}/history?limit=40`, { headers });
+      const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=50`, { headers });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
       setMessages(d.messages || []);
       setHasMoreMessages(false);
+      // If DB is empty, trigger background WAHA sync (history endpoint)
+      if ((d.messages || []).length === 0) {
+        fetch(`${API_URL}/conversations/${convId}/history?limit=50`, { headers }).catch(() => {});
+      }
       setMessagesOffset(0);
     } catch (e) {
       try {
@@ -4604,7 +4595,19 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   useEffect(() => {
     const isMulti = view === "kanban" || view === "leads";
     const fn = isMulti ? fetchAllConversations : fetchConversations;
-    fn(); clearInterval(pollRef.current); pollRef.current = setInterval(fn, 4000);
+    fn();
+    clearInterval(pollRef.current);
+    // Smart polling: 2s when tab focused, pause when hidden
+    const startPoll = () => {
+      clearInterval(pollRef.current);
+      pollRef.current = setInterval(() => {
+        if (!document.hidden) fn();
+      }, 2000);
+    };
+    startPoll();
+    const onVisibility = () => { if (!document.hidden) { fn(); startPoll(); } };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => { document.removeEventListener("visibilitychange", onVisibility); clearInterval(pollRef.current); };
     return () => clearInterval(pollRef.current);
   }, [fetchConversations, fetchAllConversations, view, filter]);
   const backgroundRefreshMessages = useCallback(async (convId) => {
@@ -4702,7 +4705,34 @@ A mensagem deve:
   const sendMessage = async () => {
     if (!input.trim() || !selected || sending) return;
     setSending(true);
-    try { await fetch(`${API_URL}/conversations/${selected.id}/messages`, { method: "POST", headers, body: JSON.stringify({ conversation_id: selected.id, text: input.trim(), is_internal_note: noteMode }) }); setInput(""); setNoteMode(false); await backgroundRefreshMessages(selected.id); await fetchConversations(); } catch (e) {}
+    const text = input.trim();
+    setInput("");
+    setNoteMode(false);
+    // Optimistic: show message instantly before server confirms
+    const tempId = `temp-${Date.now()}`;
+    setMessages(prev => [...prev, {
+      id: tempId, conversation_id: selected.id,
+      direction: noteMode ? "note" : "outbound",
+      content: text, type: "text",
+      created_at: new Date().toISOString(), _pending: true
+    }]);
+    try {
+      const r = await fetch(`${API_URL}/conversations/${selected.id}/messages`, {
+        method: "POST", headers,
+        body: JSON.stringify({ conversation_id: selected.id, text, is_internal_note: noteMode })
+      });
+      const d = await r.json();
+      if (d.id) {
+        // Replace temp with real message
+        setMessages(prev => prev.map(m => m.id === tempId ? d : m));
+      } else {
+        // Remove temp on failure
+        setMessages(prev => prev.filter(m => m.id !== tempId));
+      }
+      await fetchConversations();
+    } catch (e) {
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+    }
     setSending(false);
   };
 
