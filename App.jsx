@@ -1915,13 +1915,31 @@ function WhatsAppScreen({ auth, T, theme }) {
                         </>
                       ) : syncResult && autoSyncInst?.instance_name === inst.instance_name ? (
                         <>
-                          <div style={{ width: 56, height: 56, borderRadius: "50%", background: "linear-gradient(135deg,#00a884,#017561)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>✓</div>
-                          <div style={{ fontSize: 16, fontWeight: 800, color: "#111b21" }}>Histórico importado!</div>
-                          <div style={{ fontSize: 12, color: "#667781", background: "#f0f2f5", borderRadius: 10, padding: "8px 16px" }}>
-                            {syncResult.stats?.conversations_created ?? 0} conversas · {syncResult.stats?.messages_saved ?? 0} mensagens importadas
-                          </div>
+                          {(syncResult.stats?.conversations_created > 0 || syncResult.stats?.messages_saved > 0) ? (
+                            <>
+                              <div style={{ width: 56, height: 56, borderRadius: "50%", background: "linear-gradient(135deg,#00a884,#017561)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>✓</div>
+                              <div style={{ fontSize: 16, fontWeight: 800, color: "#111b21" }}>Histórico importado!</div>
+                              <div style={{ fontSize: 12, color: "#667781", background: "#f0f2f5", borderRadius: 10, padding: "8px 16px" }}>
+                                {syncResult.stats?.conversations_created ?? 0} conversas · {syncResult.stats?.messages_saved ?? 0} mensagens importadas
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#fff3cd", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>⚠️</div>
+                              <div style={{ fontSize: 15, fontWeight: 800, color: "#111b21" }}>Nada importado ainda</div>
+                              <div style={{ fontSize: 12, color: "#667781", background: "#fff8e1", border: "1px solid #fcd34d", borderRadius: 10, padding: "10px 16px", maxWidth: 340, lineHeight: 1.6, textAlign: "left" }}>
+                                <strong>Por que isso acontece?</strong><br/>
+                                O WAHA pode precisar de alguns minutos após a primeira conexão para carregar o histórico. Clique em "Tentar novamente" após 1-2 minutos.<br/><br/>
+                                As mensagens <strong>novas</strong> já chegam normalmente — o histórico antigo é que demora para estar disponível.
+                              </div>
+                              <button onClick={() => startAutoSync(inst)} disabled={syncing}
+                                style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                                🔄 Tentar novamente
+                              </button>
+                            </>
+                          )}
                           <button onClick={() => { setActiveInst(null); setView("inbox"); }}
-                            style={{ padding: "11px 32px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#fff", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
+                            style={{ padding: "10px 28px", borderRadius: 10, border: "1px solid #e9edef", background: "transparent", color: "#54656f", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
                             → Ir para o Inbox
                           </button>
                         </>
