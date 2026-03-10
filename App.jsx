@@ -52,6 +52,11 @@ function displayName(name, phone) {
   return name;
 }
 
+// Sort messages by created_at ascending (always chronological)
+function sortMsgs(arr) {
+  return [...arr].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+}
+
 function formatPhone(raw) {
   if (!raw) return "";
   // Remove sufixos WhatsApp (@lid, @c.us, etc)
@@ -4520,7 +4525,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     // ── Instant cache hit (< 30s old) ──────────────────────────────────
     const cached = msgCacheRef.current[convId];
     if (cached && Date.now() - cached.ts < 30000 && cached.messages.length > 0) {
-      setMessages(cached.messages);
+      setMessages(sortMsgs(cached.messages));
       setHasMoreMessages(false);
       // Background refresh silently
       fetch(`${API_URL}/conversations/${convId}/messages?limit=50`, { headers })
@@ -4532,7 +4537,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
             setMessages(prev => {
               const ids = new Set(prev.map(m => m.id));
               const newOnes = fresh.filter(m => !ids.has(m.id));
-              return newOnes.length > 0 ? [...prev, ...newOnes] : prev;
+              return newOnes.length > 0 ? sortMsgs([...prev, ...newOnes]) : prev;
             });
           }
         }).catch(() => {});
@@ -4545,7 +4550,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       const d = await r.json();
       const msgs = d.messages || [];
       msgCacheRef.current[convId] = { messages: msgs, ts: Date.now() };
-      setMessages(msgs);
+      setMessages(sortMsgs(msgs));
       setHasMoreMessages(false);
       // ALWAYS trigger background WAHA sync so messages stay fresh
       // /history endpoint returns DB + kicks WAHA sync in background
@@ -4555,7 +4560,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
           const synced = d2.messages || [];
           if (synced.length > msgs.length) {
             msgCacheRef.current[convId] = { messages: synced, ts: Date.now() };
-            setMessages(synced);
+            setMessages(sortMsgs(synced));
           }
         }).catch(() => {});
       setMessagesOffset(0);
@@ -4565,7 +4570,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
         const d2 = await r2.json();
         const msgs2 = d2.messages || [];
         msgCacheRef.current[convId] = { messages: msgs2, ts: Date.now() };
-        setMessages(msgs2);
+        setMessages(sortMsgs(msgs2));
         setHasMoreMessages(d2.has_more === true);
       } catch {
         setMessagesError("Não foi possível carregar. Toque para tentar novamente.");
@@ -4580,7 +4585,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=50&before=${encodeURIComponent(oldest)}`, { headers });
       const d = await r.json();
       const older = d.messages || [];
-      setMessages(prev => [...older, ...prev]);
+      setMessages(prev => sortMsgs([...older, ...prev]));
       setHasMoreMessages(d.has_more === true);
     } catch (e) {}
     setLoadingMoreMsgs(false);
@@ -4800,7 +4805,7 @@ A mensagem deve:
       if (d.id) {
         // Replace temp with real message
         msgCacheRef.current[selectedRef.current?.id] = { messages: [], ts: 0 }; // invalidate cache on send
-        setMessages(prev => prev.map(m => m.id === tempId ? d : m));
+        setMessages(prev => sortMsgs(prev.map(m => m.id === tempId ? d : m)));
       } else {
         // Remove temp on failure
         setMessages(prev => prev.filter(m => m.id !== tempId));
@@ -4852,7 +4857,7 @@ A mensagem deve:
       });
       const d = await r.json();
       if (d.message?.id) {
-        setMessages(prev => prev.map(m => m.id === tempId ? d.message : m));
+        setMessages(prev => sortMsgs(prev.map(m => m.id === tempId ? d.message : m)));
         showToast(`${icon} Enviado!`, "#00a884");
       } else {
         setMessages(prev => prev.filter(m => m.id !== tempId));
@@ -5500,6 +5505,32 @@ A mensagem deve:
                   <button onClick={syncContactNames}
                     style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid #00a88444", background: "#00a88415", color: "#00a884", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
                     Sincronizar →
+                  </button>
+                </div>
+
+                {/* Sync fotos */}
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12, paddingTop: 12, borderTop: "1px solid #f0f2f5" }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 2 }}>Sincronizar fotos de perfil</div>
+                    <div style={{ fontSize: 11, color: "#667781" }}>Busca a foto do WhatsApp de todos os {conversations.length > 0 ? "301" : ""} contatos</div>
+                    {photoSyncResult && <div style={{ fontSize: 11, color: "#00a884", marginTop: 3 }}>✅ {photoSyncResult.updated} fotos encontradas · {photoSyncResult.no_photo} sem foto · {photoSyncResult.failed} erros</div>}
+                  </div>
+                  <button
+                    disabled={syncingPhotos}
+                    onClick={async () => {
+                      setSyncingPhotos(true);
+                      setPhotoSyncResult(null);
+                      try {
+                        const r = await fetch(`${API_URL}/contacts/sync-profile-pictures?tenant_id=${TENANT_ID}`, { method: "POST", headers });
+                        const d = await r.json();
+                        setPhotoSyncResult(d);
+                        if (d.updated > 0) showToast(`📸 ${d.updated} fotos sincronizadas!`);
+                        else showToast("Nenhuma foto encontrada");
+                      } catch { showToast("❌ Erro ao sincronizar"); }
+                      setSyncingPhotos(false);
+                    }}
+                    style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid #7c4dff44", background: syncingPhotos ? "#e9edef" : "#7c4dff15", color: syncingPhotos ? "#667781" : "#7c4dff", fontSize: 11, fontWeight: 700, cursor: syncingPhotos ? "default" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+                    {syncingPhotos ? "⏳ Buscando..." : "📸 Sincronizar →"}
                   </button>
                 </div>
               </div>
