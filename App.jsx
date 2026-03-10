@@ -2991,6 +2991,7 @@ function LeadsBoard({ conversations, kanbanCols, labels, onSelectConv, onManageL
 
 // ─── Task Detail Modal ────────────────────────────────────────────────────────
 function TaskDetailModal({ task, agents, onClose, onComplete }) {
+  const T = { border: "#e9edef", card: "#ffffff", bg: "#f0f2f5", text: "#111b21", text2: "#667781", input: "#ffffff", hover: "#f5f6f6", app: "#f0f2f5" };
   const [updates, setUpdates] = useState([]);
   const [newUpdate, setNewUpdate] = useState("");
   const [sending, setSending] = useState(false);
@@ -3062,6 +3063,7 @@ function TaskDetailModal({ task, agents, onClose, onComplete }) {
 
 // ─── Tasks Panel ──────────────────────────────────────────────────────────────
 function TasksPanel({ convId, agents, onClose, onTaskDone }) {
+  const T = { border: "#e9edef", card: "#ffffff", bg: "#f0f2f5", text: "#111b21", text2: "#667781", input: "#ffffff", hover: "#f5f6f6", app: "#f0f2f5" };
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState("");
@@ -4978,8 +4980,8 @@ A mensagem deve:
   const totalPendingTasks = Object.values(pendingTasksMap).reduce((a, b) => a + b, 0);
   const WORK_TABS = [
     { id: "inbox", label: "📥 Inbox" },
-    { id: "leads", label: "🏷 Leads" },
-    { id: "kanban", label: "🗂 Kanban" },
+    { id: "leads", label: "🏷 Pipeline" },
+    { id: "kanban", label: "🗂 Board" },
     { id: "tasks_global", label: "✅ Tarefas" },
     { id: "disparos", label: "📢 Disparos" },
     { id: "config", label: "⚙️ Config IA" },
@@ -5851,7 +5853,7 @@ A mensagem deve:
         <div style={{ height: 58, flexShrink: 0, borderTop: `1px solid ${T.border}`, background: T.topbar, display: "flex", alignItems: "center", justifyContent: "space-around", paddingBottom: "env(safe-area-inset-bottom, 0px)", zIndex: 100 }}>
           {[
             { id: "inbox",        icon: "💬", label: "Inbox" },
-            { id: "kanban",       icon: "🗂",  label: "Kanban" },
+            { id: "kanban",       icon: "🗂",  label: "Board" },
             { id: "tasks_global", icon: "✅",  label: "Tarefas", badge: totalPendingTasks },
             { id: "disparos",     icon: "📢",  label: "Disparos" },
             { id: "__more__",     icon: "⋯",   label: "Mais" },
@@ -5887,7 +5889,7 @@ A mensagem deve:
             <div style={{ width: 40, height: 4, background: T.border, borderRadius: 2, margin: "0 auto 20px" }} />
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
               {[
-                { id: "leads",      icon: "🏷",  label: "Leads" },
+                { id: "leads",      icon: "🏷",  label: "Pipeline" },
                 { id: "config",     icon: "⚙️",   label: "Config IA" },
                 { id: "relatorios", icon: "📈",   label: "Relatórios" },
                 { id: "whatsapp",   icon: "📱",   label: "WhatsApp" },
