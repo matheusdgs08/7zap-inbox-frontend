@@ -4435,7 +4435,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   useEffect(() => {
     const isMulti = view === "kanban" || view === "leads";
     const fn = isMulti ? fetchAllConversations : fetchConversations;
-    fn(); clearInterval(pollRef.current); pollRef.current = setInterval(fn, 8000);
+    fn(); clearInterval(pollRef.current); pollRef.current = setInterval(fn, 4000);
     return () => clearInterval(pollRef.current);
   }, [fetchConversations, fetchAllConversations, view, filter]);
   const backgroundRefreshMessages = useCallback(async (convId) => {
@@ -4463,7 +4463,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     setHasMoreMessages(false);
     setLoadingMessages(true);
     fetchMessages(selected.id, false).finally(() => setLoadingMessages(false));
-    const t = setInterval(() => backgroundRefreshMessages(selected.id), 5000);
+    const t = setInterval(() => backgroundRefreshMessages(selected.id), 3000);
     return () => clearInterval(t);
   }, [selected?.id]);
   const prevMsgCountRef = useRef(0);
