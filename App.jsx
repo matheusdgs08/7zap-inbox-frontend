@@ -1841,10 +1841,12 @@ function WhatsAppScreen({ auth, T, theme }) {
                         Desconectar
                       </button>
                     )}
-                    <button onClick={() => setActiveInst(isActive ? null : inst)}
-                      style={{ padding: "6px 14px", borderRadius: 8, border: `1px solid ${isActive?"#00a88444":"#d1d7db"}`, background: isActive?"#00a88415":"transparent", color: isActive?"#00a884":"#8696a0", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
-                      {inst.connected ? (isActive ? "▲ Fechar" : "▼ Gerenciar") : (isActive ? "▲ Fechar" : "▼ Conectar")}
-                    </button>
+                    {!inst.connected && (
+                      <button onClick={() => setActiveInst(isActive ? null : inst)}
+                        style={{ padding: "6px 14px", borderRadius: 8, border: `1px solid ${isActive?"#00a88444":"#d1d7db"}`, background: isActive?"#00a88415":"transparent", color: isActive?"#00a884":"#8696a0", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                        {isActive ? "▲ Fechar" : "▼ Conectar"}
+                      </button>
+                    )}
                     <button onClick={() => deleteInstance(inst)} disabled={deleting === inst.id}
                       style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #f4433344", background: "#f4433310", color: "#f44336", fontSize: 12, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>
                       {deleting === inst.id ? "..." : "🗑 Excluir"}
@@ -2040,7 +2042,7 @@ function WhatsAppScreen({ auth, T, theme }) {
 // ─── Leads Board (por etiqueta) ───────────────────────────────────────────────
 
 // ─── Broadcasts / Disparos View ──────────────────────────────────────────────
-function BroadcastsView({ conversations, labels, agents, kanbanCols }) {
+function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFilter, instances }) {
   const [tab, setTab] = useState("new"); // new | queue | scheduled
   const [broadcasts, setBroadcasts] = useState([]);
   const [scheduledMsgs, setScheduledMsgs] = useState([]);
@@ -4838,6 +4840,8 @@ A mensagem deve:
             labels={labels}
             agents={agents}
             kanbanCols={kanbanCols}
+            instanceFilter={instanceFilter}
+            instances={instances}
           />
         )}
 
