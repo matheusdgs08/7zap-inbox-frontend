@@ -4224,24 +4224,11 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   };
 
   useEffect(() => {
-    let backfillDone = false;
     const fetchWaStatus = async () => {
       try {
         const r = await fetch(`${API_URL}/whatsapp/tenant-instances?tenant_id=${TENANT_ID}`, { headers });
         const d = await r.json();
-        const instances = d.instances || [];
-        setWaInstances(instances);
-        // Auto-backfill instance_name on conversations that have it null (runs once per session)
-        if (!backfillDone && instances.length > 1) {
-          backfillDone = true;
-          for (const inst of instances) {
-            if (!inst.instance_name) continue;
-            fetch(`${API_URL}/whatsapp/backfill-instances`, {
-              method: "POST", headers,
-              body: JSON.stringify({ tenant_id: TENANT_ID, instance: inst.instance_name })
-            }).catch(() => {});
-          }
-        }
+        setWaInstances(d.instances || []);
       } catch (e) {}
     };
     fetchWaStatus();
