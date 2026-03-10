@@ -1686,9 +1686,34 @@ function WhatsAppScreen({ auth, T, theme }) {
         triggerAutoSync(instName, d.phone);
       } else if (d.qr_code) {
         setQrCode(d.qr_code);
-        // Poll every 4s using lightweight endpoint — just checks WORKING status
+        let pollCount = 0;
+        const MAX_POLLS = 60; // 60 * 3s = 3 minutos máximo
+        const QR_REFRESH_INTERVAL = 40; // refresca QR a cada ~40 polls (120s)
+        // Poll every 3s — mais agressivo para não perder a conexão
         if (qrPollRef.current) clearInterval(qrPollRef.current);
         qrPollRef.current = setInterval(async () => {
+          pollCount++;
+          // QR expirou (~60s) — busca novo QR automaticamente sem interação do usuário
+          if (pollCount % QR_REFRESH_INTERVAL === 0) {
+            try {
+              const qr2 = await fetch(`${API_URL}/whatsapp/qrcode?instance=${instName}`, { headers });
+              const qd2 = await qr2.json();
+              if (qd2.connected) {
+                clearInterval(qrPollRef.current); qrPollRef.current = null;
+                setQrCode("");
+                fetchInstances();
+                setActiveInst(prev => prev ? { ...prev, connected: true, phone: qd2.phone } : prev);
+                triggerAutoSync(instName, qd2.phone);
+                return;
+              }
+              if (qd2.qr_code) setQrCode(qd2.qr_code); // atualiza QR na tela
+            } catch(e) {}
+          }
+          // Tempo máximo esgotado — para o polling mas mantém QR na tela
+          if (pollCount >= MAX_POLLS) {
+            clearInterval(qrPollRef.current); qrPollRef.current = null;
+            return;
+          }
           try {
             const pr = await fetch(`${API_URL}/whatsapp/check-connected?instance=${instName}`, { headers });
             const pd = await pr.json();
@@ -1700,7 +1725,7 @@ function WhatsAppScreen({ auth, T, theme }) {
               triggerAutoSync(instName, pd.phone);
             }
           } catch(e) {}
-        }, 4000);
+        }, 3000);
       }
     } catch(e) {}
     setLoadingQr(false);
