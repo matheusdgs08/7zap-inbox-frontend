@@ -4521,17 +4521,41 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [messagesError, setMessagesError] = useState(null);
 
+  const msgCacheRef = useRef({}); // { [convId]: { messages, ts } }
+
   const fetchMessages = useCallback(async (convId) => {
-    // Load from DB instantly (webhook already saved messages there)
     setMessagesError(null);
+    // ── Instant cache hit (< 30s old) ──────────────────────────────────
+    const cached = msgCacheRef.current[convId];
+    if (cached && Date.now() - cached.ts < 30000 && cached.messages.length > 0) {
+      setMessages(cached.messages);
+      setHasMoreMessages(false);
+      // Background refresh to pick up new messages silently
+      fetch(`${API_URL}/conversations/${convId}/messages?limit=50`, { headers })
+        .then(r => r.json())
+        .then(d => {
+          const fresh = d.messages || [];
+          if (fresh.length > 0) {
+            msgCacheRef.current[convId] = { messages: fresh, ts: Date.now() };
+            setMessages(prev => {
+              const ids = new Set(prev.map(m => m.id));
+              const newOnes = fresh.filter(m => !ids.has(m.id));
+              return newOnes.length > 0 ? [...prev, ...newOnes] : prev;
+            });
+          }
+        }).catch(() => {});
+      return;
+    }
+    // ── Full fetch ──────────────────────────────────────────────────────
     try {
       const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=50`, { headers });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
-      setMessages(d.messages || []);
+      const msgs = d.messages || [];
+      msgCacheRef.current[convId] = { messages: msgs, ts: Date.now() };
+      setMessages(msgs);
       setHasMoreMessages(false);
-      // If DB is empty, trigger background WAHA sync (history endpoint)
-      if ((d.messages || []).length === 0) {
+      if (msgs.length === 0) {
         fetch(`${API_URL}/conversations/${convId}/history?limit=50`, { headers }).catch(() => {});
       }
       setMessagesOffset(0);
@@ -4539,7 +4563,9 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       try {
         const r2 = await fetch(`${API_URL}/conversations/${convId}/messages?limit=50`, { headers });
         const d2 = await r2.json();
-        setMessages(d2.messages || []);
+        const msgs2 = d2.messages || [];
+        msgCacheRef.current[convId] = { messages: msgs2, ts: Date.now() };
+        setMessages(msgs2);
         setHasMoreMessages(d2.has_more === true);
       } catch {
         setMessagesError("Não foi possível carregar. Toque para tentar novamente.");
@@ -4767,6 +4793,7 @@ A mensagem deve:
       const d = await r.json();
       if (d.id) {
         // Replace temp with real message
+        msgCacheRef.current[selectedRef.current?.id] = { messages: [], ts: 0 }; // invalidate cache on send
         setMessages(prev => prev.map(m => m.id === tempId ? d : m));
       } else {
         // Remove temp on failure
@@ -5062,7 +5089,6 @@ A mensagem deve:
   const canManage = auth.user?.role === "admin" || PERMS_ORDER.indexOf(auth.user?.permissions || "read_write") >= PERMS_ORDER.indexOf("read_write_manage");
   const canDelete = auth.user?.role === "admin" || PERMS_ORDER.indexOf(auth.user?.permissions || "read_write") >= PERMS_ORDER.indexOf("full");
 
-  const unreadCount = conversations.filter(c => c.unread_count > 0).length;
   const filtered = conversations.filter(c => {
     const name = (c.contacts?.name || "").toLowerCase();
     const phone = (c.contacts?.phone || "").replace(/\D/g, "");
@@ -5083,6 +5109,9 @@ A mensagem deve:
       || !c.instance_name;  // null = legacy, always visible
     return matchSearch && matchUnread && matchInactive && matchInstance;
   });
+
+  // unreadCount uses filtered so it respects instanceFilter
+  const unreadCount = filtered.filter(c => c.unread_count > 0).length;
 
   const totalPendingTasks = Object.values(pendingTasksMap).reduce((a, b) => a + b, 0);
   const WORK_TABS = [
@@ -5107,7 +5136,7 @@ A mensagem deve:
   return (
     <div style={{ display: "flex", height: "100dvh", width: "100vw", flexDirection: "column", background: T.app, color: T.text, fontFamily: "'DM Sans', 'Segoe UI', sans-serif", overflow: "hidden" }}>
       {/* TopBar */}
-      <div style={{ height: isMobile ? 52 : 48, flexShrink: 0, borderBottom: `1px solid ${T.border}`, background: T.topbar, display: "flex", alignItems: "center", padding: isMobile ? "0 12px" : "0 20px", gap: isMobile ? 8 : 24 }}>
+      <div style={{ height: isMobile ? 52 : 48, flexShrink: 0, borderBottom: `1px solid ${T.border}`, background: T.topbar, display: "flex", alignItems: "center", padding: isMobile ? "0 8px" : "0 12px", gap: isMobile ? 6 : 8, overflow: "hidden" }}>
         {/* Logo */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
           <div style={{ width: 26, height: 26, borderRadius: 7, background: "linear-gradient(135deg, #00a884, #017561)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -5133,9 +5162,9 @@ A mensagem deve:
 
 
         {/* Work tabs — desktop only; mobile uses bottom nav */}
-        {!isMobile && <div style={{ display: "flex", gap: 2 }}>
+        {!isMobile && <div style={{ display: "flex", gap: 1, overflowX: "auto", flexShrink: 1, minWidth: 0, scrollbarWidth: "none" }}>
           {WORK_TABS.map(tab => (
-            <button key={tab.id} onClick={() => setView(tab.id)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 6, border: "none", background: view === tab.id ? "#00a88420" : "transparent", color: view === tab.id ? "#00a884" : T.text2, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", position: "relative" }}>
+            <button key={tab.id} onClick={() => setView(tab.id)} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "5px 9px", borderRadius: 6, border: "none", background: view === tab.id ? "#00a88420" : "transparent", color: view === tab.id ? "#00a884" : T.text2, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0, position: "relative" }}>
               <span>{tab.label.split(" ")[0]}</span>
               <span>{tab.label.split(" ").slice(1).join(" ")}</span>
               {tab.id === "tasks_global" && totalPendingTasks > 0 && <span style={{ background: "#ff6d00", color: "#000", fontSize: 9, fontWeight: 800, padding: "1px 5px", borderRadius: 10, lineHeight: 1.4 }}>{totalPendingTasks}</span>}
@@ -5143,13 +5172,13 @@ A mensagem deve:
           ))}
         </div>}
 
-        {/* Spacer — only on desktop */}
-        {!isMobile && <div style={{ flex: 1 }} />}
+        {/* Spacer */}
+        {!isMobile && <div style={{ flex: 1, minWidth: 8 }} />}
 
-        {/* Admin tabs — hidden on mobile (moved to within admin section) */}
-        {!isMobile && <div style={{ display: "flex", alignItems: "center", gap: 2, paddingLeft: 10, borderLeft: "1px solid #e9edef" }}>
+        {/* Admin tabs */}
+        {!isMobile && <div style={{ display: "flex", alignItems: "center", gap: 1, paddingLeft: 8, borderLeft: "1px solid #e9edef", flexShrink: 0 }}>
           {ADMIN_TABS.map(tab => (
-            <button key={tab.id} onClick={() => setView(tab.id)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 6, border: tab.id === "upgrade" ? "1px solid #ff6d0044" : "none", background: view === tab.id ? "#00a88420" : tab.id === "upgrade" ? "#ff6d0012" : "transparent", color: view === tab.id ? "#00a884" : tab.id === "upgrade" ? "#ff6d00" : T.text2, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+            <button key={tab.id} onClick={() => setView(tab.id)} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "5px 9px", borderRadius: 6, border: tab.id === "upgrade" ? "1px solid #ff6d0044" : "none", background: view === tab.id ? "#00a88420" : tab.id === "upgrade" ? "#ff6d0012" : "transparent", color: view === tab.id ? "#00a884" : tab.id === "upgrade" ? "#ff6d00" : T.text2, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
               {tab.label}
             </button>
           ))}
@@ -5612,7 +5641,7 @@ A mensagem deve:
                       <Avatar name={displayName(conv.contacts?.name, conv.contacts?.phone)} phone={conv.contacts?.phone} instanceFilter={instanceFilter} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
-                          <span style={{ fontWeight: conv.unread_count > 0 ? 800 : 600, fontSize: 13, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: conv.unread_count > 0 ? T.text : T.text2 }}>{displayName(conv.contacts?.name, conv.contacts?.phone)}</span>
+                          <span style={{ fontWeight: conv.unread_count > 0 ? 800 : 600, fontSize: 13, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: conv.unread_count > 0 ? T.text : T.text2, letterSpacing: !conv.contacts?.name ? "-0.3px" : 0 }}>{displayName(conv.contacts?.name, conv.contacts?.phone)}</span>
                           <span style={{ fontSize: 11, color: inactiveDays ? "#ff6d00" : (conv.unread_count > 0 ? "#00a884" : "#667781"), flexShrink: 0, fontWeight: conv.unread_count > 0 ? 700 : 400 }}>{timeAgo(conv.last_message_at)}</span>
                         </div>
                         <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 4 }}>
@@ -5620,7 +5649,7 @@ A mensagem deve:
                           <KanbanBadge stage={conv.kanban_stage} columns={kanbanCols} />
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ fontSize: 11, color: "#667781", flex: 1 }}>{conv.assigned_agent ? `👤 ${conv.assigned_agent}` : formatPhone(conv.contacts?.phone)}</span>
+                          <span style={{ fontSize: 11, color: "#667781", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{conv.assigned_agent ? `👤 ${conv.assigned_agent}` : (conv.contacts?.name ? formatPhone(conv.contacts?.phone) : "")}</span>
                           {conv.unread_count > 0 && (
                             <span title={`${conv.unread_count} mensagem${conv.unread_count > 1 ? "s" : ""} não lida${conv.unread_count > 1 ? "s" : ""}`}
                               style={{ background: "#00a884", color: "#fff", fontSize: 10, fontWeight: 800, minWidth: 18, height: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", padding: "0 5px", flexShrink: 0, letterSpacing: 0 }}>
