@@ -2068,7 +2068,7 @@ function WhatsAppScreen({ auth, T, theme }) {
           </div>
         </div>
       </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } } @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} } @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }`}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } } @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} } @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} } @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }`}</style>
 
       {/* ── Confirm Delete Instance Modal ────────────────────── */}
       {confirmDelete && (
@@ -4365,6 +4365,10 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   }, []);
   const [showAssign, setShowAssign] = useState(false);
   const [showLabelPicker, setShowLabelPicker] = useState(false);
+  const [showContactDrawer, setShowContactDrawer] = useState(false);
+  const [contactDrawerName, setContactDrawerName] = useState("");
+  const [contactDrawerNotes, setContactDrawerNotes] = useState("");
+  const [savingContact, setSavingContact] = useState(false);
   const [showLabelManager, setShowLabelManager] = useState(false);
   const [showColManager, setShowColManager] = useState(false);
   const [showTasks, setShowTasks] = useState(false);
@@ -4824,6 +4828,33 @@ A mensagem deve:
     labelOverrideRef.current[conv.id] = { labels: updated, until: Date.now() + 60000 };
     setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, labels: updated } : c));
     try { await fetch(`${API_URL}/conversations/${conv.id}/labels`, { method: "PUT", headers, body: JSON.stringify({ label_ids: updated.map(l => l.id) }) }); } catch (e) {}
+  };
+  const openContactDrawer = () => {
+    if (!selected) return;
+    setContactDrawerName(selected.contacts?.name || "");
+    setContactDrawerNotes(selected.contacts?.notes || "");
+    setShowContactDrawer(true);
+  };
+  const saveContact = async () => {
+    if (!selected?.contact_id) return;
+    setSavingContact(true);
+    try {
+      const r = await fetch(`${API_URL}/contacts/${selected.contact_id}`, {
+        method: "PUT", headers,
+        body: JSON.stringify({ name: contactDrawerName, notes: contactDrawerNotes })
+      });
+      if (r.ok) {
+        const { contact } = await r.json();
+        // Update local state so name reflects immediately
+        setSelected(prev => ({ ...prev, contacts: { ...prev.contacts, name: contact.name, notes: contact.notes } }));
+        setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, contacts: { ...c.contacts, name: contact.name, notes: contact.notes } } : c));
+        showToast("Contato salvo!", "#00a884");
+        setShowContactDrawer(false);
+      } else {
+        showToast("Erro ao salvar contato", "#f44336");
+      }
+    } catch(e) { showToast("Erro ao salvar", "#f44336"); }
+    finally { setSavingContact(false); }
   };
   const fetchSuggestion = async () => {
     if (!selected || loadingSuggest) return; setLoadingSuggest(true); setSuggestion("");
@@ -5537,18 +5568,23 @@ A mensagem deve:
                         ←
                       </button>
                     )}
-                    <Avatar name={displayName(selected.contacts?.name, selected.contacts?.phone)} size={34} phone={selected.contacts?.phone} instanceFilter={instanceFilter} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: 13 }}>
-                        {loadingMessages && !selected.contacts?.name ? (
-                          <div style={{ width: 120, height: 12, borderRadius: 6, background: "linear-gradient(90deg,#f0f2f5 25%,#e9edef 50%,#f0f2f5 75%)", backgroundSize: "400% 100%", animation: "shimmer 1.4s infinite" }} />
-                        ) : displayName(selected.contacts?.name, selected.contacts?.phone)}
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 2 }}>
-                        <span style={{ fontSize: 11, color: "#667781" }}>{formatPhone(selected.contacts?.phone)}</span>
-                        {selected.assigned_agent && <span style={{ fontSize: 11, color: "#00a884" }}>· 👤 {selected.assigned_agent}</span>}
-                        {selected.labels?.map(l => <LabelChip key={l.id} label={l} />)}
-                        <KanbanBadge stage={selected.kanban_stage} columns={kanbanCols} />
+                    <div onClick={openContactDrawer} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", flex: 1, minWidth: 0, borderRadius: 8, padding: "2px 6px 2px 0", transition: "background 0.15s" }}
+                      onMouseEnter={e => e.currentTarget.style.background = T.hover}
+                      onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                      <Avatar name={displayName(selected.contacts?.name, selected.contacts?.phone)} size={34} phone={selected.contacts?.phone} instanceFilter={instanceFilter} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: 13, display: "flex", alignItems: "center", gap: 5 }}>
+                          {loadingMessages && !selected.contacts?.name ? (
+                            <div style={{ width: 120, height: 12, borderRadius: 6, background: "linear-gradient(90deg,#f0f2f5 25%,#e9edef 50%,#f0f2f5 75%)", backgroundSize: "400% 100%", animation: "shimmer 1.4s infinite" }} />
+                          ) : displayName(selected.contacts?.name, selected.contacts?.phone)}
+                          <span style={{ fontSize: 10, color: "#8696a0", fontWeight: 400 }}>✏️</span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 2 }}>
+                          <span style={{ fontSize: 11, color: "#667781" }}>{formatPhone(selected.contacts?.phone)}</span>
+                          {selected.assigned_agent && <span style={{ fontSize: 11, color: "#00a884" }}>· 👤 {selected.assigned_agent}</span>}
+                          {selected.labels?.map(l => <LabelChip key={l.id} label={l} />)}
+                          <KanbanBadge stage={selected.kanban_stage} columns={kanbanCols} />
+                        </div>
                       </div>
                     </div>
                     {isAutoActive(selected) && (
@@ -5703,6 +5739,89 @@ A mensagem deve:
       </div>
 
       {/* Modals */}
+      {/* ── Contact Drawer ─────────────────────────────── */}
+      {showContactDrawer && selected && (
+        <>
+          {/* Backdrop */}
+          <div onClick={() => setShowContactDrawer(false)}
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", zIndex: 1100 }} />
+          {/* Drawer */}
+          <div style={{
+            position: "fixed", top: 0, right: 0, bottom: 0, width: 340,
+            background: T.bg, zIndex: 1101, display: "flex", flexDirection: "column",
+            boxShadow: "-4px 0 24px rgba(0,0,0,0.18)",
+            animation: "slideInRight 0.2s ease"
+          }}>
+            {/* Header */}
+            <div style={{ padding: "18px 20px 14px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 12 }}>
+              <Avatar name={displayName(selected.contacts?.name, selected.contacts?.phone)} size={42} phone={selected.contacts?.phone} instanceFilter={instanceFilter} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 15, color: T.text }}>{displayName(selected.contacts?.name, selected.contacts?.phone)}</div>
+                <div style={{ fontSize: 12, color: "#8696a0", marginTop: 2 }}>{formatPhone(selected.contacts?.phone)}</div>
+              </div>
+              <button onClick={() => setShowContactDrawer(false)}
+                style={{ background: "transparent", border: "none", color: "#8696a0", fontSize: 20, cursor: "pointer", lineHeight: 1, padding: 4 }}>✕</button>
+            </div>
+
+            {/* Body */}
+            <div style={{ flex: 1, overflowY: "auto", padding: 20, display: "flex", flexDirection: "column", gap: 20 }}>
+
+              {/* Nome */}
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#8696a0", textTransform: "uppercase", letterSpacing: 0.8, display: "block", marginBottom: 6 }}>Nome do contato</label>
+                <input
+                  value={contactDrawerName}
+                  onChange={e => setContactDrawerName(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && saveContact()}
+                  placeholder="Ex: João Silva"
+                  style={{
+                    width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${T.border}`,
+                    background: T.input, color: T.text, fontSize: 13, fontFamily: "inherit", outline: "none",
+                    boxSizing: "border-box"
+                  }}
+                />
+              </div>
+
+              {/* Telefone (readonly) */}
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#8696a0", textTransform: "uppercase", letterSpacing: 0.8, display: "block", marginBottom: 6 }}>Telefone</label>
+                <div style={{ padding: "10px 12px", borderRadius: 8, background: T.hover, color: "#8696a0", fontSize: 13 }}>
+                  {formatPhone(selected.contacts?.phone)}
+                </div>
+              </div>
+
+              {/* Observações */}
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#8696a0", textTransform: "uppercase", letterSpacing: 0.8, display: "block", marginBottom: 6 }}>Observações</label>
+                <textarea
+                  value={contactDrawerNotes}
+                  onChange={e => setContactDrawerNotes(e.target.value)}
+                  placeholder={"Ex: Cliente desde 2023, prefere contato pelo WhatsApp, interessado em plano anual..."}
+                  rows={6}
+                  style={{
+                    width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${T.border}`,
+                    background: T.input, color: T.text, fontSize: 13, fontFamily: "inherit", outline: "none",
+                    resize: "vertical", boxSizing: "border-box", lineHeight: 1.5
+                  }}
+                />
+                <div style={{ fontSize: 11, color: "#8696a0", marginTop: 4 }}>Visível apenas para a equipe. O cliente não vê.</div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div style={{ padding: "14px 20px", borderTop: `1px solid ${T.border}`, display: "flex", gap: 10 }}>
+              <button onClick={() => setShowContactDrawer(false)}
+                style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: `1px solid ${T.border}`, background: "transparent", color: T.text2, fontSize: 13, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>
+                Cancelar
+              </button>
+              <button onClick={saveContact} disabled={savingContact}
+                style={{ flex: 2, padding: "10px 0", borderRadius: 8, border: "none", background: savingContact ? "#e9edef" : "#00a884", color: savingContact ? "#8696a0" : "#fff", fontSize: 13, cursor: savingContact ? "wait" : "pointer", fontFamily: "inherit", fontWeight: 700 }}>
+                {savingContact ? "Salvando..." : "💾 Salvar contato"}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
       {showAssign && selected && <AssignModal conversation={selected} agents={agents} onAssign={assignConv} onClose={() => setShowAssign(false)} />}
       {showLabelPicker && selected && (
         <LabelPickerModal
