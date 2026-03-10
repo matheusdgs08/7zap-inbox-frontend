@@ -5595,13 +5595,13 @@ A mensagem deve:
 
               {/* Number selector pills */}
               {waInstances.length >= 2 && (
-                <div style={{ padding: "6px 10px", borderBottom: `1px solid ${T.border}`, background: T.topbar, display: "flex", gap: 5, alignItems: "center", overflowX: "auto", scrollbarWidth: "none" }}>
+                <div style={{ padding: "5px 10px", borderBottom: `1px solid ${T.border}`, background: T.topbar, display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
                   {waInstances.map(inst => {
                     const isActive = instanceFilter === inst.instance_name;
                     return (
                       <button key={inst.id} onClick={() => selectInstance(isActive ? null : inst.instance_name)}
-                        style={{ padding: "3px 10px", borderRadius: 20, border: `1px solid ${isActive ? "#00a88466" : T.border}`, background: isActive ? "#00a88418" : T.sidebar, color: isActive ? "#00a884" : T.text2, fontSize: 11, fontWeight: isActive ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0, display: "flex", alignItems: "center", gap: 5, transition: "all 0.15s", lineHeight: 1.4 }}>
-                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: inst.connected ? "#00a884" : "#f44336", display: "inline-block", flexShrink: 0, boxShadow: inst.connected ? "0 0 4px #00a88480" : "none" }} />
+                        style={{ padding: "3px 10px", borderRadius: 20, border: `1px solid ${isActive ? "#00a88466" : T.border}`, background: isActive ? "#00a88418" : "transparent", color: isActive ? "#00a884" : T.text2, fontSize: 11, fontWeight: isActive ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0, display: "flex", alignItems: "center", gap: 5, transition: "all 0.15s", lineHeight: 1.6 }}>
+                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: inst.connected ? "#00a884" : "#f44336", display: "inline-block", flexShrink: 0 }} />
                         <span>{inst.label || inst.instance_name}</span>
                       </button>
                     );
