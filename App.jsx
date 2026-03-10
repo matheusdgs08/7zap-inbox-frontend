@@ -1686,34 +1686,9 @@ function WhatsAppScreen({ auth, T, theme }) {
         triggerAutoSync(instName, d.phone);
       } else if (d.qr_code) {
         setQrCode(d.qr_code);
-        let pollCount = 0;
-        const MAX_POLLS = 60; // 60 * 3s = 3 minutos máximo
-        const QR_REFRESH_INTERVAL = 40; // refresca QR a cada ~40 polls (120s)
-        // Poll every 3s — mais agressivo para não perder a conexão
+        // Poll every 4s using lightweight endpoint — just checks WORKING status
         if (qrPollRef.current) clearInterval(qrPollRef.current);
         qrPollRef.current = setInterval(async () => {
-          pollCount++;
-          // QR expirou (~60s) — busca novo QR automaticamente sem interação do usuário
-          if (pollCount % QR_REFRESH_INTERVAL === 0) {
-            try {
-              const qr2 = await fetch(`${API_URL}/whatsapp/qrcode?instance=${instName}`, { headers });
-              const qd2 = await qr2.json();
-              if (qd2.connected) {
-                clearInterval(qrPollRef.current); qrPollRef.current = null;
-                setQrCode("");
-                fetchInstances();
-                setActiveInst(prev => prev ? { ...prev, connected: true, phone: qd2.phone } : prev);
-                triggerAutoSync(instName, qd2.phone);
-                return;
-              }
-              if (qd2.qr_code) setQrCode(qd2.qr_code); // atualiza QR na tela
-            } catch(e) {}
-          }
-          // Tempo máximo esgotado — para o polling mas mantém QR na tela
-          if (pollCount >= MAX_POLLS) {
-            clearInterval(qrPollRef.current); qrPollRef.current = null;
-            return;
-          }
           try {
             const pr = await fetch(`${API_URL}/whatsapp/check-connected?instance=${instName}`, { headers });
             const pd = await pr.json();
@@ -1725,7 +1700,7 @@ function WhatsAppScreen({ auth, T, theme }) {
               triggerAutoSync(instName, pd.phone);
             }
           } catch(e) {}
-        }, 3000);
+        }, 4000);
       }
     } catch(e) {}
     setLoadingQr(false);
@@ -4577,7 +4552,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
         }).catch(() => {});
       return;
     }
-    // ── Full fetch — DB first, then trigger WAHA sync in background ──────
+    // ── Full fetch — DB first, then trigger WAHA sync em background se vazio ──
     try {
       const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=50`, { headers });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -4586,10 +4561,23 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       msgCacheRef.current[convId] = { messages: msgs, ts: Date.now() };
       setMessages(sortMsgs(msgs));
       setHasMoreMessages(false);
-      // ALWAYS trigger background WAHA sync so messages stay fresh
-      // /history endpoint returns DB + kicks WAHA sync in background
-      // Realtime cuida das novas mensagens — sem double-fetch para o WAHA
       setMessagesOffset(0);
+      // Se banco vazio — busca do WAHA em background e atualiza sem travar a tela
+      if (msgs.length === 0) {
+        fetch(`${API_URL}/conversations/${convId}/history`, { headers })
+          .then(r2 => r2.ok ? r2.json() : null)
+          .then(d2 => {
+            if (!d2) return;
+            const synced = d2.messages || [];
+            if (synced.length > 0) {
+              msgCacheRef.current[convId] = { messages: synced, ts: Date.now() };
+              setMessages(prev => {
+                if (prev.length > 0) return prev; // já chegou via realtime
+                return sortMsgs(synced);
+              });
+            }
+          }).catch(() => {});
+      }
     } catch (e) {
       try {
         const r2 = await fetch(`${API_URL}/conversations/${convId}/messages?limit=50`, { headers });
