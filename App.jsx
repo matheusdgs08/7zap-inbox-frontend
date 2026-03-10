@@ -114,48 +114,38 @@ function saveColumns(cols) { try { localStorage.setItem("7zap_kanban_columns", J
 // Cache de fotos de perfil: phone → url (ou false se não tem)
 const _photoCache = {};
 
-function Avatar({ name, size = 36, phone, instanceFilter }) {
-  const colors = ["#00a884","#00a884","#7c4dff","#ff6d00","#e91e63","#3d5afe"];
+function Avatar({ name, size = 36, phone, instanceFilter, picUrl }) {
+  const colors = ["#25d366","#00a884","#7c4dff","#ff6d00","#e91e63","#3d5afe","#0288d1","#f4511e"];
   const color = colors[(name || "").charCodeAt(0) % colors.length];
+
+  // 1. Use picUrl passed from DB (zero request — fastest)
+  // 2. Fall back to in-memory cache
+  // 3. Only call API if neither available
   const [photoUrl, setPhotoUrl] = React.useState(() => {
-    const key = phone || name;
-    return _photoCache[key] || null;
+    if (picUrl) return picUrl;
+    return _photoCache[phone] || null;
   });
 
   React.useEffect(() => {
+    if (picUrl) { setPhotoUrl(picUrl); _photoCache[phone] = picUrl; return; }
     if (!phone || !instanceFilter) return;
-    const key = phone;
-    if (_photoCache[key] !== undefined) {
-      if (_photoCache[key]) setPhotoUrl(_photoCache[key]);
-      return;
-    }
-    // Mark as loading to avoid duplicate requests
-    _photoCache[key] = false;
-    const API_URL_LOCAL = "https://7zap-inbox-production.up.railway.app";
-    const API_KEY_LOCAL = "7zap_inbox_secret";
-    fetch(`${API_URL_LOCAL}/contacts/profile-picture?phone=${encodeURIComponent(phone)}&instance=${encodeURIComponent(instanceFilter)}`, {
-      headers: { "x-api-key": API_KEY_LOCAL }
-    })
+    if (_photoCache[phone]) { setPhotoUrl(_photoCache[phone]); return; }
+    if (_photoCache[phone] === false) return; // already tried, no pic
+    _photoCache[phone] = false; // mark as in-flight
+    fetch(`${API_URL}/contacts/profile-picture?phone=${encodeURIComponent(phone)}&instance=${encodeURIComponent(instanceFilter)}`, { headers })
       .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        if (d?.url) {
-          _photoCache[key] = d.url;
-          setPhotoUrl(d.url);
-        }
-      })
+      .then(d => { if (d?.url) { _photoCache[phone] = d.url; setPhotoUrl(d.url); } })
       .catch(() => {});
-  }, [phone, instanceFilter]);
+  }, [phone, instanceFilter, picUrl]);
 
-  if (photoUrl) {
-    return (
-      <div style={{ width: size, height: size, borderRadius: "50%", flexShrink: 0, overflow: "hidden", background: color }}>
-        <img src={photoUrl} alt={name} width={size} height={size}
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          onError={() => { _photoCache[phone] = false; setPhotoUrl(null); }}
-        />
-      </div>
-    );
-  }
+  if (photoUrl) return (
+    <div style={{ width: size, height: size, borderRadius: "50%", flexShrink: 0, overflow: "hidden", background: color }}>
+      <img src={photoUrl} alt={name} width={size} height={size}
+        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+        onError={() => { _photoCache[phone] = false; setPhotoUrl(null); }}
+      />
+    </div>
+  );
   return <div style={{ width: size, height: size, borderRadius: "50%", background: color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.38, fontWeight: 700, color: "#fff", flexShrink: 0, fontFamily: "inherit" }}>{initials(name)}</div>;
 }
 function StatusDot({ status }) {
@@ -5665,7 +5655,7 @@ A mensagem deve:
                       style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", cursor: "pointer", background: isSelected ? T.selected : "transparent", borderLeft: isSelected ? "3px solid #00a884" : "3px solid transparent", transition: "background 0.1s" }}>
                       {/* Avatar */}
                       <div style={{ flexShrink: 0 }}>
-                        <Avatar name={name} phone={conv.contacts?.phone} instanceFilter={instanceFilter} />
+                        <Avatar name={name} phone={conv.contacts?.phone} instanceFilter={instanceFilter} picUrl={conv.contacts?.profile_picture_url} />
                       </div>
                       {/* Content */}
                       <div style={{ flex: 1, minWidth: 0 }}>
@@ -5746,7 +5736,7 @@ A mensagem deve:
                     <div onClick={openContactDrawer} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", flex: 1, minWidth: 0, borderRadius: 8, padding: "2px 6px 2px 0", transition: "background 0.15s" }}
                       onMouseEnter={e => e.currentTarget.style.background = T.hover}
                       onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                      <Avatar name={displayName(selected.contacts?.name, selected.contacts?.phone)} size={34} phone={selected.contacts?.phone} instanceFilter={instanceFilter} />
+                      <Avatar name={displayName(selected.contacts?.name, selected.contacts?.phone)} size={34} phone={selected.contacts?.phone} instanceFilter={instanceFilter} picUrl={selected.contacts?.profile_picture_url} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 700, fontSize: 13, display: "flex", alignItems: "center", gap: 5 }}>
                           {loadingMessages && !selected.contacts?.name ? (
@@ -5963,7 +5953,7 @@ A mensagem deve:
           }}>
             {/* Header */}
             <div style={{ background: "#00a884", padding: "20px 20px 16px", display: "flex", alignItems: "center", gap: 14 }}>
-              <Avatar name={displayName(selected.contacts?.name, selected.contacts?.phone)} size={46} phone={selected.contacts?.phone} instanceFilter={instanceFilter} />
+              <Avatar name={displayName(selected.contacts?.name, selected.contacts?.phone)} size={46} phone={selected.contacts?.phone} instanceFilter={instanceFilter} picUrl={selected.contacts?.profile_picture_url} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 700, fontSize: 16, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {displayName(selected.contacts?.name, selected.contacts?.phone)}
