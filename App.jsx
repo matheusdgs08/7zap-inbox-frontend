@@ -1965,6 +1965,18 @@ function WhatsAppScreen({ auth, T, theme }) {
                               style={{ padding: "10px 24px", borderRadius: 10, border: "1px solid #00a88444", background: "#00a88415", color: "#00a884", fontSize: 13, fontWeight: 700, cursor: syncing ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
                               {syncing ? "⏳ Importando..." : "📥 Importar histórico"}
                             </button>
+                            <button onClick={async () => {
+                              const r = await fetch(`${API_URL}/whatsapp/fix-webhook`, {
+                                method: "POST", headers,
+                                body: JSON.stringify({ instance_name: inst.instance_name })
+                              });
+                              const d = await r.json();
+                              if (d.webhook_ok) alert("✅ Webhook configurado! Mensagens devem chegar agora. Teste enviando uma mensagem.");
+                              else alert("⚠️ Resultado: " + JSON.stringify(d, null, 2));
+                            }}
+                              style={{ padding: "10px 24px", borderRadius: 10, border: "1px solid #7c4dff44", background: "#7c4dff15", color: "#7c4dff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                              🔧 Corrigir webhook
+                            </button>
                             <button onClick={() => { setActiveInst(null); setView("inbox"); }}
                               style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#fff", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
                               → Ir para o Inbox
