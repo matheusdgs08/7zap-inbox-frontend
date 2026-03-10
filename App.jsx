@@ -3182,7 +3182,7 @@ function TasksPanel({ convId, agents, onClose, onTaskDone, tenantId }) {
 }
 
 // ─── Column Manager ───────────────────────────────────────────────────────────
-function ColumnManagerModal({ columns, onChange, onClose }) {
+function ColumnManagerModal({ columns, onChange, onClose, token }) {
   const [cols, setCols] = useState(columns.map(c => ({ ...c })));
   const [editingId, setEditingId] = useState(null);
   const [pickingColorFor, setPickingColorFor] = useState(null);
@@ -3192,18 +3192,25 @@ function ColumnManagerModal({ columns, onChange, onClose }) {
   const [saving, setSaving] = useState(false);
   const save = async () => {
     setSaving(true);
+    const tok = token || localStorage.getItem("7crm_token");
     try {
       const r = await fetch(`${API_URL}/tenant/kanban-columns`, {
-        method: "PUT", headers,
+        method: "PUT",
+        headers: { ...headers, ...(tok ? { "Authorization": `Bearer ${tok}` } : {}) },
         body: JSON.stringify({ tenant_id: getTenantId(), columns: cols })
       });
       if (r.ok) {
         onChange(cols);
-        saveColumns(cols); // local cache fallback
+        saveColumns(cols);
         onClose();
+      } else {
+        const err = await r.json().catch(() => ({}));
+        console.error("Kanban save error:", r.status, err);
+        // fallback: save locally anyway
+        onChange(cols); saveColumns(cols); onClose();
       }
     } catch (e) {
-      onChange(cols); saveColumns(cols); onClose(); // fallback if API unreachable
+      onChange(cols); saveColumns(cols); onClose();
     }
     setSaving(false);
   };
@@ -5287,7 +5294,8 @@ A mensagem deve:
 
 
         {/* Work tabs — desktop only; mobile uses bottom nav */}
-        {!isMobile && <div style={{ display: "flex", gap: 1, overflowX: "auto", flexShrink: 1, minWidth: 0, scrollbarWidth: "none" }}>
+        {!isMobile && <div style={{ display: "flex", gap: 1, overflowX: "auto", flexShrink: 1, minWidth: 0, scrollbarWidth: "none", msOverflowStyle: "none" }}
+          ref={el => { if (el) el.style.cssText += "-webkit-overflow-scrolling:touch;"; }}>
           {WORK_TABS.map(tab => (
             <button key={tab.id} onClick={() => setView(tab.id)} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "5px 9px", borderRadius: 6, border: "none", background: view === tab.id ? "#00a88420" : "transparent", color: view === tab.id ? "#00a884" : T.text2, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0, position: "relative" }}>
               <span>{tab.label.split(" ")[0]}</span>
@@ -6247,11 +6255,11 @@ A mensagem deve:
           onChange={(newLabels) => { setLabels(newLabels); saveLabels(newLabels); }}
           onClose={() => setShowLabelManager(false)}
           tenantId={getTenantId()}
-          authHeaders={headers}
+          authHeaders={{ ...headers, "Authorization": `Bearer ${auth.token}` }}
           labelsApiError={labelsError}
         />
       )}
-      {showColManager && <ColumnManagerModal columns={kanbanCols} onChange={setKanbanCols} onClose={() => setShowColManager(false)} />}
+      {showColManager && <ColumnManagerModal columns={kanbanCols} onChange={setKanbanCols} onClose={() => setShowColManager(false)} token={auth.token} />}
 
       {/* ── Mobile Bottom Navigation ──────────────────────── */}
       {isMobile && (
