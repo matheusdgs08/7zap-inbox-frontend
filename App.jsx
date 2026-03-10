@@ -1653,10 +1653,10 @@ function WhatsAppScreen({ auth, T, theme }) {
   };
 
   const triggerAutoSync = (instName, phone) => {
-    // Número conectado — sem importação de histórico, mensagens carregam ao clicar
-    setAutoSyncInst(null);
-    setSyncPhase("connected_idle");
     fetchInstances();
+    // Find the instance object and kick off history sync
+    const inst = instances.find(i => i.instance_name === instName) || { instance_name: instName, label: instName };
+    startAutoSync(inst);
   };
 
   const fetchQr = async (instName) => {
@@ -1899,15 +1899,51 @@ function WhatsAppScreen({ auth, T, theme }) {
                   /* ── CONNECTED: número online ── */
                   if (inst.connected) return (
                     <div style={{ borderTop: "1px solid #e9edef", padding: "28px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 14, textAlign: "center" }}>
-                      <div style={{ width: 56, height: 56, borderRadius: "50%", background: "linear-gradient(135deg,#00a884,#017561)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>✓</div>
-                      <div style={{ fontSize: 17, fontWeight: 800, color: "#111b21" }}>Número conectado!</div>
-                      <div style={{ fontSize: 13, color: "#667781", maxWidth: 320, lineHeight: 1.6 }}>
-                        As mensagens chegam em tempo real.<br/>Clique em uma conversa para ver o histórico.
-                      </div>
-                      <button onClick={() => { setActiveInst(null); setView("inbox"); }}
-                        style={{ marginTop: 8, padding: "11px 32px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#fff", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
-                        → Ir para o Inbox
-                      </button>
+                      {syncing && autoSyncInst?.instance_name === inst.instance_name ? (
+                        <>
+                          <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#00a88415", border: "2px solid #00a88444", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <span style={{ width: 28, height: 28, border: "3px solid #d1d7db", borderTop: "3px solid #00a884", borderRadius: "50%", display: "inline-block", animation: "spin 0.8s linear infinite" }} />
+                          </div>
+                          <div style={{ fontSize: 16, fontWeight: 800, color: "#111b21" }}>Importando histórico...</div>
+                          <div style={{ fontSize: 13, color: "#667781" }}>Buscando conversas e mensagens do WhatsApp</div>
+                          <div style={{ width: "100%", maxWidth: 320 }}>
+                            <div style={{ background: "#e9edef", borderRadius: 20, height: 8, overflow: "hidden" }}>
+                              <div style={{ height: "100%", background: "linear-gradient(90deg,#00a884,#017561)", borderRadius: 20, width: `${syncProgress}%`, transition: "width 0.6s ease" }} />
+                            </div>
+                            <div style={{ fontSize: 11, color: "#667781", marginTop: 6 }}>{Math.round(syncProgress)}% concluído</div>
+                          </div>
+                        </>
+                      ) : syncResult && autoSyncInst?.instance_name === inst.instance_name ? (
+                        <>
+                          <div style={{ width: 56, height: 56, borderRadius: "50%", background: "linear-gradient(135deg,#00a884,#017561)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>✓</div>
+                          <div style={{ fontSize: 16, fontWeight: 800, color: "#111b21" }}>Histórico importado!</div>
+                          <div style={{ fontSize: 12, color: "#667781", background: "#f0f2f5", borderRadius: 10, padding: "8px 16px" }}>
+                            {syncResult.stats?.conversations_created ?? 0} conversas · {syncResult.stats?.messages_saved ?? 0} mensagens importadas
+                          </div>
+                          <button onClick={() => { setActiveInst(null); setView("inbox"); }}
+                            style={{ padding: "11px 32px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#fff", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
+                            → Ir para o Inbox
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <div style={{ width: 56, height: 56, borderRadius: "50%", background: "linear-gradient(135deg,#00a884,#017561)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>✓</div>
+                          <div style={{ fontSize: 17, fontWeight: 800, color: "#111b21" }}>Número conectado!</div>
+                          <div style={{ fontSize: 13, color: "#667781", maxWidth: 320, lineHeight: 1.6 }}>
+                            As mensagens chegam em tempo real.
+                          </div>
+                          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+                            <button onClick={() => startAutoSync(inst)} disabled={syncing}
+                              style={{ padding: "10px 24px", borderRadius: 10, border: "1px solid #00a88444", background: "#00a88415", color: "#00a884", fontSize: 13, fontWeight: 700, cursor: syncing ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+                              {syncing ? "⏳ Importando..." : "📥 Importar histórico"}
+                            </button>
+                            <button onClick={() => { setActiveInst(null); setView("inbox"); }}
+                              style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#fff", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
+                              → Ir para o Inbox
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   );
 
