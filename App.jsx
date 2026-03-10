@@ -171,7 +171,7 @@ function KanbanBadge({ stage, columns }) {
 }
 
 // ─── Status Dropdown ──────────────────────────────────────────────────────────
-function StatusDropdown({ status, onChange }) {
+function StatusDropdown({ status, onChange, isChanging }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const current = STATUS_OPTIONS.find(s => s.id === status) || STATUS_OPTIONS[0];
@@ -186,11 +186,14 @@ function StatusDropdown({ status, onChange }) {
     <div ref={ref} style={{ position: "relative" }}>
       <button
         onClick={() => setOpen(o => !o)}
-        style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 6, border: `1px solid ${current.color}44`, background: current.color + "15", color: current.color, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+        disabled={!!isChanging}
+        style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 6, border: `1px solid ${current.color}44`, background: current.color + "15", color: isChanging ? "#667781" : current.color, fontSize: 12, fontWeight: 700, cursor: isChanging ? "wait" : "pointer", fontFamily: "inherit", opacity: isChanging ? 0.7 : 1 }}
       >
-        <span style={{ width: 7, height: 7, borderRadius: "50%", background: current.color, display: "inline-block" }} />
-        {current.label}
-        <span style={{ fontSize: 10, opacity: 0.7 }}>{open ? "▲" : "▼"}</span>
+        {isChanging
+          ? <span style={{ width: 12, height: 12, border: "2px solid #d1d7db", borderTop: `2px solid ${current.color}`, borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />
+          : <span style={{ width: 7, height: 7, borderRadius: "50%", background: current.color, display: "inline-block" }} />}
+        {isChanging ? "Atualizando..." : current.label}
+        {!isChanging && <span style={{ fontSize: 10, opacity: 0.7 }}>{open ? "▲" : "▼"}</span>}
       </button>
       {open && (
         <div style={{ position: "absolute", top: "110%", right: 0, background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 10, padding: 6, minWidth: 160, zIndex: 200, boxShadow: "0 1px 3px #0000001a, 0 4px 12px #0000000f" }}>
@@ -2164,7 +2167,9 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
   };
 
   const cancelBroadcast = async (id) => {
+    showToast("🚫 Cancelando disparo...", "#ff9800", true);
     await fetch(`${API_URL}/broadcasts/${id}/cancel`, { method: "PUT", headers });
+    showToast("✓ Disparo cancelado", "#667781");
     fetchBroadcasts();
   };
 
@@ -2186,7 +2191,9 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
   };
 
   const deleteScheduled = async (id) => {
+    showToast("🗑 Removendo...", "#667781", true);
     await fetch(`${API_URL}/scheduled-messages/${id}`, { method: "DELETE", headers });
+    showToast("✓ Mensagem removida", "#667781");
     setScheduledMsgs(prev => prev.filter(m => m.id !== id));
   };
 
@@ -2575,7 +2582,8 @@ function GlobalTasksView({ pendingTasksMap, conversations, agents, onSelectConv,
   useEffect(() => { fetchAll(); }, []);
 
   const completeTask = async (taskId) => {
-    try { await fetch(`${API_URL}/tasks/${taskId}/done`, { method: "PUT", headers }); } catch (e) {}
+    showToast("✅ Concluindo tarefa...", "#00a884", true);
+    try { await fetch(`${API_URL}/tasks/${taskId}/done`, { method: "PUT", headers }); showToast("✅ Tarefa concluída!"); } catch (e) { showToast("Erro ao concluir tarefa", "#f44336"); }
     const done = openTasks.find(t => t.id === taskId);
     setOpenTasks(prev => prev.filter(t => t.id !== taskId));
     if (done) setDoneTasks(prev => [{ ...done, done: true, done_at: new Date().toISOString() }, ...prev]);
@@ -4133,6 +4141,18 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [unreadFilter, setUnreadFilter] = useState("all"); // all | unread
+  // ── Toast notification system ──
+  const [toast, setToast] = useState(null); // { msg, color, loading }
+  const toastTimerRef = useRef(null);
+  const showToast = (msg, color = "#00a884", loading = false) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ msg, color, loading });
+    if (!loading) toastTimerRef.current = setTimeout(() => setToast(null), 3500);
+  };
+  const hideToast = () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); setToast(null); };
+  // ── Per-action loading states ──
+  const [changingStatus, setChangingStatus] = useState(false); // status dropdown
+  const [assigningConv, setAssigningConv] = useState(false);   // assign modal
   const [inactiveDays, setInactiveDays] = useState(null); // null | 3 | 7 | 15  (days without response)
   const [instanceFilter, setInstanceFilter] = useState(() => {
     // Restore last selected instance from sessionStorage
@@ -4554,15 +4574,33 @@ A mensagem deve:
   };
 
   const changeStatus = async (convId, newStatus) => {
+    if (changingStatus) return;
+    setChangingStatus(true);
+    const labels = { resolved: "Resolvendo...", pending: "Colocando em espera...", open: "Reabrindo..." };
+    showToast(labels[newStatus] || "Atualizando...", "#00a884", true);
     const endpoint = newStatus === "resolved" ? "resolve" : newStatus === "pending" ? "pending" : "reopen";
-    await fetch(`${API_URL}/conversations/${convId}/${endpoint}`, { method: "PUT", headers });
-    setSelected(prev => prev ? { ...prev, status: newStatus } : null);
-    setConversations(prev => prev.map(c => c.id === convId ? { ...c, status: newStatus } : c));
-    if (newStatus !== filter && filter !== "all") { setTimeout(() => { setSelected(null); fetchConversations(); }, 300); }
+    try {
+      await fetch(`${API_URL}/conversations/${convId}/${endpoint}`, { method: "PUT", headers });
+      setSelected(prev => prev ? { ...prev, status: newStatus } : null);
+      setConversations(prev => prev.map(c => c.id === convId ? { ...c, status: newStatus } : c));
+      const doneLabels = { resolved: "✓ Conversa resolvida", pending: "⏸ Em espera", open: "▶ Conversa reaberta" };
+      showToast(doneLabels[newStatus] || "Status atualizado", "#00a884");
+      if (newStatus !== filter && filter !== "all") { setTimeout(() => { setSelected(null); fetchConversations(); }, 300); }
+    } catch (e) { showToast("Erro ao atualizar status", "#f44336"); }
+    setChangingStatus(false);
   };
 
   const assignConv = async (agent) => {
-    try { await fetch(`${API_URL}/conversations/${selected.id}/assign`, { method: "PUT", headers, body: JSON.stringify({ user_id: agent.id }) }); const patch = { assigned_to: agent.id, assigned_agent: agent.name }; setSelected(prev => ({ ...prev, ...patch })); setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, ...patch } : c)); } catch (e) {}
+    setAssigningConv(true);
+    showToast(`Atribuindo para ${agent.name}...`, "#00a884", true);
+    try {
+      await fetch(`${API_URL}/conversations/${selected.id}/assign`, { method: "PUT", headers, body: JSON.stringify({ user_id: agent.id }) });
+      const patch = { assigned_to: agent.id, assigned_agent: agent.name };
+      setSelected(prev => ({ ...prev, ...patch }));
+      setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, ...patch } : c));
+      showToast(`✓ Atribuído para ${agent.name}`);
+    } catch (e) { showToast("Erro ao atribuir conversa", "#f44336"); }
+    setAssigningConv(false);
     setShowAssign(false);
   };
   const toggleLabel = async (label) => {
@@ -5357,8 +5395,9 @@ A mensagem deve:
                       </div>
                     )}
                     <div style={{ display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center" }}>
+                      <StatusDropdown status={selected.status} onChange={(s) => changeStatus(selected.id, s)} isChanging={changingStatus} />
                       <button onClick={() => setShowLabelPicker(true)} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e9edef", background: "transparent", color: "#8696a0", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>🏷 Etiqueta</button>
-                      <button onClick={() => setShowAssign(true)} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e9edef", background: "transparent", color: "#8696a0", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>👤 Atribuir</button>
+                      <button onClick={() => setShowAssign(true)} disabled={assigningConv} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e9edef", background: "transparent", color: assigningConv ? "#d1d7db" : "#8696a0", fontSize: 11, cursor: assigningConv ? "wait" : "pointer", fontFamily: "inherit", fontWeight: 600 }}>{assigningConv ? "⏳..." : "👤 Atribuir"}</button>
                       <button onClick={fetchSuggestion} disabled={loadingSuggest} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #7c4dff44", background: loadingSuggest ? "#e9edef" : "#7c4dff15", color: loadingSuggest ? "#667781" : "#a78bfa", fontSize: 11, cursor: loadingSuggest ? "not-allowed" : "pointer", fontFamily: "inherit", fontWeight: 600 }}>{loadingSuggest ? "⏳..." : "✨ Co-pilot"}</button>
                       {copilotAutoMode === "per_conv" && (
                         <button onClick={async () => {
@@ -5568,5 +5607,20 @@ A mensagem deve:
       )}
 
     </div>
+
+      {/* ── Global Toast ─────────────────────────────────── */}
+      {toast && (
+        <div style={{ position: "fixed", bottom: 80, left: "50%", transform: "translateX(-50%)", zIndex: 9999, pointerEvents: "none" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 20px", borderRadius: 12, background: "#1f2937", boxShadow: "0 4px 20px #00000040", color: "#fff", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", minWidth: 180, maxWidth: 380 }}>
+            {toast.loading && (
+              <span style={{ width: 14, height: 14, border: "2px solid #ffffff44", borderTop: `2px solid ${toast.color || "#00a884"}`, borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite", flexShrink: 0 }} />
+            )}
+            {!toast.loading && (
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: toast.color || "#00a884", flexShrink: 0 }} />
+            )}
+            <span style={{ flex: 1 }}>{toast.msg}</span>
+          </div>
+        </div>
+      )}
   );
 }
