@@ -1,9 +1,14 @@
 import SuperAdminPanel from "./AdminPanel";
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { createClient } from "@supabase/supabase-js";
 const API_URL = "https://7zap-inbox-production.up.railway.app";
 const API_KEY = "7zap_inbox_secret";
-// Supabase OAuth — redirect direto, sem SDK
+// Supabase — client com anon key para Realtime WebSocket
 const SUPABASE_URL = "https://raxnwyjcsplctrfcyeqs.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJheG53eWpjc3BsY3RyZmN5ZXFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MzMzNTQsImV4cCI6MjA4ODMwOTM1NH0.WYoIECuaJSEpN-25oPFRkmA6jHaRQj1Fh3jNSEsbn8k";
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  realtime: { params: { eventsPerSecond: 20 } }
+});
 const oauthRedirect = (provider) => {
   const redirectTo = encodeURIComponent(window.location.origin + "/?social_callback=1");
   window.location.href = `${SUPABASE_URL}/auth/v1/authorize?provider=${provider}&redirect_to=${redirectTo}`;
@@ -55,19 +60,6 @@ function displayName(name, phone) {
 // Sort messages by created_at ascending (always chronological)
 function sortMsgs(arr) {
   return [...arr].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-}
-
-// Merge fresh messages into existing, deduplicating by BOTH id and waha_id
-function mergeMessages(existing, fresh) {
-  const seenIds    = new Set(existing.map(m => m.id).filter(Boolean));
-  const seenWahaIds = new Set(existing.map(m => m.waha_id).filter(Boolean));
-  const newOnes = fresh.filter(m => {
-    if (m.id     && seenIds.has(m.id))         return false;
-    if (m.waha_id && seenWahaIds.has(m.waha_id)) return false;
-    return true;
-  });
-  if (newOnes.length === 0) return existing; // avoid re-render
-  return sortMsgs([...existing, ...newOnes]);
 }
 
 function formatPhone(raw) {
@@ -4432,6 +4424,10 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const autoProcessedRef = useRef(new Set()); // msgIds already auto-replied
   const autoProcessingRef = useRef(new Set()); // per-conv processing lock
   const autoModeRef = useRef({}); // { convId: boolean } — persists across polls
+  // ── Realtime refs ──
+  const realtimeConvsRef = useRef(null);
+  const realtimeMsgsRef  = useRef(null);
+  const selectedIdRef    = useRef(null); // ref espelho de selected.id para closures do Realtime
 
   const mergeConvs = useCallback((list) => {
     const now = Date.now();
@@ -4547,7 +4543,11 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
           const fresh = d.messages || [];
           if (fresh.length > 0) {
             msgCacheRef.current[convId] = { messages: fresh, ts: Date.now() };
-            setMessages(prev => mergeMessages(prev, fresh));
+            setMessages(prev => {
+              const ids = new Set(prev.map(m => m.id));
+              const newOnes = fresh.filter(m => !ids.has(m.id));
+              return newOnes.length > 0 ? sortMsgs([...prev, ...newOnes]) : prev;
+            });
           }
         }).catch(() => {});
       return;
@@ -4563,15 +4563,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       setHasMoreMessages(false);
       // ALWAYS trigger background WAHA sync so messages stay fresh
       // /history endpoint returns DB + kicks WAHA sync in background
-      fetch(`${API_URL}/conversations/${convId}/history?limit=50`, { headers })
-        .then(r2 => r2.json())
-        .then(d2 => {
-          const synced = d2.messages || [];
-          if (synced.length > 0) {
-            msgCacheRef.current[convId] = { messages: synced, ts: Date.now() };
-            setMessages(prev => mergeMessages(prev, synced));
-          }
-        }).catch(() => {});
+      // Realtime cuida das novas mensagens — sem double-fetch para o WAHA
       setMessagesOffset(0);
     } catch (e) {
       try {
@@ -4672,12 +4664,12 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     const fn = isMulti ? fetchAllConversations : fetchConversations;
     fn();
     clearInterval(pollRef.current);
-    // Smart polling: 2s when tab focused, pause when hidden
+    // Polling: agora é apenas fallback de segurança — Realtime faz o trabalho pesado
     const startPoll = () => {
       clearInterval(pollRef.current);
       pollRef.current = setInterval(() => {
         if (!document.hidden) fn();
-      }, 2000);
+      }, 15000); // 15s — Realtime cuida do tempo real, polling só como backup
     };
     startPoll();
     const onVisibility = () => { if (!document.hidden) { fn(); startPoll(); } };
@@ -4685,7 +4677,38 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     return () => { document.removeEventListener("visibilitychange", onVisibility); clearInterval(pollRef.current); };
     return () => clearInterval(pollRef.current);
   }, [fetchConversations, fetchAllConversations, view, filter]);
-  const backgroundRefreshMessages = useCallback(async (convId) => {
+
+  // ── Supabase Realtime: conversas ──────────────────────────────────────────
+  // Quando qualquer conversa do tenant muda (nova msg, status, atribuição),
+  // o Supabase empurra o evento via WebSocket — sem precisar de polling.
+  useEffect(() => {
+    const isMulti = view === "kanban" || view === "leads";
+    const fn = isMulti ? fetchAllConversations : fetchConversations;
+
+    // Remove canal anterior se houver
+    if (realtimeConvsRef.current) {
+      supabase.removeChannel(realtimeConvsRef.current);
+    }
+
+    const channel = supabase
+      .channel(`convs-${TENANT_ID}-${view}`)
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "conversations",
+        filter: `tenant_id=eq.${TENANT_ID}`,
+      }, () => { fn(); }) // atualiza lista instantaneamente
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "messages",
+        filter: `tenant_id=eq.${TENANT_ID}`,
+      }, () => { fn(); }) // nova msg = reordena lista e atualiza preview
+      .subscribe();
+
+    realtimeConvsRef.current = channel;
+    return () => { supabase.removeChannel(channel); realtimeConvsRef.current = null; };
+  }, [fetchConversations, fetchAllConversations, view, filter]); = useCallback(async (convId) => {
     // Silent background refresh — no spinner, no skeleton, just appends new messages
     try {
       const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=50`, { headers });
@@ -4694,41 +4717,66 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       const fresh = d.messages || [];
       if (fresh.length === 0) return;
       setMessages(prev => {
-        // Merge: keep existing, append truly new ones (by id AND waha_id), sorted
-        const existingIds    = new Set(prev.map(m => m.id).filter(Boolean));
-        const existingWahaIds = new Set(prev.map(m => m.waha_id).filter(Boolean));
-        const newOnes = fresh.filter(m => {
-          if (m.id     && existingIds.has(m.id))         return false;
-          if (m.waha_id && existingWahaIds.has(m.waha_id)) return false;
-          return true;
-        });
+        // Merge: keep existing, append truly new ones (by id)
+        const existingIds = new Set(prev.map(m => m.id || m.waha_id));
+        const newOnes = fresh.filter(m => !existingIds.has(m.id) && !existingIds.has(m.waha_id));
         if (newOnes.length === 0) return prev; // no change — avoid re-render
-        return sortMsgs([...prev, ...newOnes]);
+        return [...prev, ...newOnes];
       });
     } catch (e) {}
   }, []);
 
   useEffect(() => {
     if (!selected) return;
+    selectedIdRef.current = selected.id;
     setMessagesOffset(0);
     setHasMoreMessages(false);
     setSuggestion("");
-    // Only show skeleton if no cache — avoids piscando on every click
+    // Só mostra skeleton se não tem cache — evita piscar ao recliclar
     const hasCached = msgCacheRef.current[selected.id]?.messages?.length > 0;
     if (!hasCached) setLoadingMessages(true);
     fetchMessages(selected.id, false).finally(() => {
       setLoadingMessages(false);
     });
-    // Mark as read after 1s (give time to actually view)
+    // Marca como lida após 800ms
     const readTimer = setTimeout(() => {
       setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, unread_count: 0 } : c));
       fetch(`${API_URL}/conversations/${selected.id}/read`, { method: "POST", headers }).catch(() => {});
     }, 800);
-    const t = setInterval(() => backgroundRefreshMessages(selected.id), 4000);
+
+    // ── Supabase Realtime: mensagens desta conversa ──────────────────────
+    // Substitui o setInterval de 4s — mensagens chegam instantâneas via WebSocket
+    if (realtimeMsgsRef.current) supabase.removeChannel(realtimeMsgsRef.current);
+    const msgChannel = supabase
+      .channel(`msgs-${selected.id}`)
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "messages",
+        filter: `conversation_id=eq.${selected.id}`,
+      }, (payload) => {
+        const newMsg = payload.new;
+        if (!newMsg) return;
+        setMessages(prev => mergeMessages(prev, [newMsg]));
+        // Atualiza cache também
+        const cid = selectedIdRef.current;
+        if (cid && msgCacheRef.current[cid]) {
+          msgCacheRef.current[cid] = {
+            messages: mergeMessages(msgCacheRef.current[cid].messages, [newMsg]),
+            ts: Date.now(),
+          };
+        }
+      })
+      .subscribe();
+    realtimeMsgsRef.current = msgChannel;
+
     return () => {
-      clearInterval(t);
       clearTimeout(readTimer);
       setMessages([]);
+      if (realtimeMsgsRef.current) {
+        supabase.removeChannel(realtimeMsgsRef.current);
+        realtimeMsgsRef.current = null;
+      }
     };
   }, [selected?.id]);
   const prevMsgCountRef = useRef(0);
@@ -5697,6 +5745,17 @@ A mensagem deve:
                     return (
                     <div key={conv.id}
                       onClick={() => { setSelected(conv); setSuggestion(""); setShowTasks(false); setNoteMode(false); }}
+                      onMouseEnter={() => {
+                        // Prefetch mensagens ao hover — quando clicar já está no cache
+                        if (!msgCacheRef.current[conv.id] || Date.now() - msgCacheRef.current[conv.id].ts > 30000) {
+                          fetch(`${API_URL}/conversations/${conv.id}/messages?limit=50`, { headers })
+                            .then(r => r.json())
+                            .then(d => {
+                              const msgs = d.messages || [];
+                              if (msgs.length > 0) msgCacheRef.current[conv.id] = { messages: msgs, ts: Date.now() };
+                            }).catch(() => {});
+                        }
+                      }}
                       style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", cursor: "pointer", background: isSelected ? T.selected : "transparent", borderLeft: isSelected ? "3px solid #00a884" : "3px solid transparent", transition: "background 0.1s" }}>
                       {/* Avatar */}
                       <div style={{ flexShrink: 0 }}>
