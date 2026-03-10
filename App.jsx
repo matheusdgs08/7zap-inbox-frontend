@@ -5358,7 +5358,7 @@ A mensagem deve:
                   </div>
 
                   {/* Messages */}
-                  <div ref={chatScrollRef} style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 2, background: T.chatBg }}>
+                  <div ref={chatScrollRef} onMouseEnter={() => { if (selected?.unread_count > 0) { setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, unread_count: 0 } : c)); setSelected(prev => prev ? { ...prev, unread_count: 0 } : prev); } }} style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 2, background: T.chatBg }}>
                     {/* Load More button */}
                     {hasMoreMessages && (
                       <div style={{ textAlign: "center", marginBottom: 12 }}>
