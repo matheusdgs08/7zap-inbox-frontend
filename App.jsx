@@ -2028,7 +2028,6 @@ function WhatsAppScreen({ auth, T, theme }) {
                         </>
                       )}
                     </div>
-                  </div>
                   );
 
                   /* ── DEFAULT: QR Code panel ── */
