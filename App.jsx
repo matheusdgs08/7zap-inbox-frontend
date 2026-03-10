@@ -2691,7 +2691,7 @@ function LeadsBoard({ conversations, kanbanCols, labels, onSelectConv, onManageL
         <Avatar name={displayName(conv.contacts?.name, conv.contacts?.phone)} size={26} phone={conv.contacts?.phone} instanceFilter={instanceFilter} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayName(conv.contacts?.name, conv.contacts?.phone)}</div>
-          <div style={{ fontSize: 11, color: "#667781" }}>{conv.contacts?.phone}</div>
+          <div style={{ fontSize: 11, color: "#667781" }}>{formatPhone(conv.contacts?.phone)}</div>
         </div>
         <span style={{ fontSize: 10, color: "#667781", flexShrink: 0 }}>{timeAgo(conv.last_message_at)}</span>
       </div>
@@ -5145,7 +5145,7 @@ A mensagem deve:
                           <KanbanBadge stage={conv.kanban_stage} columns={kanbanCols} />
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ fontSize: 11, color: "#667781", flex: 1 }}>{conv.assigned_agent ? `👤 ${conv.assigned_agent}` : conv.contacts?.phone}</span>
+                          <span style={{ fontSize: 11, color: "#667781", flex: 1 }}>{conv.assigned_agent ? `👤 ${conv.assigned_agent}` : formatPhone(conv.contacts?.phone)}</span>
                           {conv.unread_count > 0 && (
                             <span title={`${conv.unread_count} mensagem${conv.unread_count > 1 ? "s" : ""} não lida${conv.unread_count > 1 ? "s" : ""}`}
                               style={{ background: "#00a884", color: "#fff", fontSize: 10, fontWeight: 800, minWidth: 18, height: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", padding: "0 5px", flexShrink: 0, letterSpacing: 0 }}>
