@@ -1858,9 +1858,9 @@ function WhatsAppScreen({ auth, T, theme }) {
   // Cleanup QR poll on unmount
   useEffect(() => () => { if (qrPollRef.current) clearInterval(qrPollRef.current); }, []);
 
-  // Called when user clicks "Gerar QR Code" — soft-locks if inst already has a phone
+  // Called when user clicks "Gerar QR Code" — só pede confirmação se está WORKING (conectado)
   const handleGenerateQr = (inst) => {
-    if (inst.phone) {
+    if (inst.phone && inst.status === "WORKING") {
       setConfirmPhone({ inst, value: "" });
     } else {
       fetchQr(inst.instance_name);
