@@ -71,6 +71,8 @@ function formatPhone(raw) {
     if (num.length === 9) return `+55 ${ddd} ${num.slice(0,5)}-${num.slice(5)}`;
     if (num.length === 8) return `+55 ${ddd} ${num.slice(0,4)}-${num.slice(4)}`;
   }
+  // Número internacional longo (> 13 dígitos) — mostrar truncado de forma legível
+  if (clean.length > 13) return `+${clean.slice(0,2)} ${clean.slice(2,4)} ···${clean.slice(-4)}`;
   if (clean.length >= 10) return `+${clean}`;
   return raw;
 }
@@ -5591,17 +5593,19 @@ A mensagem deve:
                 </div>
               )}
 
-              {/* Number selector pills — only shown when 2+ instances exist */}
+              {/* Number selector pills */}
               {waInstances.length >= 2 && (
-                <div style={{ padding: "7px 10px", borderBottom: "1px solid #e9edef", display: "flex", gap: 5, alignItems: "center", overflowX: "auto" }}>
-
-                  {waInstances.map(inst => (
-                    <button key={inst.id} onClick={() => selectInstance(instanceFilter === inst.instance_name ? null : inst.instance_name)}
-                      style={{ padding: "3px 10px", borderRadius: 20, border: `1px solid ${instanceFilter === inst.instance_name ? "#00a88466" : T.border}`, background: instanceFilter === inst.instance_name ? "#00a88418" : "transparent", color: instanceFilter === inst.instance_name ? "#00a884" : "#667781", fontSize: 11, fontWeight: instanceFilter === inst.instance_name ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}>
-                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: inst.connected ? "#00a884" : "#f44336", display: "inline-block", flexShrink: 0 }} />
-                      {inst.label || inst.instance_name}
-                    </button>
-                  ))}
+                <div style={{ padding: "6px 10px", borderBottom: `1px solid ${T.border}`, background: T.topbar, display: "flex", gap: 5, alignItems: "center", overflowX: "auto", scrollbarWidth: "none" }}>
+                  {waInstances.map(inst => {
+                    const isActive = instanceFilter === inst.instance_name;
+                    return (
+                      <button key={inst.id} onClick={() => selectInstance(isActive ? null : inst.instance_name)}
+                        style={{ padding: "3px 10px", borderRadius: 20, border: `1px solid ${isActive ? "#00a88466" : T.border}`, background: isActive ? "#00a88418" : T.sidebar, color: isActive ? "#00a884" : T.text2, fontSize: 11, fontWeight: isActive ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0, display: "flex", alignItems: "center", gap: 5, transition: "all 0.15s", lineHeight: 1.4 }}>
+                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: inst.connected ? "#00a884" : "#f44336", display: "inline-block", flexShrink: 0, boxShadow: inst.connected ? "0 0 4px #00a88480" : "none" }} />
+                        <span>{inst.label || inst.instance_name}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
 
@@ -5637,7 +5641,7 @@ A mensagem deve:
                   </div>
                 ) : filtered.length === 0 ? <div style={{ padding: 24, textAlign: "center", color: "#667781", fontSize: 13 }}>Nenhuma conversa</div>
                   : filtered.map(conv => (
-                    <div key={conv.id} onClick={() => { setSelected(conv); setSuggestion(""); setShowTasks(false); setNoteMode(false); }} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "11px 14px", cursor: "pointer", background: selected?.id === conv.id ? T.selected : "transparent", borderLeft: selected?.id === conv.id ? "3px solid #00a884" : "3px solid transparent" }}>
+                    <div key={conv.id} onClick={() => { setSelected(conv); setSuggestion(""); setShowTasks(false); setNoteMode(false); if (conv.unread_count > 0) { setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c)); fetch(`${API_URL}/conversations/${conv.id}/read`, { method: "POST", headers }).catch(() => {}); } }} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "11px 14px", cursor: "pointer", background: selected?.id === conv.id ? T.selected : "transparent", borderLeft: selected?.id === conv.id ? "3px solid #00a884" : "3px solid transparent" }}>
                       <Avatar name={displayName(conv.contacts?.name, conv.contacts?.phone)} phone={conv.contacts?.phone} instanceFilter={instanceFilter} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
@@ -5741,6 +5745,16 @@ A mensagem deve:
                     )}
                     <div style={{ display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center" }}>
                       <StatusDropdown status={selected.status} onChange={(s) => changeStatus(selected.id, s)} isChanging={changingStatus} />
+                      <button
+                        title="Marcar como não lida"
+                        onClick={() => {
+                          setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, unread_count: 1 } : c));
+                          fetch(`${API_URL}/conversations/${selected.id}/unread`, { method: "POST", headers }).catch(() => {});
+                          showToast("💬 Marcado como não lida");
+                        }}
+                        style={{ padding: "4px 8px", borderRadius: 7, border: "1px solid #d1d7db", background: "transparent", color: "#667781", fontSize: 12, cursor: "pointer", fontFamily: "inherit", fontWeight: 600, flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}>
+                        🔵 Não lida
+                      </button>
                       <button onClick={() => setShowLabelPicker(true)} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e9edef", background: "transparent", color: "#8696a0", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>🏷 Etiqueta</button>
                       <button onClick={() => setShowAssign(true)} disabled={assigningConv} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e9edef", background: "transparent", color: assigningConv ? "#d1d7db" : "#8696a0", fontSize: 11, cursor: assigningConv ? "wait" : "pointer", fontFamily: "inherit", fontWeight: 600 }}>{assigningConv ? "⏳..." : "👤 Atribuir"}</button>
                       <button onClick={fetchSuggestion} disabled={loadingSuggest} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #7c4dff44", background: loadingSuggest ? "#e9edef" : "#7c4dff15", color: loadingSuggest ? "#667781" : "#a78bfa", fontSize: 11, cursor: loadingSuggest ? "not-allowed" : "pointer", fontFamily: "inherit", fontWeight: 600 }}>{loadingSuggest ? "⏳..." : "✨ Co-pilot"}</button>
