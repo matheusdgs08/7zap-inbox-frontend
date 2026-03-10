@@ -19,7 +19,6 @@ const parseOAuthHash = () => {
   const params = new URLSearchParams(hash);
   return params.get("access_token") || null;
 };
-const getSupabase = () => null; // legacy compat
 // TENANT_ID is derived from auth at runtime — see getTenantId() below
 const getTenantId = () => { try { return JSON.parse(localStorage.getItem("7crm_auth") || "null")?.user?.tenant_id || ""; } catch { return ""; } };
 const headers = { "x-api-key": API_KEY, "Content-Type": "application/json" };
@@ -1593,7 +1592,6 @@ function WhatsAppScreen({ auth, T, theme }) {
   const [syncProgress, setSyncProgress] = useState(0);
   const [autoSyncInst, setAutoSyncInst] = useState(null); // inst that triggered auto-sync
   const [syncPhase, setSyncPhase] = useState("idle"); // idle | connecting | syncing | done | error
-  const syncJobRef = useRef(null);
   const qrPollRef = useRef(null); // polling interval while QR is displayed
 
   const [instancesLoading, setInstancesLoading] = useState(true);
