@@ -1418,7 +1418,7 @@ function OnboardingView({ auth, aiCredits }) {
 
             {/* Warning */}
             <div style={{ background: "#7c4dff15", border: "1px solid #7c4dff33", borderRadius: 10, padding: "12px 16px", fontSize: 12, color: "#a78bfa", marginBottom: 20 }}>
-              ⚡ Disponível nos planos <strong>Pro</strong> (200 conversas) e <strong>Business</strong> (500 conversas). Cada análise consome <strong>1.000 créditos</strong> — sem limite mensal, use quantas vezes quiser.
+              ⚡ Cada análise consome <strong>1.000 créditos</strong>.
             </div>
 
             <button onClick={analyze} style={{ width: "100%", padding: "14px 0", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #00a884, #017561)", color: "#000", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
