@@ -4224,11 +4224,24 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   };
 
   useEffect(() => {
+    let backfillDone = false;
     const fetchWaStatus = async () => {
       try {
         const r = await fetch(`${API_URL}/whatsapp/tenant-instances?tenant_id=${TENANT_ID}`, { headers });
         const d = await r.json();
-        setWaInstances(d.instances || []);
+        const instances = d.instances || [];
+        setWaInstances(instances);
+        // Auto-backfill instance_name on conversations that have it null (runs once per session)
+        if (!backfillDone && instances.length > 1) {
+          backfillDone = true;
+          for (const inst of instances) {
+            if (!inst.instance_name) continue;
+            fetch(`${API_URL}/whatsapp/backfill-instances`, {
+              method: "POST", headers,
+              body: JSON.stringify({ tenant_id: TENANT_ID, instance: inst.instance_name })
+            }).catch(() => {});
+          }
+        }
       } catch (e) {}
     };
     fetchWaStatus();
@@ -4812,9 +4825,11 @@ A mensagem deve:
       const daysAgo = (Date.now() - lastMsg) / (1000 * 60 * 60 * 24);
       matchInactive = daysAgo >= inactiveDays;
     }
-    const matchInstance = !instanceFilter || c.instance_name === instanceFilter || 
-      // If conv has no instance_name, assume it belongs to the first/only instance
-      (instanceFilter && !c.instance_name && waInstances.length === 1);
+    // instance_name === null → legacy conv created before multi-instance tracking.
+    // Show under ALL instance filters until backfill assigns the correct instance.
+    const matchInstance = !instanceFilter
+      || c.instance_name === instanceFilter
+      || !c.instance_name;  // null = legacy, always visible
     return matchSearch && matchUnread && matchInactive && matchInstance;
   });
 
