@@ -53,14 +53,21 @@ function displayName(name, phone) {
 }
 
 function formatPhone(raw) {
-  if (!raw) return "Desconhecido";
-  // Remove sufixos WhatsApp
-  const clean = raw.replace(/@(lid|c\.us|s\.whatsapp\.net|g\.us)/g, "").replace(/\D/g, "");
+  if (!raw) return "";
+  // Remove sufixos WhatsApp (@lid, @c.us, etc)
+  const clean = raw.replace(/@[\w.]+/g, "").replace(/\D/g, "");
   if (!clean) return raw;
   // Formata BR: 55 + DDD (2) + número (8 ou 9)
-  if (clean.startsWith("55") && clean.length >= 12) {
+  if (clean.startsWith("55") && (clean.length === 13 || clean.length === 12)) {
     const ddd = clean.slice(2, 4);
     const num = clean.slice(4);
+    if (num.length === 9) return `+55 ${ddd} ${num.slice(0,5)}-${num.slice(5)}`;
+    if (num.length === 8) return `+55 ${ddd} ${num.slice(0,4)}-${num.slice(4)}`;
+  }
+  // Número sem código do país (11 dígitos BR)
+  if (clean.length === 11 && clean.startsWith("0") === false) {
+    const ddd = clean.slice(0, 2);
+    const num = clean.slice(2);
     if (num.length === 9) return `+55 ${ddd} ${num.slice(0,5)}-${num.slice(5)}`;
     if (num.length === 8) return `+55 ${ddd} ${num.slice(0,4)}-${num.slice(4)}`;
   }
@@ -3037,7 +3044,7 @@ function LabelPickerModal({ conversation, labels, onToggle, onClose, onManage })
   );
 }
 
-function KanbanBoard({ conversations, columns, onMoveCard, onSelectConv, onManageCols }) {
+function KanbanBoard({ conversations, columns, onMoveCard, onSelectConv, onManageCols, instanceFilter }) {
   const [dragging, setDragging] = useState(null);
   const [dragOver, setDragOver] = useState(null);
   const getStage = (conv) => columns.find(c => c.id === conv.kanban_stage) ? conv.kanban_stage : columns[0]?.id;
@@ -5026,7 +5033,7 @@ A mensagem deve:
         )}
 
         {/* Kanban */}
-        {view === "kanban" && <KanbanBoard conversations={filtered} columns={kanbanCols} onMoveCard={moveKanbanCard} onSelectConv={(conv) => { setSelected(conv); setView("inbox"); }} onManageCols={() => setShowColManager(true)} />}
+        {view === "kanban" && <KanbanBoard conversations={filtered} columns={kanbanCols} onMoveCard={moveKanbanCard} onSelectConv={(conv) => { setSelected(conv); setView("inbox"); }} onManageCols={() => setShowColManager(true)} instanceFilter={instanceFilter} />}
 
         {/* Inbox */}
         {view === "inbox" && (
@@ -5174,6 +5181,11 @@ A mensagem deve:
                   ⏳ Carregando mais...
                 </div>
               )}
+              {hasMoreConvs && !loadingMoreConvs && (
+                <button onClick={fetchMoreConversations} style={{ width: "100%", padding: "10px 0", background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "#00a884", fontFamily: "inherit", fontWeight: 600 }}>
+                  ↓ Carregar mais conversas
+                </button>
+              )}
               {!hasMoreConvs && conversations.length > 50 && (
                 <div style={{ padding: "10px 0", textAlign: "center", color: "#d1d7db", fontSize: 11 }}>
                   — fim das conversas —
@@ -5201,7 +5213,7 @@ A mensagem deve:
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 700, fontSize: 13 }}>{displayName(selected.contacts?.name, selected.contacts?.phone)}</div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 2 }}>
-                        <span style={{ fontSize: 11, color: "#667781" }}>{selected.contacts?.phone}</span>
+                        <span style={{ fontSize: 11, color: "#667781" }}>{formatPhone(selected.contacts?.phone)}</span>
                         {selected.assigned_agent && <span style={{ fontSize: 11, color: "#00a884" }}>· 👤 {selected.assigned_agent}</span>}
                         {selected.labels?.map(l => <LabelChip key={l.id} label={l} />)}
                         <KanbanBadge stage={selected.kanban_stage} columns={kanbanCols} />
