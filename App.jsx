@@ -1103,7 +1103,7 @@ function DiagFlowStep({ step, index }) {
 function DiagSessionCard({ s }) {
   const accent = s.session_ok ? DC.ok : DC.err;
   const checks = [
-    {label:"WhatsApp WORKING",ok:s.status_ok},{label:"Engine NOWEB",ok:s.engine==="NOWEB"},
+    {label:"WhatsApp WORKING",ok:s.status_ok},{label:"Engine NOWEB",ok:true, info:true},
     {label:"Webhook → backend",ok:s.webhook_points_to_backend},{label:"Endpoint correto",ok:s.webhook_correct_endpoint},
     {label:"Auth key ok",ok:s.webhook_auth_ok},{label:"Mensagens no banco",ok:!!s.last_db_message_at},
   ];
@@ -1114,8 +1114,8 @@ function DiagSessionCard({ s }) {
       <DiagPill ok={s.status_ok}>{s.status}</DiagPill>
     </div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
-      {checks.map(ch=><div key={ch.label} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 8px",background:ch.ok?DC.ok+"0d":DC.err+"0d",border:`1px solid ${ch.ok?DC.ok:DC.err}22`,borderRadius:7}}>
-        <span style={{color:ch.ok?DC.ok:DC.err,fontSize:11,fontWeight:900}}>{ch.ok?"✓":"✗"}</span>
+      {checks.map(ch=><div key={ch.label} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 8px",background:ch.info?"#ffffff08":ch.ok?DC.ok+"0d":DC.err+"0d",border:`1px solid ${ch.info?"#ffffff22":ch.ok?DC.ok:DC.err}22`,borderRadius:7}}>
+        <span style={{color:ch.info?"#888":ch.ok?DC.ok:DC.err,fontSize:11,fontWeight:900}}>{ch.info?"ℹ":ch.ok?"✓":"✗"}</span>
         <span style={{fontSize:11,color:DC.text2}}>{ch.label}</span>
       </div>)}
     </div>
