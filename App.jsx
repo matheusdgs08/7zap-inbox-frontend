@@ -6030,7 +6030,35 @@ A mensagem deve:
                           <div key={msg.id || i} style={{ display: "flex", justifyContent: isOut ? "flex-end" : "flex-start", marginBottom: 2 }}>
                             <div style={{ maxWidth: "65%", padding: "7px 12px 8px 12px", borderRadius: isOut ? "8px 0px 8px 8px" : "0px 8px 8px 8px", background: isInternal ? "#fff8dc" : isOut ? T.msgOut : T.msgIn, boxShadow: `0 1px 2px ${T.shadow}`, fontSize: 14, lineHeight: 1.5, color: T.text }}>
                               {isInternal && <div style={{ fontSize: 10, fontWeight: 700, color: "#8a6914", marginBottom: 4 }}>📝 NOTA INTERNA</div>}
-                              <div style={{ wordBreak: "break-word" }}>{msg.content}</div>
+                              {msg.type === "image" && msg.media_url ? (
+                                <div>
+                                  <img
+                                    src={`${API}/media/proxy?url=${encodeURIComponent(msg.media_url)}`}
+                                    alt="Imagem"
+                                    style={{ maxWidth: "100%", maxHeight: 260, borderRadius: 8, display: "block", cursor: "pointer" }}
+                                    onClick={() => window.open(`${API}/media/proxy?url=${encodeURIComponent(msg.media_url)}`, "_blank")}
+                                    onError={e => { e.target.style.display="none"; e.target.nextSibling.style.display="block"; }}
+                                  />
+                                  <div style={{ display: "none", color: "#667781", fontSize: 12 }}>🖼 {msg.content}</div>
+                                  {msg.content && msg.content !== "[Imagem]" && <div style={{ marginTop: 4, wordBreak: "break-word" }}>{msg.content}</div>}
+                                </div>
+                              ) : msg.type === "audio" && msg.media_url ? (
+                                <audio controls style={{ maxWidth: "100%", height: 36 }}>
+                                  <source src={`${API}/media/proxy?url=${encodeURIComponent(msg.media_url)}`} />
+                                  🎤 Áudio — <a href={`${API}/media/proxy?url=${encodeURIComponent(msg.media_url)}`} target="_blank" rel="noreferrer">Baixar</a>
+                                </audio>
+                              ) : (msg.type === "document" || msg.type === "video") && msg.media_url ? (
+                                <a href={`${API}/media/proxy?url=${encodeURIComponent(msg.media_url)}`} target="_blank" rel="noreferrer"
+                                   style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: isOut ? "rgba(0,0,0,0.08)" : "rgba(0,0,0,0.05)", borderRadius: 8, textDecoration: "none", color: T.text }}>
+                                  <span style={{ fontSize: 22 }}>{msg.type === "video" ? "🎥" : "📎"}</span>
+                                  <div>
+                                    <div style={{ fontWeight: 600, fontSize: 13 }}>{msg.media_filename || (msg.type === "video" ? "Vídeo" : "Documento")}</div>
+                                    <div style={{ fontSize: 11, color: "#667781" }}>Toque para baixar</div>
+                                  </div>
+                                </a>
+                              ) : (
+                                <div style={{ wordBreak: "break-word" }}>{msg.content}</div>
+                              )}
                               <div style={{ fontSize: 10, color: "#667781", marginTop: 2, textAlign: isOut ? "right" : "left" }}>{new Date(msg.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}{isOut && <span style={{ marginLeft: 4, color: "#53bdeb" }}>✓✓</span>}</div>
                             </div>
                           </div>
