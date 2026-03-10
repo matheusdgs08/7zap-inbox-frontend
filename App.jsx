@@ -1238,12 +1238,15 @@ function AdminPanel({ auth, onLogout }) {
         )}
       </div>
       {showForm && (
-        <div style={{ position: "fixed", inset: 0, background: "#00000055", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 16, padding: 28, width: 420, maxWidth: "90vw" }}>
-            <div style={{ display: "flex", alignItems: "center", marginBottom: 20 }}>
+        <div style={{ position: "fixed", inset: 0, background: "#00000055", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
+          <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 16, width: 460, maxWidth: "92vw", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
+            {/* Sticky header */}
+            <div style={{ display: "flex", alignItems: "center", padding: "20px 24px 16px 24px", borderBottom: "1px solid #e9edef", flexShrink: 0 }}>
               <span style={{ fontSize: 16, fontWeight: 700 }}>{editUser ? "Editar usuário" : "Novo usuário"}</span>
               <span onClick={() => setShowForm(false)} style={{ marginLeft: "auto", cursor: "pointer", color: "#667781", fontSize: 20 }}>×</span>
             </div>
+            {/* Scrollable body */}
+            <div style={{ overflowY: "auto", flex: 1, padding: "16px 24px" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <div><label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 5 }}>NOME</label><input value={fName} onChange={e => setFName(e.target.value)} placeholder="Nome completo" style={inp} /></div>
               <div><label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 5 }}>EMAIL</label><input type="email" value={fEmail} onChange={e => setFEmail(e.target.value)} placeholder="email@empresa.com" style={inp} /></div>
@@ -1307,11 +1310,12 @@ function AdminPanel({ auth, onLogout }) {
                   )}
                 </div>
               )}
-              <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-                <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
-                <button onClick={saveUser} disabled={saving} style={{ flex: 2, padding: "10px 0", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{saving ? "Salvando..." : (editUser ? "Salvar" : "Criar usuário")}</button>
-              </div>
             </div>
+            </div>
+            {/* Sticky footer */}
+            <div style={{ padding: "16px 24px", borderTop: "1px solid #e9edef", flexShrink: 0, display: "flex", gap: 8 }}>
+            <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
+            <button onClick={saveUser} disabled={saving} style={{ flex: 2, padding: "10px 0", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{saving ? "Salvando..." : (editUser ? "Salvar" : "Criar usuário")}</button>
           </div>
         </div>
       )}
@@ -3189,7 +3193,24 @@ function ColumnManagerModal({ columns, onChange, onClose }) {
   const [newLabel, setNewLabel] = useState("");
   const update = (id, patch) => setCols(prev => prev.map(c => c.id === id ? { ...c, ...patch } : c));
   const addCol = () => { if (!newLabel.trim()) return; setCols(prev => [...prev, { id: uid(), label: newLabel.trim(), color: PALETTE[prev.length % PALETTE.length] }]); setNewLabel(""); };
-  const save = () => { onChange(cols); saveColumns(cols); onClose(); };
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    setSaving(true);
+    try {
+      const r = await fetch(`${API_URL}/tenant/kanban-columns`, {
+        method: "PUT", headers,
+        body: JSON.stringify({ tenant_id: getTenantId(), columns: cols })
+      });
+      if (r.ok) {
+        onChange(cols);
+        saveColumns(cols); // local cache fallback
+        onClose();
+      }
+    } catch (e) {
+      onChange(cols); saveColumns(cols); onClose(); // fallback if API unreachable
+    }
+    setSaving(false);
+  };
   return (
     <div style={{ position: "fixed", inset: 0, background: "#00000055", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200 }} onClick={onClose}>
       <div onClick={e => e.stopPropagation()} onMouseDown={e => e.preventDefault()} style={{ background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 14, padding: 24, width: 420, maxHeight: "85vh", overflowY: "auto", boxShadow: "0 2px 5px #0000001a, 0 8px 20px #00000012" }}>
@@ -3222,7 +3243,7 @@ function ColumnManagerModal({ columns, onChange, onClose }) {
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={onClose} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
-          <button onClick={save} style={{ flex: 2, padding: "9px 0", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #00a884, #017561)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>💾 Salvar colunas</button>
+          <button onClick={save} disabled={saving} style={{ flex: 2, padding: "9px 0", borderRadius: 8, border: "none", background: saving ? "#e9edef" : "linear-gradient(135deg, #00a884, #017561)", color: saving ? "#667781" : "#000", fontSize: 13, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit" }}>{saving ? "Salvando..." : "💾 Salvar colunas"}</button>
         </div>
       </div>
     </div>
@@ -4352,13 +4373,23 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       try {
         const r = await fetch(`${API_URL}/whatsapp/tenant-instances?tenant_id=${getTenantId()}`, { headers });
         const d = await r.json();
-        setWaInstances(d.instances || []);
+        const all = d.instances || [];
+        // Filter by user's allowed_instances (empty = access to all)
+        const allowed = auth?.user?.allowed_instances;
+        const visible = (allowed && allowed.length > 0)
+          ? all.filter(i => allowed.includes(i.id))
+          : all;
+        setWaInstances(visible);
+        // If current instanceFilter is no longer accessible, clear it
+        if (instanceFilter && !visible.find(i => i.instance_name === instanceFilter)) {
+          selectInstance(visible[0]?.instance_name || null);
+        }
       } catch (e) {}
     };
     fetchWaStatus();
     const t = setInterval(fetchWaStatus, 30000);
     return () => clearInterval(t);
-  }, []);
+  }, [auth]);
   const fetchLabels = useCallback(async () => {
     setLabelsError("");
     try {
@@ -4627,6 +4658,11 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       setCopilotScheduleStart(d.copilot_schedule_start || "18:00");
       setCopilotScheduleEnd(d.copilot_schedule_end || "09:00");
       if (d.ai_credits !== undefined) setAiCredits({ credits: d.ai_credits, limit: d.ai_credits_limit, plan: d.plan, pct: d.ai_credits_pct, warning: d.ai_credits_pct <= 25 });
+      // Load shared kanban columns from server (overrides localStorage)
+      if (d.kanban_columns && Array.isArray(d.kanban_columns) && d.kanban_columns.length > 0) {
+        setKanbanCols(d.kanban_columns);
+        saveColumns(d.kanban_columns); // update local cache
+      }
     } catch (e) {}
   }, []);
 
