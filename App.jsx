@@ -4701,19 +4701,25 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
 
   useEffect(() => {
     if (!selected) return;
-    // Don't blank messages — keep previous visible while loading new ones
-    // This avoids the flash of empty state on every conversation switch
-    setLoadingMessages(true);
     setMessagesOffset(0);
     setHasMoreMessages(false);
     setSuggestion("");
+    // Only show skeleton if no cache — avoids piscando on every click
+    const hasCached = msgCacheRef.current[selected.id]?.messages?.length > 0;
+    if (!hasCached) setLoadingMessages(true);
     fetchMessages(selected.id, false).finally(() => {
       setLoadingMessages(false);
     });
+    // Mark as read after 1s (give time to actually view)
+    const readTimer = setTimeout(() => {
+      setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, unread_count: 0 } : c));
+      fetch(`${API_URL}/conversations/${selected.id}/read`, { method: "POST", headers }).catch(() => {});
+    }, 800);
     const t = setInterval(() => backgroundRefreshMessages(selected.id), 4000);
     return () => {
       clearInterval(t);
-      setMessages([]); // clear only when unmounting / leaving conversation
+      clearTimeout(readTimer);
+      setMessages([]);
     };
   }, [selected?.id]);
   const prevMsgCountRef = useRef(0);
@@ -5655,7 +5661,7 @@ A mensagem deve:
                     const preview = conv.last_message_preview || "";
                     return (
                     <div key={conv.id}
-                      onClick={() => { setSelected(conv); setSuggestion(""); setShowTasks(false); setNoteMode(false); if (hasUnread) { setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c)); fetch(`${API_URL}/conversations/${conv.id}/read`, { method: "POST", headers }).catch(() => {}); } }}
+                      onClick={() => { setSelected(conv); setSuggestion(""); setShowTasks(false); setNoteMode(false); }}
                       style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", cursor: "pointer", background: isSelected ? T.selected : "transparent", borderLeft: isSelected ? "3px solid #00a884" : "3px solid transparent", transition: "background 0.1s" }}>
                       {/* Avatar */}
                       <div style={{ flexShrink: 0 }}>
@@ -5781,6 +5787,19 @@ A mensagem deve:
                         }}
                         style={{ padding: "4px 8px", borderRadius: 7, border: "1px solid #d1d7db", background: "transparent", color: "#667781", fontSize: 12, cursor: "pointer", fontFamily: "inherit", fontWeight: 600, flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}>
                         🔵 Não lida
+                      </button>
+                      <button
+                        title="Bloquear contato no WhatsApp"
+                        onClick={async () => {
+                          if (!confirm(`Bloquear ${selected.contacts?.name || selected.contacts?.phone} no WhatsApp?`)) return;
+                          try {
+                            const r = await fetch(`${API_URL}/contacts/${selected.contacts?.id}/block`, { method: "POST", headers });
+                            if (r.ok) showToast("🚫 Contato bloqueado");
+                            else showToast("❌ Erro ao bloquear — verifique os logs");
+                          } catch { showToast("❌ Falha na conexão"); }
+                        }}
+                        style={{ padding: "4px 8px", borderRadius: 7, border: "1px solid #f4433644", background: "transparent", color: "#f44336", fontSize: 12, cursor: "pointer", fontFamily: "inherit", fontWeight: 600, flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}>
+                        🚫 Bloquear
                       </button>
                       <button onClick={() => setShowLabelPicker(true)} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e9edef", background: "transparent", color: "#8696a0", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>🏷 Etiqueta</button>
                       <button onClick={() => setShowAssign(true)} disabled={assigningConv} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e9edef", background: "transparent", color: assigningConv ? "#d1d7db" : "#8696a0", fontSize: 11, cursor: assigningConv ? "wait" : "pointer", fontFamily: "inherit", fontWeight: 600 }}>{assigningConv ? "⏳..." : "👤 Atribuir"}</button>
