@@ -1938,17 +1938,26 @@ function WhatsAppScreen({ auth, T, theme }) {
                               </button>
                             </>
                           )}
+                          <div style={{ fontSize: 11, color: "#667781", maxWidth: 320, textAlign: "center", lineHeight: 1.5, background: "#fff8e1", border: "1px solid #fcd34d", borderRadius: 8, padding: "8px 14px" }}>
+                            ⚠️ Mensagens <strong>novas</strong> só chegam após corrigir o webhook abaixo.
+                          </div>
                           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
                             <button onClick={async () => {
-                              const r = await fetch(`${API_URL}/whatsapp/debug-session?instance=${inst.instance_name}`, { headers });
+                              const btn = event.target; btn.disabled = true; btn.textContent = "⏳ Corrigindo...";
+                              const r = await fetch(`${API_URL}/whatsapp/fix-webhook`, {
+                                method: "POST", headers,
+                                body: JSON.stringify({ instance_name: inst.instance_name })
+                              });
                               const d = await r.json();
-                              alert(JSON.stringify(d, null, 2));
+                              if (d.webhook_ok) alert("✅ Webhook configurado!\n\nAgora envie uma mensagem de teste para +55 11 94077-4447 de outro número.");
+                              else alert("Resultado do diagnóstico:\n" + JSON.stringify(d, null, 2));
+                              btn.disabled = false; btn.textContent = "🔧 Corrigir webhook";
                             }}
-                              style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #d1d7db", background: "#f0f2f5", color: "#54656f", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>
-                              🔍 Diagnóstico
+                              style={{ padding: "9px 20px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#7c4dff,#5e35b1)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                              🔧 Corrigir webhook
                             </button>
                             <button onClick={() => { setActiveInst(null); setView("inbox"); }}
-                              style={{ padding: "8px 24px", borderRadius: 8, border: "1px solid #e9edef", background: "transparent", color: "#54656f", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                              style={{ padding: "9px 20px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#fff", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
                               → Ir para o Inbox
                             </button>
                           </div>
