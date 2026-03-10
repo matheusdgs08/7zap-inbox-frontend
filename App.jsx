@@ -1801,33 +1801,49 @@ function WhatsAppScreen({ auth, T, theme }) {
   const PLAN_LABELS = { starter: "Starter", pro: "Pro", business: "Business", trial: "Trial", enterprise: "Enterprise" };
 
   return (
-    <div style={{ flex: 1, overflowY: "auto", padding: 32 }}>
-      <div style={{ maxWidth: 760, margin: "0 auto" }}>
+    <div style={{ flex: 1, overflowY: "auto", padding: "24px 20px" }}>
+      <div style={{ maxWidth: 900, margin: "0 auto" }}>
 
         {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
           <div>
-            <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>📱 Números WhatsApp</div>
+            <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 2 }}>📱 Números WhatsApp</div>
             <div style={{ fontSize: 13, color: "#667781" }}>
-              {instances.length} de {maxNumbers} números usados · plano <span style={{ color: "#7c4dff", fontWeight: 700 }}>{PLAN_LABELS[plan]}</span>
+              plano <span style={{ color: "#7c4dff", fontWeight: 700 }}>{PLAN_LABELS[plan]}</span>
             </div>
           </div>
           {canAdd ? (
             <button onClick={() => setShowNewForm(true)}
-              style={{ padding: "9px 20px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+              style={{ padding: "9px 20px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>
               + Adicionar número
             </button>
           ) : (
-            <div style={{ padding: "9px 16px", borderRadius: 10, background: "#7c4dff15", border: "1px solid #7c4dff33", fontSize: 12, color: "#a78bfa", fontWeight: 600 }}>
-              🔒 Limite atingido · <span style={{ textDecoration: "underline", cursor: "pointer" }}>Fazer upgrade</span>
+            <div style={{ padding: "9px 16px", borderRadius: 10, background: "#7c4dff15", border: "1px solid #7c4dff33", fontSize: 12, color: "#a78bfa", fontWeight: 600, flexShrink: 0 }}>
+              🔒 Limite atingido · <span style={{ textDecoration: "underline", cursor: "pointer" }}>Upgrade</span>
             </div>
           )}
         </div>
 
-        {/* Slot limit bar */}
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ height: 4, background: "#e9edef", borderRadius: 4, overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${(instances.length/maxNumbers)*100}%`, background: instances.length >= maxNumbers ? "#f44336" : "#00a884", borderRadius: 4, transition: "width 0.4s" }} />
+        {/* Slot squares — bonito e informativo */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
+          {Array.from({ length: maxNumbers }).map((_, i) => {
+            const inst = instances[i];
+            return (
+              <div key={i} style={{
+                width: 42, height: 42, borderRadius: 10,
+                background: inst ? (inst.connected ? "linear-gradient(135deg,#00a884,#017561)" : "#f4433320") : "#f0f2f5",
+                border: inst ? (inst.connected ? "none" : "1.5px solid #f4433344") : "1.5px dashed #d1d7db",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 18, title: inst?.label || `Slot ${i+1}`,
+                cursor: "default", flexShrink: 0,
+                boxShadow: inst?.connected ? "0 2px 8px #00a88440" : "none"
+              }}>
+                {inst ? (inst.connected ? "📱" : "📵") : <span style={{ color: "#d1d7db", fontSize: 20 }}>+</span>}
+              </div>
+            );
+          })}
+          <div style={{ fontSize: 12, color: "#8696a0", marginLeft: 4 }}>
+            {instances.filter(i => i.connected).length}/{maxNumbers} conectados
           </div>
         </div>
 
@@ -1871,51 +1887,52 @@ function WhatsAppScreen({ auth, T, theme }) {
           </div>
         )}
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
+        {/* Responsive grid of instance cards */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14, marginBottom: 24 }}>
           {instances.map(inst => {
             const isActive = activeInst?.id === inst.id;
             const statusColor = inst.connected ? "#00a884" : "#f44336";
             return (
-              <div key={inst.id} style={{ background: "#ffffff", border: `1px solid ${isActive ? "#00a88444" : "#e9edef"}`, borderRadius: 14, overflow: "hidden" }}>
-                {/* Instance header row */}
-                <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 20px" }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 12, background: `${statusColor}15`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>
+              <div key={inst.id} style={{ background: "#ffffff", border: `1.5px solid ${isActive ? "#00a88455" : inst.connected ? "#00a88422" : "#e9edef"}`, borderRadius: 14, overflow: "hidden", boxShadow: isActive ? "0 4px 16px #00a88420" : inst.connected ? "0 2px 8px #00a88415" : "none", transition: "box-shadow 0.2s, border-color 0.2s" }}>
+                {/* Card header */}
+                <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 16px 12px" }}>
+                  <div style={{ width: 46, height: 46, borderRadius: 13, background: inst.connected ? "linear-gradient(135deg,#00a884,#017561)" : "#f4433318", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0, boxShadow: inst.connected ? "0 2px 8px #00a88444" : "none" }}>
                     {inst.connected ? "📱" : "📵"}
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 15, fontWeight: 700 }}>{inst.label || "Número"}</div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
-                      <span style={{ width: 7, height: 7, borderRadius: "50%", background: statusColor, display: "inline-block", animation: !inst.connected ? "pulse 1.5s infinite" : "none" }} />
-                      <span style={{ fontSize: 12, color: statusColor, fontWeight: 600 }}>
-                        {inst.connected ? (inst.phone ? `+${inst.phone}` : "Conectado") : (inst.phone ? `Desconectado — era +${inst.phone}` : "Desconectado")}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "#111b21", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{inst.label || "Número"}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: statusColor, display: "inline-block", flexShrink: 0, animation: !inst.connected ? "pulse 1.5s infinite" : "none" }} />
+                      <span style={{ fontSize: 11, color: statusColor, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {inst.connected ? (inst.phone ? `+${inst.phone}` : "Conectado") : (inst.phone ? `+${inst.phone} · offline` : "Desconectado")}
                       </span>
                     </div>
                   </div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    {inst.connected && (
-                      <button onClick={() => disconnect(inst)}
-                        style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #f4433344", background: "#f4433315", color: "#f44336", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
-                        Desconectar
-                      </button>
-                    )}
-                    {!inst.connected && (
-                      <button onClick={() => setActiveInst(isActive ? null : inst)}
-                        style={{ padding: "6px 14px", borderRadius: 8, border: `1px solid ${isActive?"#00a88444":"#d1d7db"}`, background: isActive?"#00a88415":"transparent", color: isActive?"#00a884":"#8696a0", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
-                        {isActive ? "▲ Fechar" : "▼ Conectar"}
-                      </button>
-                    )}
-                    <button onClick={() => deleteInstance(inst)} disabled={deleting === inst.id}
-                      style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #f4433344", background: "#f4433310", color: "#f44336", fontSize: 12, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>
-                      {deleting === inst.id ? "..." : "🗑 Excluir"}
+                </div>
+                {/* Card actions */}
+                <div style={{ display: "flex", gap: 6, padding: "0 16px 14px", flexWrap: "wrap" }}>
+                  {inst.connected ? (
+                    <button onClick={() => setActiveInst(isActive ? null : inst)}
+                      style={{ flex: 1, padding: "7px 0", borderRadius: 8, border: "1px solid #00a88433", background: isActive ? "#00a88415" : "transparent", color: "#00a884", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                      {isActive ? "▲ Fechar" : "⚙ Gerenciar"}
                     </button>
-                  </div>
+                  ) : (
+                    <button onClick={() => setActiveInst(isActive ? null : inst)}
+                      style={{ flex: 1, padding: "7px 0", borderRadius: 8, border: "none", background: isActive ? "#00a88415" : "linear-gradient(135deg,#00a884,#017561)", color: isActive ? "#00a884" : "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                      {isActive ? "▲ Fechar" : "📷 Conectar"}
+                    </button>
+                  )}
+                  <button onClick={() => deleteInstance(inst)} disabled={deleting === inst.id}
+                    style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid #f4433344", background: "#f4433310", color: "#f44336", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                    {deleting === inst.id ? "..." : "🗑"}
+                  </button>
                 </div>
 
                 {/* Expanded panel */}
                 {isActive && (() => {
                   /* ── CONNECTED: número online ── */
                   if (inst.connected) return (
-                    <div style={{ borderTop: "1px solid #e9edef", padding: "28px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 14, textAlign: "center" }}>
+                    <div style={{ borderTop: "1px solid #e9edef", padding: "20px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, textAlign: "center" }}>
                       {syncing && autoSyncInst?.instance_name === inst.instance_name ? (
                         <>
                           <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#00a88415", border: "2px solid #00a88444", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -2011,6 +2028,7 @@ function WhatsAppScreen({ auth, T, theme }) {
                         </>
                       )}
                     </div>
+                  </div>
                   );
 
                   /* ── DEFAULT: QR Code panel ── */
@@ -2018,25 +2036,25 @@ function WhatsAppScreen({ auth, T, theme }) {
                     <div style={{ borderTop: "1px solid #e9edef", padding: 20 }}>
                       {!inst.connected ? (
                         /* QR Code panel */
-                        <div style={{ display: "flex", gap: 32, alignItems: "flex-start", flexWrap: "wrap" }}>
-                          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
                             {qrCode ? (
-                              <div style={{ background: "#fff", padding: 16, borderRadius: 16, boxShadow: "0 0 0 6px #00a88430, 0 0 0 10px #00a88418" }}>
-                                <img src={qrCode} alt="QR Code" style={{ width: 260, height: 260, display: "block" }} />
+                              <div style={{ background: "#fff", padding: 10, borderRadius: 14, boxShadow: "0 0 0 4px #00a88430" }}>
+                                <img src={qrCode} alt="QR Code" style={{ width: 200, height: 200, display: "block" }} />
                               </div>
                             ) : (
-                              <div style={{ width: 292, height: 292, background: "#f0f2f5", border: "2px dashed #d1d7db", borderRadius: 16, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
-                                <span style={{ fontSize: 48 }}>📷</span>
-                                <span style={{ fontSize: 13, color: "#667781" }}>{loadingQr ? "Gerando QR Code..." : "Clique em Gerar QR Code"}</span>
+                              <div style={{ width: 220, height: 220, background: "#f0f2f5", border: "2px dashed #d1d7db", borderRadius: 14, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                                <span style={{ fontSize: 36 }}>📷</span>
+                                <span style={{ fontSize: 12, color: "#667781", textAlign: "center", padding: "0 16px" }}>{loadingQr ? "Gerando QR Code..." : "Clique em Gerar QR Code"}</span>
                               </div>
                             )}
                             <button onClick={() => handleGenerateQr(inst)} disabled={loadingQr}
-                              style={{ width: 292, padding: "13px 0", borderRadius: 10, border: "none", background: loadingQr ? "#e9edef" : "linear-gradient(135deg,#00a884,#017561)", color: loadingQr ? "#667781" : "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                              style={{ width: 220, padding: "11px 0", borderRadius: 9, border: "none", background: loadingQr ? "#e9edef" : "linear-gradient(135deg,#00a884,#017561)", color: loadingQr ? "#667781" : "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
                               {loadingQr ? "⏳ Gerando..." : qrCode ? "🔄 Novo QR Code" : "📷 Gerar QR Code"}
                             </button>
-                            {qrCode && <span style={{ fontSize: 11, color: "#ff6d00", fontWeight: 600 }}>⏱ QR Code expira em ~60 segundos</span>}
+                            {qrCode && <span style={{ fontSize: 11, color: "#ff6d00", fontWeight: 600 }}>⏱ Expira em ~60 segundos</span>}
                           </div>
-                          <div style={{ flex: 1, minWidth: 200 }}>
+                          <div style={{ width: "100%" }}>
                             <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: "#54656f" }}>Como conectar:</div>
                             {["Abra o WhatsApp no celular", "Menu (⋮) → Dispositivos conectados", "Toque em Adicionar dispositivo", "Aponte a câmera para o QR Code ✅"].map((step, i) => (
                               <div key={i} style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 12 }}>
@@ -2056,7 +2074,7 @@ function WhatsAppScreen({ auth, T, theme }) {
               </div>
             );
           })}
-        </div>
+        </div>{/* end grid */}
 
         {/* Info cards */}
         <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: 20 }}>
