@@ -1,14 +1,9 @@
 import SuperAdminPanel from "./AdminPanel";
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { createClient } from "@supabase/supabase-js";
 const API_URL = "https://7zap-inbox-production.up.railway.app";
-const API_KEY = import.meta.env.VITE_API_KEY || "7zap_inbox_secret";
-// Supabase — client com anon key para Realtime WebSocket
+const API_KEY = "7zap_inbox_secret";
+// Supabase OAuth — redirect direto, sem SDK
 const SUPABASE_URL = "https://raxnwyjcsplctrfcyeqs.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJheG53eWpjc3BsY3RyZmN5ZXFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MzMzNTQsImV4cCI6MjA4ODMwOTM1NH0.WYoIECuaJSEpN-25oPFRkmA6jHaRQj1Fh3jNSEsbn8k";
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  realtime: { params: { eventsPerSecond: 20 } }
-});
 const oauthRedirect = (provider) => {
   const redirectTo = encodeURIComponent(window.location.origin + "/?social_callback=1");
   window.location.href = `${SUPABASE_URL}/auth/v1/authorize?provider=${provider}&redirect_to=${redirectTo}`;
@@ -19,8 +14,8 @@ const parseOAuthHash = () => {
   const params = new URLSearchParams(hash);
   return params.get("access_token") || null;
 };
-// TENANT_ID is derived from auth at runtime — see getTenantId() below
-const getTenantId = () => { try { return JSON.parse(localStorage.getItem("7crm_auth") || "null")?.user?.tenant_id || ""; } catch { return ""; } };
+const getSupabase = () => null; // legacy compat
+const TENANT_ID = "98c38c97-2796-471f-bfc9-f093ff3ae6e9";
 const headers = { "x-api-key": API_KEY, "Content-Type": "application/json" };
 
 // Auth helpers
@@ -138,11 +133,14 @@ function Avatar({ name, size = 36, phone, instanceFilter, picUrl }) {
 
   React.useEffect(() => {
     if (picUrl) { setPhotoUrl(picUrl); _photoCache[phone] = picUrl; return; }
-    // Don't fire individual API requests for profile pics in the list —
-    // they are fetched in bulk by the backend on webhook and stored in DB.
-    // Only use in-memory cache if already loaded this session.
     if (!phone || !instanceFilter) return;
-    if (_photoCache[phone] && _photoCache[phone] !== false) { setPhotoUrl(_photoCache[phone]); return; }
+    if (_photoCache[phone]) { setPhotoUrl(_photoCache[phone]); return; }
+    if (_photoCache[phone] === false) return; // already tried, no pic
+    _photoCache[phone] = false; // mark as in-flight
+    fetch(`${API_URL}/contacts/profile-picture?phone=${encodeURIComponent(phone)}&instance=${encodeURIComponent(instanceFilter)}`, { headers })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.url) { _photoCache[phone] = d.url; setPhotoUrl(d.url); } })
+      .catch(() => {});
   }, [phone, instanceFilter, picUrl]);
 
   if (photoUrl) return (
@@ -549,7 +547,7 @@ function LoginScreen({ onLogin }) {
   };
 
   const box = { width: 400, padding: "40px 36px", background: "#ffffff", border: "1px solid #e9edef", borderRadius: 20, boxShadow: "0 2px 5px #0000001a, 0 8px 20px #00000012" };
-  const wrap = { display: "flex", minHeight: "100vh", width: "100vw", background: "#f0f2f5", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans','Segoe UI',sans-serif", padding: "20px 0", boxSizing: "border-box" };
+  const wrap = { display: "flex", height: "100vh", width: "100vw", background: "#f0f2f5", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans','Segoe UI',sans-serif" };
 
   // ── TELA RESET ──
   if (screen === "reset") return (
@@ -1073,159 +1071,6 @@ function LicensesPanel({ aHeaders, showToast }) {
   );
 }
 
-// ─── Diagnostics Panel ────────────────────────────────────────────────────────
-const DIAG_API = "https://7zap-inbox-production.up.railway.app";
-const DIAG_KEY = "7zap_inbox_secret";
-const DIAG_TENANT = "98c38c97-2796-471f-bfc9-f093ff3ae6e9";
-const DIAG_REFRESH = 15;
-const DC = { bg:"#0a0e17",surface:"#111827",card:"#141c2e",border:"#1e2d45",ok:"#00e5a0",warn:"#f59e0b",err:"#ff4569",blue:"#3b82f6",purple:"#a855f7",text:"#e2e8f0",text2:"#64748b",text3:"#94a3b8" };
-
-function diagAgo(isoStr) { if(!isoStr) return "—"; const s=Math.floor((Date.now()-new Date(isoStr).getTime())/1000); if(s<60) return `${s}s atrás`; if(s<3600) return `${Math.floor(s/60)}min atrás`; if(s<86400) return `${Math.floor(s/3600)}h atrás`; return `${Math.floor(s/86400)}d atrás`; }
-function diagFmtTime(isoStr) { if(!isoStr) return "—"; return new Date(isoStr).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"}); }
-
-function DiagPill({ ok, children }) {
-  const color = ok===true ? DC.ok : ok===false ? DC.err : DC.warn;
-  return <span style={{display:"inline-flex",alignItems:"center",gap:5,padding:"2px 10px",borderRadius:20,background:color+"18",border:`1px solid ${color}44`,color,fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}><span style={{width:6,height:6,borderRadius:"50%",background:color,flexShrink:0}}/>{children}</span>;
-}
-function DiagCard({ title, icon, children, accent, extra }) {
-  return <div style={{background:DC.card,border:`1px solid ${DC.border}`,borderRadius:14,overflow:"hidden",boxShadow:"0 4px 24px #00000040"}}><div style={{display:"flex",alignItems:"center",gap:10,padding:"14px 18px",borderBottom:`1px solid ${DC.border}`,background:`linear-gradient(135deg,${(accent||DC.blue)}11,transparent)`}}><span style={{fontSize:18}}>{icon}</span><span style={{fontWeight:700,fontSize:14,color:DC.text,flex:1}}>{title}</span>{extra}</div><div style={{padding:"16px 18px"}}>{children}</div></div>;
-}
-function DiagRow({ label, value, ok, mono }) {
-  return <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${DC.border}30`}}><span style={{color:DC.text2,fontSize:12}}>{label}</span><span style={{color:ok===true?DC.ok:ok===false?DC.err:DC.text3,fontSize:12,fontWeight:600,fontFamily:mono?"monospace":"inherit"}}>{value}</span></div>;
-}
-function DiagFlowStep({ step, index }) {
-  const color = step.ok ? DC.ok : DC.err;
-  return <div style={{display:"flex",alignItems:"flex-start",gap:12,padding:"10px 0"}}><div style={{display:"flex",flexDirection:"column",alignItems:"center",width:24,flexShrink:0}}>{index>0&&<div style={{width:2,height:10,background:DC.border,marginBottom:2}}/>}<div style={{width:24,height:24,borderRadius:"50%",background:color+"22",border:`2px solid ${color}`,display:"flex",alignItems:"center",justifyContent:"center",color,fontSize:11,fontWeight:900}}>{step.ok?"✓":"✗"}</div></div><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:DC.text}}>{step.step}</div>{step.detail&&<div style={{fontSize:11,color:DC.text2,marginTop:2}}>{step.detail}</div>}</div></div>;
-}
-function DiagSessionCard({ s }) {
-  const accent = s.session_ok ? DC.ok : DC.err;
-  const checks = [
-    {label:"WhatsApp WORKING",ok:s.status_ok},{label:"Engine NOWEB",ok:true, info:true},
-    {label:"Webhook → backend",ok:s.webhook_points_to_backend},{label:"Endpoint correto",ok:s.webhook_correct_endpoint},
-    {label:"Auth key ok",ok:s.webhook_auth_ok},{label:"Mensagens no banco",ok:!!s.last_db_message_at},
-  ];
-  return <div style={{background:DC.surface,border:`1px solid ${s.session_ok?DC.ok+"33":DC.err+"33"}`,borderRadius:12,padding:"14px 16px",marginBottom:10}}>
-    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
-      <div style={{width:36,height:36,borderRadius:"50%",background:`linear-gradient(135deg,${accent}22,${accent}44)`,border:`2px solid ${accent}66`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>📱</div>
-      <div style={{flex:1}}><div style={{fontWeight:700,fontSize:13,color:DC.text}}>{s.push_name||s.phone||s.name}</div><div style={{fontSize:11,color:DC.text2,fontFamily:"monospace"}}>{s.name}</div></div>
-      <DiagPill ok={s.status_ok}>{s.status}</DiagPill>
-    </div>
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
-      {checks.map(ch=><div key={ch.label} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 8px",background:ch.info?"#ffffff08":ch.ok?DC.ok+"0d":DC.err+"0d",border:`1px solid ${ch.info?"#ffffff22":ch.ok?DC.ok:DC.err}22`,borderRadius:7}}>
-        <span style={{color:ch.info?"#888":ch.ok?DC.ok:DC.err,fontSize:11,fontWeight:900}}>{ch.info?"ℹ":ch.ok?"✓":"✗"}</span>
-        <span style={{fontSize:11,color:DC.text2}}>{ch.label}</span>
-      </div>)}
-    </div>
-    <div style={{marginTop:10,padding:"8px 10px",background:"#ffffff08",borderRadius:8}}>
-      <div style={{fontSize:10,color:DC.text2,marginBottom:3}}>WEBHOOK URL</div>
-      <div style={{fontSize:11,fontFamily:"monospace",color:s.webhook_correct_endpoint?DC.ok:DC.err,wordBreak:"break-all"}}>{s.webhook_url||"Não configurado"}</div>
-    </div>
-    {s.last_db_message_at&&<div style={{marginTop:8,fontSize:11,color:DC.text2}}>Última mensagem no banco: <span style={{color:DC.ok}}>{diagAgo(s.last_db_message_at)}</span></div>}
-  </div>;
-}
-
-function DiagnosticsPanel() {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [lastFetch, setLastFetch] = useState(null);
-  const [countdown, setCountdown] = useState(DIAG_REFRESH);
-  const [log, setLog] = useState([]);
-  const countRef = useRef(DIAG_REFRESH);
-
-  const addLog = useCallback((msg, type="info") => {
-    setLog(prev => [{id:Date.now(),msg,type,time:new Date().toLocaleTimeString("pt-BR")},...prev].slice(0,50));
-  }, []);
-
-  const fetchDiag = useCallback(async () => {
-    setLoading(true);
-    try {
-      const r = await fetch(`${DIAG_API}/health/diagnostics?tenant_id=${DIAG_TENANT}`, {headers:{"x-api-key":DIAG_KEY}});
-      const d = await r.json();
-      setData(d); setLastFetch(new Date()); setError(null);
-      countRef.current = DIAG_REFRESH; setCountdown(DIAG_REFRESH);
-      if (d.flow?.all_ok) { addLog("✅ Todos os sistemas OK","ok"); }
-      else { (d.flow?.steps||[]).filter(s=>!s.ok).forEach(s=>addLog(`❌ ${s.step}: ${s.detail||"falhou"}`,"err")); }
-      if ((d.database?.recent_messages_5min||0)>0) addLog(`📨 ${d.database.recent_messages_5min} mensagem(ns) nos últimos 5min`,"ok");
-    } catch(e) { setError(e.message); addLog(`🔴 Erro: ${e.message}`,"err"); }
-    setLoading(false);
-  }, [addLog]);
-
-  useEffect(() => {
-    fetchDiag();
-    const iv = setInterval(() => { countRef.current -= 1; setCountdown(countRef.current); if(countRef.current<=0) fetchDiag(); }, 1000);
-    return () => clearInterval(iv);
-  }, [fetchDiag]);
-
-  const db = data?.database||{}; const waha = data?.waha||{}; const flow = data?.flow||{}; const allOk = flow.all_ok;
-
-  return <div style={{background:DC.bg,minHeight:"100%",fontFamily:"'DM Mono','JetBrains Mono','Fira Code',monospace",color:DC.text,paddingBottom:40,overflowY:"auto"}}>
-    {/* header */}
-    <div style={{padding:"20px 24px 18px",borderBottom:`1px solid ${DC.border}`,background:`linear-gradient(180deg,${DC.surface} 0%,${DC.bg} 100%)`,position:"sticky",top:0,zIndex:10}}>
-      <div style={{display:"flex",alignItems:"center",gap:14}}>
-        <div style={{width:40,height:40,borderRadius:10,background:`linear-gradient(135deg,${allOk?DC.ok:DC.err}33,${allOk?DC.ok:DC.err}11)`,border:`1.5px solid ${allOk?DC.ok:DC.err}66`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>{loading?"⏳":allOk?"⚡":"🔴"}</div>
-        <div style={{flex:1}}><div style={{fontWeight:800,fontSize:17,letterSpacing:"-0.5px"}}>7CRM Diagnostics</div><div style={{fontSize:11,color:DC.text2,marginTop:1}}>WAHA → Webhook → Backend → Supabase</div></div>
-        <div style={{textAlign:"right"}}><DiagPill ok={allOk}>{allOk?"TUDO OK":"ATENÇÃO"}</DiagPill><div style={{fontSize:10,color:DC.text2,marginTop:4}}>{lastFetch?`atualizado ${diagFmtTime(lastFetch.toISOString())}`:"carregando..."} · refresh em {countdown}s</div></div>
-        <button onClick={fetchDiag} style={{padding:"8px 16px",borderRadius:8,border:`1px solid ${DC.border}`,background:DC.surface,color:DC.text,cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit"}}>↻ Refresh</button>
-      </div>
-    </div>
-
-    <div style={{padding:"20px 24px",maxWidth:900,margin:"0 auto"}}>
-      {error&&<div style={{background:DC.err+"18",border:`1px solid ${DC.err}44`,borderRadius:10,padding:"12px 16px",marginBottom:20,color:DC.err,fontSize:13}}>⚠️ {error}</div>}
-
-      {/* stats */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
-        {[{label:"Msgs 5min",value:db.recent_messages_5min??"—",ok:(db.recent_messages_5min||0)>0,icon:"📨"},{label:"Msgs 1h",value:db.recent_messages_1h??"—",ok:(db.recent_messages_1h||0)>0,icon:"📬"},{label:"Msgs 24h",value:db.recent_messages_24h??"—",ok:(db.recent_messages_24h||0)>0,icon:"📭"},{label:"Conversas",value:db.total_conversations??"—",ok:true,icon:"💬"}].map(s=>(
-          <div key={s.label} style={{background:DC.card,border:`1px solid ${DC.border}`,borderRadius:12,padding:"14px 16px",boxShadow:"0 2px 12px #00000030"}}>
-            <div style={{fontSize:20,marginBottom:8}}>{s.icon}</div>
-            <div style={{fontSize:22,fontWeight:800,color:s.ok?DC.ok:DC.text3}}>{s.value}</div>
-            <div style={{fontSize:11,color:DC.text2,marginTop:2}}>{s.label}</div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
-        <DiagCard title="Fluxo de Mensagem" icon="🔄" accent={allOk?DC.ok:DC.err}>
-          {(flow.steps||[]).map((step,i)=><DiagFlowStep key={step.step} step={step} index={i}/>)}
-          {!data&&<div style={{color:DC.text2,fontSize:12,textAlign:"center",padding:"20px 0"}}>Carregando...</div>}
-        </DiagCard>
-        <DiagCard title="Banco de Dados" icon="🗄️" accent={DC.purple}>
-          <DiagRow label="Status" value={db.ok?"Conectado":"Erro"} ok={db.ok}/>
-          <DiagRow label="Última mensagem" value={diagAgo(db.last_message_at)} ok={!!db.last_message_at}/>
-          <DiagRow label="Horário" value={diagFmtTime(db.last_message_at)} mono/>
-          <DiagRow label="Direção" value={db.last_message_direction||"—"}/>
-          <DiagRow label="Total conversas" value={db.total_conversations??"—"}/>
-          <DiagRow label="Msgs últimos 5min" value={db.recent_messages_5min??"—"} ok={(db.recent_messages_5min||0)>0}/>
-          <DiagRow label="Msgs última 1h" value={db.recent_messages_1h??"—"} ok={(db.recent_messages_1h||0)>0}/>
-          {db.last_message_ago_seconds!=null&&<div style={{marginTop:12,padding:"8px 10px",background:db.last_message_ago_seconds<300?DC.ok+"0d":DC.warn+"0d",borderRadius:8,border:`1px solid ${db.last_message_ago_seconds<300?DC.ok:DC.warn}22`}}><span style={{fontSize:11,color:db.last_message_ago_seconds<300?DC.ok:DC.warn}}>⏱ Última mensagem há {db.last_message_ago_seconds}s{db.last_message_ago_seconds>3600?" — nenhuma mensagem recente!":""}</span></div>}
-        </DiagCard>
-      </div>
-
-      <DiagCard title={`WAHA — ${waha.sessions?.length||0} sessão(ões)`} icon="📡" accent={DC.blue}
-        extra={<div style={{display:"flex",gap:8,alignItems:"center"}}>{waha.version&&<span style={{fontSize:10,color:DC.text2}}>v{waha.version} · {waha.engine_default}</span>}<DiagPill ok={waha.ok}>{waha.ok?"Acessível":"Erro"}</DiagPill></div>}
-      >
-        {waha.error&&<div style={{color:DC.err,fontSize:12,marginBottom:12}}>⚠️ {waha.error}</div>}
-        {(waha.sessions||[]).map(s=><DiagSessionCard key={s.name} s={s}/>)}
-        {(!waha.sessions||waha.sessions.length===0)&&!loading&&<div style={{color:DC.text2,fontSize:12,textAlign:"center",padding:"20px 0"}}>Nenhuma sessão encontrada para este tenant</div>}
-      </DiagCard>
-
-      <div style={{marginTop:16}}>
-        <DiagCard title="Log em Tempo Real" icon="📋" accent={DC.text2}>
-          <div style={{maxHeight:200,overflowY:"auto",display:"flex",flexDirection:"column",gap:2}}>
-            {log.length===0&&<div style={{color:DC.text2,fontSize:11}}>Aguardando eventos...</div>}
-            {log.map(e=><div key={e.id} style={{display:"flex",gap:10,fontSize:11,padding:"3px 0"}}><span style={{color:DC.text2,flexShrink:0,fontFamily:"monospace"}}>{e.time}</span><span style={{color:e.type==="ok"?DC.ok:e.type==="err"?DC.err:DC.text3}}>{e.msg}</span></div>)}
-          </div>
-        </DiagCard>
-      </div>
-
-      <details style={{marginTop:12}}>
-        <summary style={{cursor:"pointer",fontSize:11,color:DC.text2,padding:"8px 0"}}>Ver JSON bruto</summary>
-        <pre style={{background:DC.surface,border:`1px solid ${DC.border}`,borderRadius:10,padding:16,fontSize:10,color:DC.text3,overflowX:"auto",marginTop:8,maxHeight:400,overflowY:"auto"}}>{JSON.stringify(data,null,2)}</pre>
-      </details>
-    </div>
-  </div>;
-}
-
 // ─── Admin Panel ──────────────────────────────────────────────────────────────
 function AdminPanel({ auth, onLogout }) {
   const [tab, setTab] = useState("users");
@@ -1239,7 +1084,7 @@ function AdminPanel({ auth, onLogout }) {
   const [availableInstances, setAvailableInstances] = useState([]);
 
   useEffect(() => {
-    fetch(`${API_URL}/whatsapp/tenant-instances?tenant_id=${getTenantId()}`, { headers: aHeaders })
+    fetch(`${API_URL}/whatsapp/tenant-instances?tenant_id=${TENANT_ID}`, { headers: aHeaders })
       .then(r => r.json()).then(d => setAvailableInstances(d.instances || [])).catch(() => {});
   }, []);
   const [showChangePw, setShowChangePw] = useState(false); const [curPw, setCurPw] = useState(""); const [newPw, setNewPw] = useState(""); const [changingPw, setChangingPw] = useState(false);
@@ -1388,13 +1233,13 @@ function AdminPanel({ auth, onLogout }) {
         )}
       </div>
       {showForm && (
-        <div style={{ position: "fixed", inset: 0, background: "#00000055", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
-          <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 16, width: 460, maxWidth: "92vw", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", alignItems: "center", padding: "20px 24px 16px 24px", borderBottom: "1px solid #e9edef", flexShrink: 0 }}>
+        <div style={{ position: "fixed", inset: 0, background: "#00000055", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 16, padding: 28, width: 420, maxWidth: "90vw" }}>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 20 }}>
               <span style={{ fontSize: 16, fontWeight: 700 }}>{editUser ? "Editar usuário" : "Novo usuário"}</span>
               <span onClick={() => setShowForm(false)} style={{ marginLeft: "auto", cursor: "pointer", color: "#667781", fontSize: 20 }}>×</span>
             </div>
-            <div style={{ overflowY: "auto", flex: 1, padding: "16px 24px", display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <div><label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 5 }}>NOME</label><input value={fName} onChange={e => setFName(e.target.value)} placeholder="Nome completo" style={inp} /></div>
               <div><label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 5 }}>EMAIL</label><input type="email" value={fEmail} onChange={e => setFEmail(e.target.value)} placeholder="email@empresa.com" style={inp} /></div>
               <div><label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 5 }}>{editUser ? "NOVA SENHA (vazio = não alterar)" : "SENHA"}</label><input type="password" value={fPw} onChange={e => setFPw(e.target.value)} placeholder="••••••••" style={inp} /></div>
@@ -1424,10 +1269,10 @@ function AdminPanel({ auth, onLogout }) {
                   ))}
                 </div>
               </div>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 8 }}>COR DO AVATAR</label>
+              <div><label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 8 }}>COR DO AVATAR</label>
                 <div style={{ display: "flex", gap: 8 }}>{COLORS.map(c => <div key={c} onClick={() => setFColor(c)} style={{ width: 28, height: 28, borderRadius: "50%", background: c, cursor: "pointer", border: fColor === c ? "3px solid #fff" : "3px solid transparent", boxSizing: "border-box" }} />)}</div>
               </div>
+              {/* Instance access — only show if there are instances */}
               {availableInstances.length > 0 && fRole !== "admin" && (
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 4 }}>ACESSO AOS NÚMEROS</label>
@@ -1457,10 +1302,10 @@ function AdminPanel({ auth, onLogout }) {
                   )}
                 </div>
               )}
-            </div>
-            <div style={{ padding: "16px 24px", borderTop: "1px solid #e9edef", flexShrink: 0, display: "flex", gap: 8 }}>
-              <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
-              <button onClick={saveUser} disabled={saving} style={{ flex: 2, padding: "10px 0", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{saving ? "Salvando..." : (editUser ? "Salvar" : "Criar usuário")}</button>
+              <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
+                <button onClick={saveUser} disabled={saving} style={{ flex: 2, padding: "10px 0", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{saving ? "Salvando..." : (editUser ? "Salvar" : "Criar usuário")}</button>
+              </div>
             </div>
           </div>
         </div>
@@ -1493,7 +1338,7 @@ function OnboardingView({ auth, aiCredits }) {
     try {
       const r = await fetch(`${API_URL}/onboarding/analyze`, {
         method: "POST", headers,
-        body: JSON.stringify({ tenant_id: getTenantId(), days })
+        body: JSON.stringify({ tenant_id: TENANT_ID, days })
       });
       const d = await r.json();
       clearInterval(progressInterval);
@@ -1731,6 +1576,7 @@ function WhatsAppScreen({ auth, T, theme }) {
   const [qrCode, setQrCode] = useState("");
   const [loadingQr, setLoadingQr] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
   const [newLabel, setNewLabel] = useState("");
   const [showNewForm, setShowNewForm] = useState(false);
   const [deleting, setDeleting] = useState(null);
@@ -1742,6 +1588,7 @@ function WhatsAppScreen({ auth, T, theme }) {
   const [syncProgress, setSyncProgress] = useState(0);
   const [autoSyncInst, setAutoSyncInst] = useState(null); // inst that triggered auto-sync
   const [syncPhase, setSyncPhase] = useState("idle"); // idle | connecting | syncing | done | error
+  const syncJobRef = useRef(null);
   const qrPollRef = useRef(null); // polling interval while QR is displayed
 
   const [instancesLoading, setInstancesLoading] = useState(true);
@@ -1749,7 +1596,7 @@ function WhatsAppScreen({ auth, T, theme }) {
   const fetchInstances = async (showLoading = false) => {
     if (showLoading) setInstancesLoading(true);
     try {
-      const r = await fetch(`${API_URL}/whatsapp/tenant-instances?tenant_id=${getTenantId()}`, { headers });
+      const r = await fetch(`${API_URL}/whatsapp/tenant-instances?tenant_id=${TENANT_ID}`, { headers });
       const d = await r.json();
       setInstances(d.instances || []);
       setMaxNumbers(d.max_numbers || 1);
@@ -1782,13 +1629,13 @@ function WhatsAppScreen({ auth, T, theme }) {
     setSyncPhase("syncing");
     fetch(`${API_URL}/whatsapp/sync`, {
       method: "POST", headers,
-      body: JSON.stringify({ tenant_id: getTenantId(), instance: inst.instance_name, async: true })
+      body: JSON.stringify({ tenant_id: TENANT_ID, instance: inst.instance_name, async: true })
     }).then(r => r.json()).then(d => {
       if (d.job_id) {
         setSyncProgress(10);
         const poll = setInterval(async () => {
           try {
-            const sr = await fetch(`${API_URL}/whatsapp/sync-status?job_id=${d.job_id}`, { headers });
+            const sr = await fetch(`${API_URL}/whatsapp/sync/status?job_id=${d.job_id}`, { headers });
             const sd = await sr.json();
             if (sd.progress) setSyncProgress(Math.min(sd.progress, 95));
             if (sd.status === "done" || sd.status === "error") {
@@ -1858,9 +1705,9 @@ function WhatsAppScreen({ auth, T, theme }) {
   // Cleanup QR poll on unmount
   useEffect(() => () => { if (qrPollRef.current) clearInterval(qrPollRef.current); }, []);
 
-  // Called when user clicks "Gerar QR Code" — só pede confirmação se está WORKING (conectado)
+  // Called when user clicks "Gerar QR Code" — soft-locks if inst already has a phone
   const handleGenerateQr = (inst) => {
-    if (inst.phone && inst.status === "WORKING") {
+    if (inst.phone) {
       setConfirmPhone({ inst, value: "" });
     } else {
       fetchQr(inst.instance_name);
@@ -1873,7 +1720,7 @@ function WhatsAppScreen({ auth, T, theme }) {
     try {
       const r = await fetch(`${API_URL}/whatsapp/create-instance`, {
         method: "POST", headers,
-        body: JSON.stringify({ tenant_id: getTenantId(), label: newLabel.trim() })
+        body: JSON.stringify({ tenant_id: TENANT_ID, label: newLabel.trim() })
       });
       const d = await r.json();
       if (d.ok) {
@@ -1899,7 +1746,7 @@ function WhatsAppScreen({ auth, T, theme }) {
     try {
       await fetch(`${API_URL}/whatsapp/delete-instance`, {
         method: "DELETE", headers,
-        body: JSON.stringify({ tenant_id: getTenantId(), instance_id: inst.id, instance_name: inst.instance_name, delete_history: true })
+        body: JSON.stringify({ tenant_id: TENANT_ID, instance_id: inst.id, instance_name: inst.instance_name, delete_history: true })
       });
       if (activeInst?.id === inst.id) setActiveInst(null);
       fetchInstances();
@@ -1909,6 +1756,8 @@ function WhatsAppScreen({ auth, T, theme }) {
 
   const disconnect = async (inst) => {
     if (!window.confirm(`Desconectar "${inst.label}"? O número ficará offline mas o histórico é mantido.`)) return;
+    setDisconnecting(true);
+    showToast("Desconectando...", "#ff9800", true);
     try {
       await fetch(`${API_URL}/whatsapp/disconnect`, {
         method: "POST", headers,
@@ -1916,7 +1765,9 @@ function WhatsAppScreen({ auth, T, theme }) {
       });
       fetchInstances();
       setActiveInst(prev => prev?.id === inst.id ? { ...prev, connected: false, phone: "" } : prev);
-    } catch(e) {}
+      showToast("✓ Número desconectado");
+    } catch(e) { showToast("❌ Erro ao desconectar", "#f44336"); }
+    setDisconnecting(false);
   };
 
   const syncHistory = async (inst) => {
@@ -1924,14 +1775,14 @@ function WhatsAppScreen({ auth, T, theme }) {
     try {
       const r = await fetch(`${API_URL}/whatsapp/sync`, {
         method: "POST", headers,
-        body: JSON.stringify({ tenant_id: getTenantId(), instance: inst.instance_name, async: true })
+        body: JSON.stringify({ tenant_id: TENANT_ID, instance: inst.instance_name, async: true })
       });
       const d = await r.json();
       if (d.job_id) {
         setSyncProgress(10);
         const poll = setInterval(async () => {
           try {
-            const sr = await fetch(`${API_URL}/whatsapp/sync-status?job_id=${d.job_id}`, { headers });
+            const sr = await fetch(`${API_URL}/whatsapp/sync/status?job_id=${d.job_id}`, { headers });
             const sd = await sr.json();
             if (sd.progress) setSyncProgress(Math.min(sd.progress, 95));
             if (sd.status === "done" || sd.status === "error") {
@@ -2352,7 +2203,7 @@ function WhatsAppScreen({ auth, T, theme }) {
 // ─── Leads Board (por etiqueta) ───────────────────────────────────────────────
 
 // ─── Broadcasts / Disparos View ──────────────────────────────────────────────
-function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFilter, instances, tenantId }) {
+function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFilter, instances }) {
   const [tab, setTab] = useState("new"); // new | queue | scheduled
   const [broadcasts, setBroadcasts] = useState([]);
   const [scheduledMsgs, setScheduledMsgs] = useState([]);
@@ -2394,7 +2245,7 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
   const fetchBroadcasts = async () => {
     setLoading(true);
     try {
-      const r = await fetch(`${API_URL}/broadcasts?tenant_id=${getTenantId()}`, { headers });
+      const r = await fetch(`${API_URL}/broadcasts?tenant_id=${TENANT_ID}`, { headers });
       const d = await r.json();
       setBroadcasts(d.broadcasts || []);
     } catch (e) {}
@@ -2402,7 +2253,7 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
   };
   const fetchScheduled = async () => {
     try {
-      const r = await fetch(`${API_URL}/scheduled-messages?tenant_id=${getTenantId()}`, { headers });
+      const r = await fetch(`${API_URL}/scheduled-messages?tenant_id=${TENANT_ID}`, { headers });
       const d = await r.json();
       setScheduledMsgs(d.scheduled_messages || []);
     } catch (e) {}
@@ -2443,7 +2294,7 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
     if (!aiObjective.trim() || loadingAI) return;
     setLoadingAI(true);
     try {
-      const r = await fetch(`${API_URL}/broadcasts/suggest-message`, { method: "POST", headers, body: JSON.stringify({ tenant_id: getTenantId(), objective: aiObjective }) });
+      const r = await fetch(`${API_URL}/broadcasts/suggest-message`, { method: "POST", headers, body: JSON.stringify({ tenant_id: TENANT_ID, objective: aiObjective }) });
       const d = await r.json();
       setBMessage(d.suggestion || "");
     } catch (e) {}
@@ -2461,7 +2312,7 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
     setCreating(true);
     try {
       await fetch(`${API_URL}/broadcasts`, { method: "POST", headers, body: JSON.stringify({
-        tenant_id: getTenantId(), name: bName, message: bMessage || "(IA personaliza)",
+        tenant_id: TENANT_ID, name: bName, message: bMessage || "(IA personaliza)",
         interval_min: bIntervalMin, interval_max: bIntervalMax,
         scheduled_at: bScheduledAt || null, recipients: recs,
         ai_personalize: bAiPersonalize
@@ -2485,7 +2336,7 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
     setCreatingSched(true);
     try {
       await fetch(`${API_URL}/scheduled-messages`, { method: "POST", headers, body: JSON.stringify({
-        tenant_id: getTenantId(), contact_phone: sPhone.replace(/\D/g, ""), contact_name: sName,
+        tenant_id: TENANT_ID, contact_phone: sPhone.replace(/\D/g, ""), contact_name: sName,
         message: sMessage, scheduled_at: sDate, recurrence: sRecurrence || null,
         conversation_id: sConvId || null
       })});
@@ -2858,7 +2709,7 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
 }
 
 // ─── Global Tasks View ───────────────────────────────────────────────────────
-function GlobalTasksView({ pendingTasksMap, conversations, agents, onSelectConv, onRefresh, tenantId }) {
+function GlobalTasksView({ pendingTasksMap, conversations, agents, onSelectConv, onRefresh }) {
   const [tab, setTab] = useState("open"); // "open" | "done"
   const [openTasks, setOpenTasks] = useState([]);
   const [doneTasks, setDoneTasks] = useState([]);
@@ -2869,14 +2720,14 @@ function GlobalTasksView({ pendingTasksMap, conversations, agents, onSelectConv,
 
   const fetchOpen = async () => {
     try {
-      const r = await fetch(`${API_URL}/tasks?tenant_id=${getTenantId()}`, { headers });
+      const r = await fetch(`${API_URL}/tasks?tenant_id=${TENANT_ID}`, { headers });
       const d = await r.json();
       setOpenTasks((d.tasks || []).filter(t => !t.done));
     } catch (e) {}
   };
   const fetchDone = async () => {
     try {
-      const r = await fetch(`${API_URL}/tasks/completed?tenant_id=${getTenantId()}&days=7`, { headers });
+      const r = await fetch(`${API_URL}/tasks/completed?tenant_id=${TENANT_ID}&days=7`, { headers });
       const d = await r.json();
       setDoneTasks(d.tasks || []);
     } catch (e) {}
@@ -3240,7 +3091,7 @@ function TaskDetailModal({ task, agents, onClose, onComplete }) {
 }
 
 // ─── Tasks Panel ──────────────────────────────────────────────────────────────
-function TasksPanel({ convId, agents, onClose, onTaskDone, tenantId }) {
+function TasksPanel({ convId, agents, onClose, onTaskDone }) {
   const T = { border: "#e9edef", card: "#ffffff", bg: "#f0f2f5", text: "#111b21", text2: "#667781", input: "#ffffff", hover: "#f5f6f6", app: "#f0f2f5" };
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -3254,7 +3105,7 @@ function TasksPanel({ convId, agents, onClose, onTaskDone, tenantId }) {
   const fetchTasks = async () => {
     try {
       // Try conversation-scoped endpoint first, fallback to /tasks filtered
-      const r = await fetch(`${API_URL}/tasks?tenant_id=${getTenantId()}&conversation_id=${convId}`, { headers });
+      const r = await fetch(`${API_URL}/tasks?tenant_id=${TENANT_ID}&conversation_id=${convId}`, { headers });
       if (r.ok) {
         const d = await r.json();
         const list = d.tasks || d || [];
@@ -3269,7 +3120,7 @@ function TasksPanel({ convId, agents, onClose, onTaskDone, tenantId }) {
     setCreating(true);
     setTaskError("");
     try {
-      const payload = { tenant_id: getTenantId(), conversation_id: convId, title: title.trim(), description: description.trim() || null, assigned_to: assignedTo || null, due_at: dueAt || null };
+      const payload = { tenant_id: TENANT_ID, conversation_id: convId, title: title.trim(), description: description.trim() || null, assigned_to: assignedTo || null, due_at: dueAt || null };
       const resp = await fetch(`${API_URL}/tasks`, { method: "POST", headers, body: JSON.stringify(payload) });
       if (resp.ok) {
         setTitle(""); setDescription(""); setDueAt(""); setAssignedTo("");
@@ -3332,38 +3183,14 @@ function TasksPanel({ convId, agents, onClose, onTaskDone, tenantId }) {
 }
 
 // ─── Column Manager ───────────────────────────────────────────────────────────
-function ColumnManagerModal({ columns, onChange, onClose, token }) {
+function ColumnManagerModal({ columns, onChange, onClose }) {
   const [cols, setCols] = useState(columns.map(c => ({ ...c })));
   const [editingId, setEditingId] = useState(null);
   const [pickingColorFor, setPickingColorFor] = useState(null);
   const [newLabel, setNewLabel] = useState("");
   const update = (id, patch) => setCols(prev => prev.map(c => c.id === id ? { ...c, ...patch } : c));
   const addCol = () => { if (!newLabel.trim()) return; setCols(prev => [...prev, { id: uid(), label: newLabel.trim(), color: PALETTE[prev.length % PALETTE.length] }]); setNewLabel(""); };
-  const [saving, setSaving] = useState(false);
-  const save = async () => {
-    setSaving(true);
-    const tok = token || localStorage.getItem("7crm_token");
-    try {
-      const r = await fetch(`${API_URL}/tenant/kanban-columns`, {
-        method: "PUT",
-        headers: { ...headers, ...(tok ? { "Authorization": `Bearer ${tok}` } : {}) },
-        body: JSON.stringify({ tenant_id: getTenantId(), columns: cols })
-      });
-      if (r.ok) {
-        onChange(cols);
-        saveColumns(cols);
-        onClose();
-      } else {
-        const err = await r.json().catch(() => ({}));
-        console.error("Kanban save error:", r.status, err);
-        // fallback: save locally anyway
-        onChange(cols); saveColumns(cols); onClose();
-      }
-    } catch (e) {
-      onChange(cols); saveColumns(cols); onClose();
-    }
-    setSaving(false);
-  };
+  const save = () => { onChange(cols); saveColumns(cols); onClose(); };
   return (
     <div style={{ position: "fixed", inset: 0, background: "#00000055", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200 }} onClick={onClose}>
       <div onClick={e => e.stopPropagation()} onMouseDown={e => e.preventDefault()} style={{ background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 14, padding: 24, width: 420, maxHeight: "85vh", overflowY: "auto", boxShadow: "0 2px 5px #0000001a, 0 8px 20px #00000012" }}>
@@ -3396,7 +3223,7 @@ function ColumnManagerModal({ columns, onChange, onClose, token }) {
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={onClose} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
-          <button onClick={save} disabled={saving} style={{ flex: 2, padding: "9px 0", borderRadius: 8, border: "none", background: saving ? "#e9edef" : "linear-gradient(135deg, #00a884, #017561)", color: saving ? "#667781" : "#000", fontSize: 13, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit" }}>{saving ? "Salvando..." : "💾 Salvar colunas"}</button>
+          <button onClick={save} style={{ flex: 2, padding: "9px 0", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #00a884, #017561)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>💾 Salvar colunas</button>
         </div>
       </div>
     </div>
@@ -3505,7 +3332,7 @@ function ReportsView({ auth, T = { app: "#f0f2f5", card: "#ffffff", border: "#e9
   const fetchReport = async (type) => {
     setLoading(true);
     try {
-      const r = await fetch(`${API_URL}/reports/${type}?tenant_id=${getTenantId()}&days=${days}`, { headers });
+      const r = await fetch(`${API_URL}/reports/${type}?tenant_id=${TENANT_ID}&days=${days}`, { headers });
       const d = await r.json();
       setData(prev => ({ ...prev, [type]: d }));
     } catch(e) {}
@@ -4455,7 +4282,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
 
   const fetchTrialStatus = async () => {
     try {
-      const r = await fetch(`${API_URL}/tenant/trial-status?tenant_id=${getTenantId()}`, { headers });
+      const r = await fetch(`${API_URL}/tenant/trial-status?tenant_id=${TENANT_ID}`, { headers });
       const d = await r.json();
       setTrialInfo(d);
     } catch (e) {}
@@ -4491,6 +4318,11 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const hideToast = () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); setToast(null); };
   // ── Per-action loading states ──
   const [changingStatus, setChangingStatus] = useState(false); // status dropdown
+  const [markingUnread, setMarkingUnread] = useState(false);
+  const [blockingContact, setBlockingContact] = useState(false);
+  const [togglingAutoMode, setTogglingAutoMode] = useState(false);
+  const [savingLabel, setSavingLabel] = useState(false);
+  const [deletingConv, setDeletingConv] = useState(false);
   const [assigningConv, setAssigningConv] = useState(false);   // assign modal
   const [inactiveDays, setInactiveDays] = useState(null); // null | 3 | 7 | 15  (days without response)
   const [instanceFilter, setInstanceFilter] = useState(() => {
@@ -4505,8 +4337,6 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const [aiCredits, setAiCredits] = useState(null); // { credits, limit, plan, pct, warning }
   const [showUpgrade, setShowUpgrade] = useState(null); // feature name string
   const [showBuyCredits, setShowBuyCredits] = useState(false);
-  const [syncingPhotos, setSyncingPhotos] = useState(false);
-  const [photoSyncResult, setPhotoSyncResult] = useState(null);
   const [waInstances, setWaInstances] = useState([]); // for disconnect banner
   const selectInstance = (name) => {
     setInstanceFilter(name);
@@ -4523,38 +4353,22 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     }
   };
 
-  // Ref to always have the latest instanceFilter inside the interval (avoids stale closure flicker)
-  const instanceFilterRef = useRef(instanceFilter);
-  useEffect(() => { instanceFilterRef.current = instanceFilter; }, [instanceFilter]);
-
   useEffect(() => {
     const fetchWaStatus = async () => {
       try {
-        const r = await fetch(`${API_URL}/whatsapp/tenant-instances?tenant_id=${getTenantId()}`, { headers });
+        const r = await fetch(`${API_URL}/whatsapp/tenant-instances?tenant_id=${TENANT_ID}`, { headers });
         const d = await r.json();
-        const all = d.instances || [];
-        // Filter by user's allowed_instances (empty = access to all)
-        const allowed = auth?.user?.allowed_instances;
-        const visible = (allowed && allowed.length > 0)
-          ? all.filter(i => allowed.includes(i.id))
-          : all;
-        setWaInstances(visible);
-        // Use ref to get current filter value — avoids stale closure causing flicker
-        const currentFilter = instanceFilterRef.current;
-        if (currentFilter && visible.length > 0 && !visible.find(i => i.instance_name === currentFilter)) {
-          // Instance genuinely no longer exists — switch to first available (only once, not on every poll)
-          selectInstance(visible[0]?.instance_name || null);
-        }
+        setWaInstances(d.instances || []);
       } catch (e) {}
     };
     fetchWaStatus();
     const t = setInterval(fetchWaStatus, 30000);
     return () => clearInterval(t);
-  }, [auth]);
+  }, []);
   const fetchLabels = useCallback(async () => {
     setLabelsError("");
     try {
-      const r = await fetch(`${API_URL}/labels?tenant_id=${getTenantId()}`, { headers });
+      const r = await fetch(`${API_URL}/labels?tenant_id=${TENANT_ID}`, { headers });
       if (!r.ok) {
         const fallback = loadLabels();
         setLabels(fallback);
@@ -4572,7 +4386,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
         for (const lbl of localUnsynced) {
           try {
             const cr = await fetch(`${API_URL}/labels`, { method: "POST", headers,
-              body: JSON.stringify({ tenant_id: getTenantId(), name: lbl.name, color: lbl.color }) });
+              body: JSON.stringify({ tenant_id: TENANT_ID, name: lbl.name, color: lbl.color }) });
             if (cr.ok) { const cd = await cr.json(); migrated.push(cd.label); }
           } catch (_) {}
         }
@@ -4615,10 +4429,6 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const autoProcessedRef = useRef(new Set()); // msgIds already auto-replied
   const autoProcessingRef = useRef(new Set()); // per-conv processing lock
   const autoModeRef = useRef({}); // { convId: boolean } — persists across polls
-  // ── Realtime refs ──
-  const realtimeConvsRef = useRef(null);
-  const realtimeMsgsRef  = useRef(null);
-  const selectedIdRef    = useRef(null); // ref espelho de selected.id para closures do Realtime
 
   const mergeConvs = useCallback((list) => {
     const now = Date.now();
@@ -4635,7 +4445,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
 
   const fetchConversations = useCallback(async () => {
     try {
-      const r = await fetch(`${API_URL}/conversations?tenant_id=${getTenantId()}&user_id=${auth.user.id}&limit=50`, { headers });
+      const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}&limit=50`, { headers });
       if (r.status === 401) {
         const err = await r.json().catch(() => ({}));
         if ((err.detail || "").includes("Sessão encerrada")) {
@@ -4675,7 +4485,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       const last = conversations[conversations.length - 1];
       if (!last?.last_message_at) return;
       const before = encodeURIComponent(last.last_message_at);
-      const r = await fetch(`${API_URL}/conversations?tenant_id=${getTenantId()}&user_id=${auth.user.id}&limit=50&before=${before}`, { headers });
+      const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}&limit=50&before=${before}`, { headers });
       const d = await r.json();
       const more = mergeConvs(d.conversations || []);
       // Append avoiding duplicates
@@ -4689,7 +4499,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   }, [conversations, loadingMoreConvs, mergeConvs]);
   const fetchAllConversations = useCallback(async () => {
     try {
-      const r = await fetch(`${API_URL}/conversations?tenant_id=${getTenantId()}&user_id=${auth.user.id}&limit=50`, { headers });
+      const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}&limit=50`, { headers });
       const d = await r.json();
       const fresh = mergeConvs(d.conversations || []);
       setConversations(prev => {
@@ -4728,7 +4538,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       setMessages(sortMsgs(cached.messages));
       setHasMoreMessages(false);
       // Background refresh silently
-      fetch(`${API_URL}/conversations/${convId}/messages?limit=16`, { headers })
+      fetch(`${API_URL}/conversations/${convId}/messages?limit=50`, { headers })
         .then(r => r.json())
         .then(d => {
           const fresh = d.messages || [];
@@ -4743,35 +4553,30 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
         }).catch(() => {});
       return;
     }
-    // ── Full fetch — DB first, then trigger WAHA sync em background se vazio ──
+    // ── Full fetch — DB first, then trigger WAHA sync in background ──────
     try {
-      const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=16`, { headers });
+      const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=50`, { headers });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
       const msgs = d.messages || [];
       msgCacheRef.current[convId] = { messages: msgs, ts: Date.now() };
       setMessages(sortMsgs(msgs));
-      setHasMoreMessages(d.has_more === true);
+      setHasMoreMessages(false);
+      // ALWAYS trigger background WAHA sync so messages stay fresh
+      // /history endpoint returns DB + kicks WAHA sync in background
+      fetch(`${API_URL}/conversations/${convId}/history?limit=50`, { headers })
+        .then(r2 => r2.json())
+        .then(d2 => {
+          const synced = d2.messages || [];
+          if (synced.length > msgs.length) {
+            msgCacheRef.current[convId] = { messages: synced, ts: Date.now() };
+            setMessages(sortMsgs(synced));
+          }
+        }).catch(() => {});
       setMessagesOffset(0);
-      // Se banco vazio — busca do WAHA em background e atualiza sem travar a tela
-      if (msgs.length === 0) {
-        fetch(`${API_URL}/conversations/${convId}/history`, { headers })
-          .then(r2 => r2.ok ? r2.json() : null)
-          .then(d2 => {
-            if (!d2) return;
-            const synced = d2.messages || [];
-            if (synced.length > 0) {
-              msgCacheRef.current[convId] = { messages: synced, ts: Date.now() };
-              setMessages(prev => {
-                if (prev.length > 0) return prev; // já chegou via realtime
-                return sortMsgs(synced);
-              });
-            }
-          }).catch(() => {});
-      }
     } catch (e) {
       try {
-        const r2 = await fetch(`${API_URL}/conversations/${convId}/messages?limit=16`, { headers });
+        const r2 = await fetch(`${API_URL}/conversations/${convId}/messages?limit=50`, { headers });
         const d2 = await r2.json();
         const msgs2 = d2.messages || [];
         msgCacheRef.current[convId] = { messages: msgs2, ts: Date.now() };
@@ -4787,7 +4592,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     try {
       const oldest = currentMessages[0]?.created_at;
       if (!oldest) return;
-      const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=10&before=${encodeURIComponent(oldest)}`, { headers });
+      const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=50&before=${encodeURIComponent(oldest)}`, { headers });
       const d = await r.json();
       const older = d.messages || [];
       setMessages(prev => sortMsgs([...older, ...prev]));
@@ -4796,7 +4601,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     setLoadingMoreMsgs(false);
   }, []);
   const fetchAgents = useCallback(async () => {
-    try { const r = await fetch(`${API_URL}/users?tenant_id=${getTenantId()}`, { headers }); const d = await r.json(); setAgents(d.users || []); } catch (e) {}
+    try { const r = await fetch(`${API_URL}/users?tenant_id=${TENANT_ID}`, { headers }); const d = await r.json(); setAgents(d.users || []); } catch (e) {}
   }, []);
   const loadUserPreferences = useCallback(async () => {
     try {
@@ -4812,31 +4617,26 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   }, []);
 
   const fetchTenant = useCallback(async () => {
-    try { const r = await fetch(`${API_URL}/tenant?tenant_id=${getTenantId()}`, { headers }); const d = await r.json();
+    try { const r = await fetch(`${API_URL}/tenant?tenant_id=${TENANT_ID}`, { headers }); const d = await r.json();
       setCopilotPrompt(d.copilot_prompt || "");
       if (d.copilot_prompt_summary) setCopilotPromptSummary(d.copilot_prompt_summary);
       setCopilotAutoMode(d.copilot_auto_mode || "off");
       setCopilotScheduleStart(d.copilot_schedule_start || "18:00");
       setCopilotScheduleEnd(d.copilot_schedule_end || "09:00");
       if (d.ai_credits !== undefined) setAiCredits({ credits: d.ai_credits, limit: d.ai_credits_limit, plan: d.plan, pct: d.ai_credits_pct, warning: d.ai_credits_pct <= 25 });
-      // Load shared kanban columns from server (overrides localStorage)
-      if (d.kanban_columns && Array.isArray(d.kanban_columns) && d.kanban_columns.length > 0) {
-        setKanbanCols(d.kanban_columns);
-        saveColumns(d.kanban_columns); // update local cache
-      }
     } catch (e) {}
   }, []);
 
   const fetchCredits = useCallback(async () => {
     try {
-      const r = await fetch(`${API_URL}/credits?tenant_id=${getTenantId()}`, { headers });
+      const r = await fetch(`${API_URL}/credits?tenant_id=${TENANT_ID}`, { headers });
       const d = await r.json();
       setAiCredits({ credits: d.credits, limit: d.limit, plan: d.plan, pct: d.pct, warning: d.warning });
     } catch(e) {}
   }, []);
   const fetchPendingTasks = useCallback(async () => {
     try {
-      const r = await fetch(`${API_URL}/tasks?tenant_id=${getTenantId()}`, { headers });
+      const r = await fetch(`${API_URL}/tasks?tenant_id=${TENANT_ID}`, { headers });
       const d = await r.json();
       const map = {};
       (d.tasks || []).forEach(t => {
@@ -4848,7 +4648,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const savePrompt = async () => {
     setSavingPrompt(true); setPromptSaved(false);
     try {
-      await fetch(`${API_URL}/tenant/copilot-prompt`, { method: "PUT", headers, body: JSON.stringify({ tenant_id: getTenantId(), copilot_prompt: copilotPrompt, copilot_auto_mode: copilotAutoMode, copilot_schedule_start: copilotScheduleStart, copilot_schedule_end: copilotScheduleEnd }) });
+      await fetch(`${API_URL}/tenant/copilot-prompt`, { method: "PUT", headers, body: JSON.stringify({ tenant_id: TENANT_ID, copilot_prompt: copilotPrompt, copilot_auto_mode: copilotAutoMode, copilot_schedule_start: copilotScheduleStart, copilot_schedule_end: copilotScheduleEnd }) });
       setPromptSaved(true); setTimeout(() => setPromptSaved(false), 3000);
     } catch (e) {}
     setSavingPrompt(false);
@@ -4859,7 +4659,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     try {
       showToast("🔄 Sincronizando nomes...");
       const inst = instanceFilter || instances[0]?.name || "default";
-      const r = await fetch(`${API_URL}/contacts/sync-names`, { method: "POST", headers, body: JSON.stringify({ tenant_id: getTenantId(), instance: inst }) });
+      const r = await fetch(`${API_URL}/contacts/sync-names`, { method: "POST", headers, body: JSON.stringify({ tenant_id: TENANT_ID, instance: inst }) });
       const d = await r.json();
       showToast(`✅ ${d.updated || 0} nomes sincronizados!`);
       fetchConversations();
@@ -4873,54 +4673,23 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     const fn = isMulti ? fetchAllConversations : fetchConversations;
     fn();
     clearInterval(pollRef.current);
-    // Polling: agora é apenas fallback de segurança — Realtime faz o trabalho pesado
+    // Smart polling: 2s when tab focused, pause when hidden
     const startPoll = () => {
       clearInterval(pollRef.current);
       pollRef.current = setInterval(() => {
         if (!document.hidden) fn();
-      }, 15000); // 15s — Realtime cuida do tempo real, polling só como backup
+      }, 2000);
     };
     startPoll();
     const onVisibility = () => { if (!document.hidden) { fn(); startPoll(); } };
     document.addEventListener("visibilitychange", onVisibility);
     return () => { document.removeEventListener("visibilitychange", onVisibility); clearInterval(pollRef.current); };
-  }, [fetchConversations, fetchAllConversations, view, filter]);
-
-  // ── Supabase Realtime: conversas ──────────────────────────────────────────
-  // Quando qualquer conversa do tenant muda (nova msg, status, atribuição),
-  // o Supabase empurra o evento via WebSocket — sem precisar de polling.
-  useEffect(() => {
-    const isMulti = view === "kanban" || view === "leads";
-    const fn = isMulti ? fetchAllConversations : fetchConversations;
-
-    // Remove canal anterior se houver
-    if (realtimeConvsRef.current) {
-      supabase.removeChannel(realtimeConvsRef.current);
-    }
-
-    const channel = supabase
-      .channel(`convs-${getTenantId()}-${view}`)
-      .on("postgres_changes", {
-        event: "*",
-        schema: "public",
-        table: "conversations",
-        filter: `tenant_id=eq.${getTenantId()}`,
-      }, () => { fn(); }) // atualiza lista instantaneamente
-      .on("postgres_changes", {
-        event: "INSERT",
-        schema: "public",
-        table: "messages",
-        filter: `tenant_id=eq.${getTenantId()}`,
-      }, () => { fn(); }) // nova msg = reordena lista e atualiza preview
-      .subscribe();
-
-    realtimeConvsRef.current = channel;
-    return () => { supabase.removeChannel(channel); realtimeConvsRef.current = null; };
+    return () => clearInterval(pollRef.current);
   }, [fetchConversations, fetchAllConversations, view, filter]);
   const backgroundRefreshMessages = useCallback(async (convId) => {
     // Silent background refresh — no spinner, no skeleton, just appends new messages
     try {
-      const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=16`, { headers });
+      const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=50`, { headers });
       if (!r.ok) return;
       const d = await r.json();
       const fresh = d.messages || [];
@@ -4937,55 +4706,25 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
 
   useEffect(() => {
     if (!selected) return;
-    selectedIdRef.current = selected.id;
     setMessagesOffset(0);
     setHasMoreMessages(false);
     setSuggestion("");
-    // Só mostra skeleton se não tem cache — evita piscar ao recliclar
+    // Only show skeleton if no cache — avoids piscando on every click
     const hasCached = msgCacheRef.current[selected.id]?.messages?.length > 0;
     if (!hasCached) setLoadingMessages(true);
     fetchMessages(selected.id, false).finally(() => {
       setLoadingMessages(false);
     });
-    // Marca como lida após 800ms
+    // Mark as read after 1s (give time to actually view)
     const readTimer = setTimeout(() => {
       setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, unread_count: 0 } : c));
       fetch(`${API_URL}/conversations/${selected.id}/read`, { method: "POST", headers }).catch(() => {});
     }, 800);
-
-    // ── Supabase Realtime: mensagens desta conversa ──────────────────────
-    // Substitui o setInterval de 4s — mensagens chegam instantâneas via WebSocket
-    if (realtimeMsgsRef.current) supabase.removeChannel(realtimeMsgsRef.current);
-    const msgChannel = supabase
-      .channel(`msgs-${selected.id}`)
-      .on("postgres_changes", {
-        event: "INSERT",
-        schema: "public",
-        table: "messages",
-        filter: `conversation_id=eq.${selected.id}`,
-      }, (payload) => {
-        const newMsg = payload.new;
-        if (!newMsg) return;
-        setMessages(prev => mergeMessages(prev, [newMsg]));
-        // Atualiza cache também
-        const cid = selectedIdRef.current;
-        if (cid && msgCacheRef.current[cid]) {
-          msgCacheRef.current[cid] = {
-            messages: mergeMessages(msgCacheRef.current[cid].messages, [newMsg]),
-            ts: Date.now(),
-          };
-        }
-      })
-      .subscribe();
-    realtimeMsgsRef.current = msgChannel;
-
+    const t = setInterval(() => backgroundRefreshMessages(selected.id), 4000);
     return () => {
+      clearInterval(t);
       clearTimeout(readTimer);
       setMessages([]);
-      if (realtimeMsgsRef.current) {
-        supabase.removeChannel(realtimeMsgsRef.current);
-        realtimeMsgsRef.current = null;
-      }
     };
   }, [selected?.id]);
   const prevMsgCountRef = useRef(0);
@@ -5281,7 +5020,7 @@ A mensagem deve:
         if (aiCredits.plan === "starter") { setShowUpgrade("Co-pilot IA"); return; }
         setShowBuyCredits(true); return;
       }
-      const r = await fetch(`${API_URL}/conversations/${selected.id}/suggest?tenant_id=${getTenantId()}`, { headers });
+      const r = await fetch(`${API_URL}/conversations/${selected.id}/suggest?tenant_id=${TENANT_ID}`, { headers });
       if (r.status === 402) { const e = await r.json(); showToast(e.detail, "#f44336"); fetchCredits(); return; }
       const d = await r.json();
       setSuggestion(d.suggestion || "");
@@ -5322,7 +5061,7 @@ A mensagem deve:
       if (!lastInbound) return;
       if (autoProcessedRef.current.has(lastInbound.id)) return;
       autoProcessedRef.current.add(lastInbound.id);
-      const sr = await fetch(`${API_URL}/conversations/${conv.id}/suggest?tenant_id=${getTenantId()}`, { headers });
+      const sr = await fetch(`${API_URL}/conversations/${conv.id}/suggest?tenant_id=${TENANT_ID}`, { headers });
       if (sr.status === 402) { console.warn("Auto-reply: sem créditos"); return; }
       if (!sr.ok) { console.error("Suggest failed:", sr.status); return; }
       const sd = await sr.json();
@@ -5398,8 +5137,8 @@ A mensagem deve:
   const totalPendingTasks = Object.values(pendingTasksMap).reduce((a, b) => a + b, 0);
   const WORK_TABS = [
     { id: "inbox", label: "📥 Inbox" },
-    { id: "leads", label: "🏷 Etiquetas" },
-    { id: "kanban", label: "🗂 Kanban" },
+    { id: "leads", label: "🏷 Pipeline" },
+    { id: "kanban", label: "🗂 Board" },
     { id: "tasks_global", label: "✅ Tarefas" },
     { id: "disparos", label: "📢 Disparos" },
     { id: "config", label: "⚙️ Config IA" },
@@ -5412,7 +5151,6 @@ A mensagem deve:
   const ADMIN_TABS = [
     ...(auth.user.role === "admin" ? [{ id: "whatsapp", label: "📱 WhatsApp" }] : []),
     ...(auth.user.role === "admin" ? [{ id: "admin", label: "🔐 Admin" }] : []),
-    ...(auth.user.role === "admin" ? [{ id: "diagnostics", label: "🔍 Diagnóstico" }] : []),
     ...(IS_SOCIO ? [{ id: "socios", label: "📊 Sócios" }] : []),
   ];
 
@@ -5445,8 +5183,7 @@ A mensagem deve:
 
 
         {/* Work tabs — desktop only; mobile uses bottom nav */}
-        {!isMobile && <div style={{ display: "flex", gap: 1, overflowX: "auto", flexShrink: 1, minWidth: 0, scrollbarWidth: "none", msOverflowStyle: "none" }}
-          ref={el => { if (el) el.style.cssText += "-webkit-overflow-scrolling:touch;"; }}>
+        {!isMobile && <div style={{ display: "flex", gap: 1, overflowX: "auto", flexShrink: 1, minWidth: 0, scrollbarWidth: "none" }}>
           {WORK_TABS.map(tab => (
             <button key={tab.id} onClick={() => setView(tab.id)} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "5px 9px", borderRadius: 6, border: "none", background: view === tab.id ? "#00a88420" : "transparent", color: view === tab.id ? "#00a884" : T.text2, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0, position: "relative" }}>
               <span>{tab.label.split(" ")[0]}</span>
@@ -5510,7 +5247,6 @@ A mensagem deve:
         {/* Disparos */}
         {view === "disparos" && (
           <BroadcastsView
-            tenantId={getTenantId()}
             conversations={conversations}
             labels={labels}
             agents={agents}
@@ -5523,11 +5259,6 @@ A mensagem deve:
         {/* Admin */}
         {view === "admin" && auth.user.role === "admin" && (
           <AdminPanel auth={auth} onLogout={onLogout} />
-        )}
-
-        {/* Diagnóstico de Infraestrutura */}
-        {view === "diagnostics" && auth.user.role === "admin" && (
-          <DiagnosticsPanel />
         )}
 
         {/* Dashboard Sócios */}
@@ -5580,7 +5311,7 @@ A mensagem deve:
                       {p.features.map(f => <div key={f} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, color: "#8696a0" }}><span style={{ color: p.color }}>✓</span>{f}</div>)}
                     </div>
                     <button onClick={async () => {
-                      await fetch(`${API_URL}/tenant/activate-plan`, { method: "POST", headers, body: JSON.stringify({ tenant_id: getTenantId(), plan: p.plan }) });
+                      await fetch(`${API_URL}/tenant/activate-plan`, { method: "POST", headers, body: JSON.stringify({ tenant_id: TENANT_ID, plan: p.plan }) });
                       await fetchTrialStatus();
                       setView("inbox");
                     }} style={{ width: "100%", padding: "11px 0", borderRadius: 10, border: "none", background: p.highlight ? `linear-gradient(135deg, ${p.color}, #017561)` : `${p.color}22`, color: p.highlight ? "#000" : p.color, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
@@ -5800,7 +5531,7 @@ A mensagem deve:
                       setSyncingPhotos(true);
                       setPhotoSyncResult(null);
                       try {
-                        const r = await fetch(`${API_URL}/contacts/sync-profile-pictures?tenant_id=${getTenantId()}`, { method: "POST", headers });
+                        const r = await fetch(`${API_URL}/contacts/sync-profile-pictures?tenant_id=${TENANT_ID}`, { method: "POST", headers });
                         const d = await r.json();
                         setPhotoSyncResult(d);
                         if (d.updated > 0) showToast(`📸 ${d.updated} fotos sincronizadas!`);
@@ -5962,17 +5693,6 @@ A mensagem deve:
                     return (
                     <div key={conv.id}
                       onClick={() => { setSelected(conv); setSuggestion(""); setShowTasks(false); setNoteMode(false); }}
-                      onMouseEnter={() => {
-                        // Prefetch mensagens ao hover — quando clicar já está no cache
-                        if (!msgCacheRef.current[conv.id] || Date.now() - msgCacheRef.current[conv.id].ts > 30000) {
-                          fetch(`${API_URL}/conversations/${conv.id}/messages?limit=16`, { headers })
-                            .then(r => r.json())
-                            .then(d => {
-                              const msgs = d.messages || [];
-                              if (msgs.length > 0) msgCacheRef.current[conv.id] = { messages: msgs, ts: Date.now() };
-                            }).catch(() => {});
-                        }
-                      }}
                       style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", cursor: "pointer", background: isSelected ? T.selected : "transparent", borderLeft: isSelected ? "3px solid #00a884" : "3px solid transparent", transition: "background 0.1s" }}>
                       {/* Avatar */}
                       <div style={{ flexShrink: 0 }}>
@@ -6091,66 +5811,73 @@ A mensagem deve:
                       <StatusDropdown status={selected.status} onChange={(s) => changeStatus(selected.id, s)} isChanging={changingStatus} />
                       <button
                         title="Marcar como não lida"
-                        onClick={() => {
+                        disabled={markingUnread}
+                        onClick={async () => {
+                          setMarkingUnread(true);
                           setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, unread_count: 1 } : c));
-                          fetch(`${API_URL}/conversations/${selected.id}/unread`, { method: "POST", headers }).catch(() => {});
+                          await fetch(`${API_URL}/conversations/${selected.id}/unread`, { method: "POST", headers }).catch(() => {});
                           showToast("💬 Marcado como não lida");
+                          setMarkingUnread(false);
                         }}
-                        style={{ padding: "4px 8px", borderRadius: 7, border: "1px solid #d1d7db", background: "transparent", color: "#667781", fontSize: 12, cursor: "pointer", fontFamily: "inherit", fontWeight: 600, flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}>
-                        🔵 Não lida
+                        style={{ padding: "4px 8px", borderRadius: 7, border: "1px solid #d1d7db", background: markingUnread ? "#f0f2f5" : "transparent", color: markingUnread ? "#b0bec5" : "#667781", fontSize: 12, cursor: markingUnread ? "not-allowed" : "pointer", fontFamily: "inherit", fontWeight: 600, flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}>
+                        {markingUnread ? "⏳..." : "🔵 Não lida"}
                       </button>
                       <button
                         title="Bloquear contato no WhatsApp"
+                        disabled={blockingContact}
                         onClick={async () => {
                           if (!confirm(`Bloquear ${selected.contacts?.name || selected.contacts?.phone} no WhatsApp?`)) return;
+                          setBlockingContact(true);
                           try {
                             const r = await fetch(`${API_URL}/contacts/${selected.contacts?.id}/block`, { method: "POST", headers });
                             if (r.ok) showToast("🚫 Contato bloqueado");
                             else showToast("❌ Erro ao bloquear — verifique os logs");
                           } catch { showToast("❌ Falha na conexão"); }
+                          setBlockingContact(false);
                         }}
-                        style={{ padding: "4px 8px", borderRadius: 7, border: "1px solid #f4433644", background: "transparent", color: "#f44336", fontSize: 12, cursor: "pointer", fontFamily: "inherit", fontWeight: 600, flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}>
-                        🚫 Bloquear
+                        style={{ padding: "4px 8px", borderRadius: 7, border: "1px solid #f4433644", background: blockingContact ? "#f0f2f5" : "transparent", color: blockingContact ? "#b0bec5" : "#f44336", fontSize: 12, cursor: blockingContact ? "not-allowed" : "pointer", fontFamily: "inherit", fontWeight: 600, flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}>
+                        {blockingContact ? "⏳..." : "🚫 Bloquear"}
                       </button>
                       <button onClick={() => setShowLabelPicker(true)} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e9edef", background: "transparent", color: "#8696a0", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>🏷 Etiqueta</button>
                       <button onClick={() => setShowAssign(true)} disabled={assigningConv} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e9edef", background: "transparent", color: assigningConv ? "#d1d7db" : "#8696a0", fontSize: 11, cursor: assigningConv ? "wait" : "pointer", fontFamily: "inherit", fontWeight: 600 }}>{assigningConv ? "⏳..." : "👤 Atribuir"}</button>
                       <button onClick={fetchSuggestion} disabled={loadingSuggest} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #7c4dff44", background: loadingSuggest ? "#e9edef" : "#7c4dff15", color: loadingSuggest ? "#667781" : "#a78bfa", fontSize: 11, cursor: loadingSuggest ? "not-allowed" : "pointer", fontFamily: "inherit", fontWeight: 600 }}>{loadingSuggest ? "⏳..." : "✨ Co-pilot"}</button>
                       {copilotAutoMode === "per_conv" && (
-                        <button onClick={async () => {
+                        <button disabled={togglingAutoMode} onClick={async () => {
+                          setTogglingAutoMode(true);
                           const newVal = !selected.auto_mode;
                           autoModeRef.current[selected.id] = newVal;
                           await fetch(`${API_URL}/conversations/${selected.id}/auto-mode`, { method: "PUT", headers, body: JSON.stringify({ enabled: newVal }) }).catch(() => {});
                           setSelected(prev => ({ ...prev, auto_mode: newVal }));
                           setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, auto_mode: newVal } : c));
-                        }} style={{ padding: "5px 10px", borderRadius: 6, border: `1px solid ${selected.auto_mode ? "#00a88444" : "#d1d7db"}`, background: selected.auto_mode ? "#00a88418" : "transparent", color: selected.auto_mode ? "#00a884" : "#667781", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>🤖 Auto {selected.auto_mode ? "ON" : "OFF"}</button>
+                          setTogglingAutoMode(false);
+                        }} style={{ padding: "5px 10px", borderRadius: 6, border: `1px solid ${selected.auto_mode ? "#00a88444" : "#d1d7db"}`, background: togglingAutoMode ? "#f0f2f5" : selected.auto_mode ? "#00a88418" : "transparent", color: togglingAutoMode ? "#b0bec5" : selected.auto_mode ? "#00a884" : "#667781", fontSize: 11, cursor: togglingAutoMode ? "not-allowed" : "pointer", fontFamily: "inherit", fontWeight: 700 }}>{togglingAutoMode ? "⏳..." : `🤖 Auto ${selected.auto_mode ? "ON" : "OFF"}`}</button>
                       )}
                       <button onClick={() => setShowTasks(t => !t)} style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 6, border: `1px solid ${showTasks ? "#00a88444" : pendingTasksMap[selected?.id] > 0 ? "#ff6d0044" : "#d1d7db"}`, background: showTasks ? "#00a88415" : pendingTasksMap[selected?.id] > 0 ? "#ff6d0010" : "transparent", color: showTasks ? "#00a884" : pendingTasksMap[selected?.id] > 0 ? "#ff6d00" : "#8696a0", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>✅ Tarefas{!showTasks && pendingTasksMap[selected?.id] > 0 && <span style={{ background: "#ff6d00", color: "#000", fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 10 }}>{pendingTasksMap[selected.id]}</span>}</button>
                     </div>
                   </div>
 
                   {/* Messages */}
-                  <div ref={chatScrollRef}
-                    onScroll={e => {
-                      // Auto-load older messages when scrolled to top
-                      if (!hasMoreMessages || loadingMoreMsgs) return;
-                      if (e.target.scrollTop < 80) {
-                        const scrollEl = chatScrollRef.current;
-                        const prevScrollHeight = scrollEl?.scrollHeight || 0;
-                        fetchMoreMessages(selected.id, messages).then(() => {
-                          requestAnimationFrame(() => {
-                            if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight - prevScrollHeight;
-                          });
-                        });
-                      }
-                    }}
-                    onMouseEnter={() => { if (selected?.unread_count > 0) { setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, unread_count: 0 } : c)); setSelected(prev => prev ? { ...prev, unread_count: 0 } : prev); } }} style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 2, background: T.chatBg }}>
-                    {/* Load More indicator */}
+                  <div ref={chatScrollRef} onMouseEnter={() => { if (selected?.unread_count > 0) { setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, unread_count: 0 } : c)); setSelected(prev => prev ? { ...prev, unread_count: 0 } : prev); } }} style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 2, background: T.chatBg }}>
+                    {/* Load More button */}
                     {hasMoreMessages && (
                       <div style={{ textAlign: "center", marginBottom: 12 }}>
-                        {loadingMoreMsgs
-                          ? <span style={{ fontSize: 12, color: "#8696a0" }}>⏳ Carregando...</span>
-                          : <span style={{ fontSize: 12, color: "#8696a0", opacity: 0.6 }}>↑ Role para ver mais</span>
-                        }
+                        <button
+                          onClick={async () => {
+                            const scrollEl = chatScrollRef.current;
+                            const prevScrollHeight = scrollEl?.scrollHeight || 0;
+                            await fetchMoreMessages(selected.id, messages);
+                            // Preserve scroll position after prepending older messages
+                            if (scrollEl) {
+                              requestAnimationFrame(() => {
+                                scrollEl.scrollTop = scrollEl.scrollHeight - prevScrollHeight;
+                              });
+                            }
+                          }}
+                          disabled={loadingMoreMsgs}
+                          style={{ padding: "6px 18px", borderRadius: 20, border: "1px solid #d1d7db", background: loadingMoreMsgs ? "#f0f2f5" : "#fff", color: "#54656f", fontSize: 12, fontWeight: 600, cursor: loadingMoreMsgs ? "not-allowed" : "pointer", fontFamily: "inherit", boxShadow: "0 1px 2px #0000001a" }}
+                        >
+                          {loadingMoreMsgs ? "Carregando..." : "⬆ Carregar mais"}
+                        </button>
                       </div>
                     )}
                     {loadingMessages ? (
@@ -6195,35 +5922,7 @@ A mensagem deve:
                           <div key={msg.id || i} style={{ display: "flex", justifyContent: isOut ? "flex-end" : "flex-start", marginBottom: 2 }}>
                             <div style={{ maxWidth: "65%", padding: "7px 12px 8px 12px", borderRadius: isOut ? "8px 0px 8px 8px" : "0px 8px 8px 8px", background: isInternal ? "#fff8dc" : isOut ? T.msgOut : T.msgIn, boxShadow: `0 1px 2px ${T.shadow}`, fontSize: 14, lineHeight: 1.5, color: T.text }}>
                               {isInternal && <div style={{ fontSize: 10, fontWeight: 700, color: "#8a6914", marginBottom: 4 }}>📝 NOTA INTERNA</div>}
-                              {msg.type === "image" && msg.media_url ? (
-                                <div>
-                                  <img
-                                    src={`${API}/media/proxy?url=${encodeURIComponent(msg.media_url)}`}
-                                    alt="Imagem"
-                                    style={{ maxWidth: "100%", maxHeight: 260, borderRadius: 8, display: "block", cursor: "pointer" }}
-                                    onClick={() => window.open(`${API}/media/proxy?url=${encodeURIComponent(msg.media_url)}`, "_blank")}
-                                    onError={e => { e.target.style.display="none"; e.target.nextSibling.style.display="block"; }}
-                                  />
-                                  <div style={{ display: "none", color: "#667781", fontSize: 12 }}>🖼 {msg.content}</div>
-                                  {msg.content && msg.content !== "[Imagem]" && <div style={{ marginTop: 4, wordBreak: "break-word" }}>{msg.content}</div>}
-                                </div>
-                              ) : msg.type === "audio" && msg.media_url ? (
-                                <audio controls style={{ maxWidth: "100%", height: 36 }}>
-                                  <source src={`${API}/media/proxy?url=${encodeURIComponent(msg.media_url)}`} />
-                                  🎤 Áudio — <a href={`${API}/media/proxy?url=${encodeURIComponent(msg.media_url)}`} target="_blank" rel="noreferrer">Baixar</a>
-                                </audio>
-                              ) : (msg.type === "document" || msg.type === "video") && msg.media_url ? (
-                                <a href={`${API}/media/proxy?url=${encodeURIComponent(msg.media_url)}`} target="_blank" rel="noreferrer"
-                                   style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: isOut ? "rgba(0,0,0,0.08)" : "rgba(0,0,0,0.05)", borderRadius: 8, textDecoration: "none", color: T.text }}>
-                                  <span style={{ fontSize: 22 }}>{msg.type === "video" ? "🎥" : "📎"}</span>
-                                  <div>
-                                    <div style={{ fontWeight: 600, fontSize: 13 }}>{msg.media_filename || (msg.type === "video" ? "Vídeo" : "Documento")}</div>
-                                    <div style={{ fontSize: 11, color: "#667781" }}>Toque para baixar</div>
-                                  </div>
-                                </a>
-                              ) : (
-                                <div style={{ wordBreak: "break-word" }}>{msg.content}</div>
-                              )}
+                              <div style={{ wordBreak: "break-word" }}>{msg.content}</div>
                               <div style={{ fontSize: 10, color: "#667781", marginTop: 2, textAlign: isOut ? "right" : "left" }}>{new Date(msg.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}{isOut && <span style={{ marginLeft: 4, color: "#53bdeb" }}>✓✓</span>}</div>
                             </div>
                           </div>
@@ -6405,25 +6104,25 @@ A mensagem deve:
         />
       )}
       {showUpgrade && <UpgradeModal feature={showUpgrade} currentPlan={aiCredits?.plan} onClose={() => setShowUpgrade(null)} />}
-      {showBuyCredits && <BuyCreditsModal tenantId={getTenantId()} authHeaders={headers} plan={aiCredits?.plan} onClose={() => setShowBuyCredits(false)} onSuccess={(n) => { setAiCredits(p => p ? { ...p, credits: p.credits + n } : p); showToast(`✅ +${n} créditos adicionados!`); }} />}
+      {showBuyCredits && <BuyCreditsModal tenantId={TENANT_ID} authHeaders={headers} plan={aiCredits?.plan} onClose={() => setShowBuyCredits(false)} onSuccess={(n) => { setAiCredits(p => p ? { ...p, credits: p.credits + n } : p); showToast(`✅ +${n} créditos adicionados!`); }} />}
       {showLabelManager && (
         <LabelManagerModal
           labels={labels}
           onChange={(newLabels) => { setLabels(newLabels); saveLabels(newLabels); }}
           onClose={() => setShowLabelManager(false)}
-          tenantId={getTenantId()}
-          authHeaders={{ ...headers, "Authorization": `Bearer ${auth.token}` }}
+          tenantId={TENANT_ID}
+          authHeaders={headers}
           labelsApiError={labelsError}
         />
       )}
-      {showColManager && <ColumnManagerModal columns={kanbanCols} onChange={setKanbanCols} onClose={() => setShowColManager(false)} token={auth.token} />}
+      {showColManager && <ColumnManagerModal columns={kanbanCols} onChange={setKanbanCols} onClose={() => setShowColManager(false)} />}
 
       {/* ── Mobile Bottom Navigation ──────────────────────── */}
       {isMobile && (
         <div style={{ height: 58, flexShrink: 0, borderTop: `1px solid ${T.border}`, background: T.topbar, display: "flex", alignItems: "center", justifyContent: "space-around", paddingBottom: "env(safe-area-inset-bottom, 0px)", zIndex: 100 }}>
           {[
             { id: "inbox",        icon: "💬", label: "Inbox" },
-            { id: "kanban",       icon: "🗂",  label: "Kanban" },
+            { id: "kanban",       icon: "🗂",  label: "Board" },
             { id: "tasks_global", icon: "✅",  label: "Tarefas", badge: totalPendingTasks },
             { id: "disparos",     icon: "📢",  label: "Disparos" },
             { id: "__more__",     icon: "⋯",   label: "Mais" },
@@ -6459,7 +6158,7 @@ A mensagem deve:
             <div style={{ width: 40, height: 4, background: T.border, borderRadius: 2, margin: "0 auto 20px" }} />
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
               {[
-                { id: "leads",      icon: "🏷",  label: "Etiquetas" },
+                { id: "leads",      icon: "🏷",  label: "Pipeline" },
                 { id: "config",     icon: "⚙️",   label: "Config IA" },
                 { id: "relatorios", icon: "📈",   label: "Relatórios" },
                 { id: "whatsapp",   icon: "📱",   label: "WhatsApp" },
