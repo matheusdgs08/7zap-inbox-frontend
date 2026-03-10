@@ -2052,7 +2052,9 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols }) {
   const [bIntervalMin, setBIntervalMin] = useState(60);
   const [bIntervalMax, setBIntervalMax] = useState(120);
   const [bScheduledAt, setBScheduledAt] = useState("");
-  const [bFilter, setBFilter] = useState("manual"); // manual | label | kanban | status | csv
+  const [bFilter, setBFilter] = useState("manual"); // manual | inativos | label | kanban | status | csv
+  const [bInactiveDays, setBInactiveDays] = useState(7); // 3 | 7 | 15
+  const [bAiPersonalize, setBAiPersonalize] = useState(false); // gerar msg IA por contato
   const [bFilterValue, setBFilterValue] = useState("");
   const [bRecipients, setBRecipients] = useState([]); // [{phone,name}]
   const [csvText, setCsvText] = useState("");
@@ -2109,10 +2111,18 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols }) {
       }).filter(Boolean);
     }
     let convs = conversations;
+    if (bFilter === "inativos") {
+      const cutoff = new Date(Date.now() - bInactiveDays * 24 * 60 * 60 * 1000);
+      convs = convs.filter(c => {
+        if (!c.last_message_at) return false;
+        const last = new Date(c.last_message_at);
+        return last < cutoff && c.status !== "resolved";
+      });
+    }
     if (bFilter === "label" && bFilterValue) convs = convs.filter(c => (c.labels || []).some(l => l.id === bFilterValue));
     if (bFilter === "kanban" && bFilterValue) convs = convs.filter(c => c.kanban_stage === bFilterValue);
     if (bFilter === "status" && bFilterValue) convs = convs.filter(c => c.status === bFilterValue);
-    return convs.map(c => ({ phone: c.contacts?.phone?.replace(/\D/g, "") || "", name: c.contacts?.name || "", contact_id: c.contact_id })).filter(r => r.phone);
+    return convs.map(c => ({ phone: c.contacts?.phone?.replace(/\D/g, "") || "", name: c.contacts?.name || "", contact_id: c.contact_id, conversation_id: c.id, last_message_at: c.last_message_at })).filter(r => r.phone);
   };
 
   const previewRecipients = buildRecipients();
@@ -2130,18 +2140,23 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols }) {
 
   const createBroadcast = async () => {
     const recs = buildRecipients();
-    if (!bName.trim() || !bMessage.trim() || recs.length === 0 || creating) return;
+    if (!bName.trim() || recs.length === 0 || creating) return;
+    if (!bAiPersonalize && !bMessage.trim()) { alert("Digite a mensagem ou ative a personalização por IA."); return; }
     if (bIntervalMin < 60) { alert("⚠️ Intervalo mínimo é 60 segundos para evitar ban!"); return; }
+    if (bAiPersonalize && recs.length > 20) {
+      if (!window.confirm(`A IA vai gerar ${recs.length} mensagens únicas. Isso pode levar alguns minutos. Continuar?`)) return;
+    }
     setCreating(true);
     try {
       await fetch(`${API_URL}/broadcasts`, { method: "POST", headers, body: JSON.stringify({
-        tenant_id: TENANT_ID, name: bName, message: bMessage,
+        tenant_id: TENANT_ID, name: bName, message: bMessage || "(IA personaliza)",
         interval_min: bIntervalMin, interval_max: bIntervalMax,
-        scheduled_at: bScheduledAt || null, recipients: recs
+        scheduled_at: bScheduledAt || null, recipients: recs,
+        ai_personalize: bAiPersonalize
       })});
-      setBName(""); setBMessage(""); setBIntervalMin(60); setBIntervalMax(120); setBScheduledAt(""); setBRecipients([]); setCsvText(""); setAiObjective("");
+      setBName(""); setBMessage(""); setBIntervalMin(60); setBIntervalMax(120); setBScheduledAt(""); setBRecipients([]); setCsvText(""); setAiObjective(""); setBAiPersonalize(false); setBInactiveDays(7);
       setTab("queue"); fetchBroadcasts();
-      showToast(bScheduledAt ? "📅 Disparo agendado! Veja na aba Fila ✓" : "🚀 Disparo iniciado! Acompanhe na Fila ✓");
+      showToast(bAiPersonalize ? "🤖 Disparo com IA iniciado! A IA vai personalizar cada mensagem ✓" : bScheduledAt ? "📅 Disparo agendado! Veja na aba Fila ✓" : "🚀 Disparo iniciado! Acompanhe na Fila ✓");
     } catch (e) {}
     setCreating(false);
   };
@@ -2271,7 +2286,7 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols }) {
 
                 {/* Filter selector */}
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
-                  {[["manual","✋ Manual"],["label","🏷 Etiqueta"],["kanban","🗂 Kanban"],["status","● Status"],["csv","📄 CSV"]].map(([id, label]) => (
+                  {[["manual","✋ Manual"],["inativos","💤 Inativos"],["label","🏷 Etiqueta"],["kanban","🗂 Kanban"],["status","● Status"],["csv","📄 CSV"]].map(([id, label]) => (
                     <button key={id} onClick={() => { setBFilter(id); setBFilterValue(""); }} style={{ padding: "4px 12px", borderRadius: 20, border: `1px solid ${bFilter === id ? "#00a88444" : "#d1d7db"}`, background: bFilter === id ? "#00a88415" : "transparent", color: bFilter === id ? "#00a884" : "#667781", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{label}</button>
                   ))}
                 </div>
@@ -2297,6 +2312,47 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols }) {
                     <option value="resolved">Resolvidos</option>
                   </select>
                 )}
+                {bFilter === "inativos" && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#667781", marginBottom: 8 }}>SEM CONTATO HÁ:</div>
+                    <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                      {[[3,"3 dias"],[7,"7 dias"],[15,"15+ dias"]].map(([d, label]) => (
+                        <button key={d} onClick={() => setBInactiveDays(d)}
+                          style={{ flex: 1, padding: "8px 0", borderRadius: 8, border: `1px solid ${bInactiveDays === d ? "#00a88444" : "#d1d7db"}`,
+                            background: bInactiveDays === d ? "#00a88415" : "transparent",
+                            color: bInactiveDays === d ? "#00a884" : "#667781",
+                            fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <div onClick={() => setBAiPersonalize(p => !p)}
+                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px",
+                        background: bAiPersonalize ? "#7c4dff15" : "#f0f2f5",
+                        border: `1px solid ${bAiPersonalize ? "#7c4dff44" : "transparent"}`,
+                        borderRadius: 10, cursor: "pointer", marginBottom: 4 }}>
+                      <div style={{ width: 36, height: 20, borderRadius: 10,
+                        background: bAiPersonalize ? "#7c4dff" : "#d1d7db",
+                        position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
+                        <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#fff",
+                          position: "absolute", top: 2, left: bAiPersonalize ? 18 : 2, transition: "left 0.2s" }} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: bAiPersonalize ? "#7c4dff" : "#111b21" }}>
+                          ✨ IA personaliza mensagem por contato
+                        </div>
+                        <div style={{ fontSize: 11, color: "#667781" }}>
+                          A IA vai ler o histórico de cada conversa e gerar uma mensagem única usando o prompt da sua empresa
+                        </div>
+                      </div>
+                    </div>
+                    {bAiPersonalize && (
+                      <div style={{ background: "#7c4dff10", border: "1px solid #7c4dff22", borderRadius: 8, padding: "8px 12px", fontSize: 11, color: "#7c4dff" }}>
+                        🤖 O campo "Mensagem" será ignorado. A IA vai gerar uma mensagem personalizada para cada contato antes de enviar.
+                      </div>
+                    )}
+                  </div>
+                )}
                 {bFilter === "csv" && (
                   <div style={{ marginBottom: 10 }}>
                     <div style={{ fontSize: 11, color: "#667781", marginBottom: 6 }}>Cole aqui: <code style={{ color: "#8696a0" }}>55119999999, Nome</code> (um por linha)</div>
@@ -2316,10 +2372,10 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols }) {
                             setBRecipients(prev => checked ? prev.filter(r => r.phone !== phone) : [...prev, { phone, name }]);
                           }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 8, cursor: "pointer", background: checked ? "#00a88410" : "transparent", border: `1px solid ${checked ? "#00a88433" : "transparent"}` }}>
                             <div style={{ width: 16, height: 16, borderRadius: 4, border: `2px solid ${checked ? "#00a884" : "#54656f"}`, background: checked ? "#00a884" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{checked && <span style={{ color: "#000", fontSize: 10, fontWeight: 900 }}>✓</span>}</div>
-                            <Avatar name={conv.contacts.name || conv.contacts.phone} size={20} />
+                            <Avatar name={displayName(conv.contacts.name, conv.contacts.phone)} size={20} phone={conv.contacts.phone} instanceFilter={instanceFilter} />
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{conv.contacts.name || conv.contacts.phone}</div>
-                              <div style={{ fontSize: 10, color: "#667781" }}>{conv.contacts.phone}</div>
+                              <div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayName(conv.contacts.name, conv.contacts.phone)}</div>
+                              <div style={{ fontSize: 10, color: "#667781" }}>{formatPhone(conv.contacts.phone)}</div>
                             </div>
                           </div>
                         );
@@ -2341,9 +2397,9 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols }) {
 
                 <button
                   onClick={createBroadcast}
-                  disabled={creating || !bName.trim() || !bMessage.trim() || previewRecipients.length === 0}
-                  style={{ width: "100%", padding: "11px 0", borderRadius: 9, border: "none", background: (!creating && bName.trim() && bMessage.trim() && previewRecipients.length > 0) ? "linear-gradient(135deg,#00a884,#017561)" : "#e9edef", color: (!creating && bName.trim() && bMessage.trim() && previewRecipients.length > 0) ? "#000" : "#667781", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
-                >{creating ? "Criando..." : bScheduledAt ? `📅 Agendar disparo` : `🚀 Iniciar disparo agora`}</button>
+                  disabled={creating || !bName.trim() || (!bAiPersonalize && !bMessage.trim()) || previewRecipients.length === 0}
+                  style={{ width: "100%", padding: "11px 0", borderRadius: 9, border: "none", background: (!creating && bName.trim() && (bAiPersonalize || bMessage.trim()) && previewRecipients.length > 0) ? (bAiPersonalize ? "linear-gradient(135deg,#7c4dff,#5e35b1)" : "linear-gradient(135deg,#00a884,#017561)") : "#e9edef", color: (!creating && bName.trim() && (bAiPersonalize || bMessage.trim()) && previewRecipients.length > 0) ? "#fff" : "#667781", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+                >{creating ? (bAiPersonalize ? "🤖 Gerando mensagens..." : "Criando...") : bAiPersonalize ? `✨ Iniciar disparo com IA` : bScheduledAt ? `📅 Agendar disparo` : `🚀 Iniciar disparo agora`}</button>
               </div>
             </div>
           </div>
