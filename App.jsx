@@ -1652,9 +1652,16 @@ function WhatsAppScreen({ auth, T, theme }) {
     }).catch(() => { setSyncing(false); setSyncPhase("error"); });
   };
 
-  const triggerAutoSync = (instName, phone) => {
+  const triggerAutoSync = async (instName, phone) => {
     fetchInstances();
-    // Find the instance object and kick off history sync
+    // 1. Fix webhook first (ensure WAHA Plus points to our backend)
+    try {
+      await fetch(`${API_URL}/whatsapp/fix-webhook`, {
+        method: "POST", headers,
+        body: JSON.stringify({ instance_name: instName })
+      });
+    } catch(e) {}
+    // 2. Then kick off history sync
     const inst = instances.find(i => i.instance_name === instName) || { instance_name: instName, label: instName };
     startAutoSync(inst);
   };
