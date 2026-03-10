@@ -5648,41 +5648,60 @@ A mensagem deve:
                     ))}
                   </div>
                 ) : filtered.length === 0 ? <div style={{ padding: 24, textAlign: "center", color: "#667781", fontSize: 13 }}>Nenhuma conversa</div>
-                  : filtered.map(conv => (
-                    <div key={conv.id} onClick={() => { setSelected(conv); setSuggestion(""); setShowTasks(false); setNoteMode(false); if (conv.unread_count > 0) { setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c)); fetch(`${API_URL}/conversations/${conv.id}/read`, { method: "POST", headers }).catch(() => {}); } }} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "11px 14px", cursor: "pointer", background: selected?.id === conv.id ? T.selected : "transparent", borderLeft: selected?.id === conv.id ? "3px solid #00a884" : "3px solid transparent" }}>
-                      <Avatar name={displayName(conv.contacts?.name, conv.contacts?.phone)} phone={conv.contacts?.phone} instanceFilter={instanceFilter} />
+                  : filtered.map(conv => {
+                    const isSelected = selected?.id === conv.id;
+                    const hasUnread = conv.unread_count > 0;
+                    const name = displayName(conv.contacts?.name, conv.contacts?.phone);
+                    const preview = conv.last_message_preview || "";
+                    return (
+                    <div key={conv.id}
+                      onClick={() => { setSelected(conv); setSuggestion(""); setShowTasks(false); setNoteMode(false); if (hasUnread) { setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c)); fetch(`${API_URL}/conversations/${conv.id}/read`, { method: "POST", headers }).catch(() => {}); } }}
+                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", cursor: "pointer", background: isSelected ? T.selected : "transparent", borderLeft: isSelected ? "3px solid #00a884" : "3px solid transparent", transition: "background 0.1s" }}>
+                      {/* Avatar */}
+                      <div style={{ flexShrink: 0 }}>
+                        <Avatar name={name} phone={conv.contacts?.phone} instanceFilter={instanceFilter} />
+                      </div>
+                      {/* Content */}
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
-                          <span style={{ fontWeight: conv.unread_count > 0 ? 800 : 600, fontSize: 13, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: conv.unread_count > 0 ? T.text : T.text2, letterSpacing: !conv.contacts?.name ? "-0.3px" : 0 }}>{displayName(conv.contacts?.name, conv.contacts?.phone)}</span>
-                          <span style={{ fontSize: 11, color: inactiveDays ? "#ff6d00" : (conv.unread_count > 0 ? "#00a884" : "#667781"), flexShrink: 0, fontWeight: conv.unread_count > 0 ? 700 : 400 }}>{timeAgo(conv.last_message_at)}</span>
+                        {/* Row 1: Name + Time */}
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
+                          <span style={{ fontWeight: hasUnread ? 700 : 600, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: T.text, flex: 1, marginRight: 8 }}>{name}</span>
+                          <span style={{ fontSize: 11, color: inactiveDays ? "#ff6d00" : hasUnread ? "#00a884" : "#8696a0", flexShrink: 0, fontWeight: hasUnread ? 700 : 400 }}>{timeAgo(conv.last_message_at)}</span>
                         </div>
-                        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 4 }}>
-                          {conv.labels?.map(l => <LabelChip key={l.id} label={l} />)}
-                          <KanbanBadge stage={conv.kanban_stage} columns={kanbanCols} />
+                        {/* Row 2: Preview + Badge */}
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+                          <span style={{ fontSize: 12, color: hasUnread ? T.text2 : "#8696a0", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: hasUnread ? 600 : 400 }}>
+                            {conv.assigned_agent ? <span style={{ color: "#00a884", fontWeight: 600 }}>👤 {conv.assigned_agent} · </span> : null}
+                            {preview || (conv.contacts?.phone ? formatPhone(conv.contacts.phone) : "...")}
+                          </span>
+                          <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+                            {isAutoActive(conv) && <span title="Co-pilot automático" style={{ fontSize: 10 }}>🤖</span>}
+                            {pendingTasksMap[conv.id] > 0 && <span style={{ background: "#ff6d0022", border: "1px solid #ff6d0066", color: "#ff6d00", fontSize: 9, fontWeight: 700, padding: "1px 4px", borderRadius: 8, flexShrink: 0 }}>✅{pendingTasksMap[conv.id]}</span>}
+                            {hasUnread && (
+                              <span style={{ background: "#00a884", color: "#fff", fontSize: 10, fontWeight: 800, minWidth: 18, height: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", padding: "0 5px", letterSpacing: 0 }}>
+                                {conv.unread_count > 99 ? "99+" : conv.unread_count}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ fontSize: 11, color: "#667781", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{conv.assigned_agent ? `👤 ${conv.assigned_agent}` : (() => { const fp = formatPhone(conv.contacts?.phone); const dn = displayName(conv.contacts?.name, conv.contacts?.phone); return (conv.contacts?.name && fp !== dn && !fp.includes("···")) ? fp : ""; })()}</span>
-                          {conv.unread_count > 0 && (
-                            <span title={`${conv.unread_count} mensagem${conv.unread_count > 1 ? "s" : ""} não lida${conv.unread_count > 1 ? "s" : ""}`}
-                              style={{ background: "#00a884", color: "#fff", fontSize: 10, fontWeight: 800, minWidth: 18, height: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", padding: "0 5px", flexShrink: 0, letterSpacing: 0 }}>
-                              {conv.unread_count > 99 ? "99+" : conv.unread_count}
-                            </span>
-                          )}
-                          {pendingTasksMap[conv.id] > 0 && <span title={`${pendingTasksMap[conv.id]} tarefa(s) pendente(s)`} style={{ background: "#ff6d0022", border: "1px solid #ff6d0066", color: "#ff6d00", fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 10, flexShrink: 0 }}>✅ {pendingTasksMap[conv.id]}</span>}
-                          {isAutoActive(conv) && <span title="Co-pilot automático ativo" style={{ fontSize: 12 }}>🤖</span>}
-                        </div>
-                        {/* Retomar button — shown when inactive filter is active */}
+                        {/* Labels — compact chips on row 3 if any */}
+                        {(conv.labels?.length > 0 || conv.kanban_stage) && (
+                          <div style={{ display: "flex", gap: 3, flexWrap: "wrap", marginTop: 3 }}>
+                            {conv.labels?.slice(0,3).map(l => <LabelChip key={l.id} label={l} />)}
+                            <KanbanBadge stage={conv.kanban_stage} columns={kanbanCols} />
+                          </div>
+                        )}
+                        {/* Retomar button */}
                         {inactiveDays && (
-                          <button
-                            onClick={e => { e.stopPropagation(); resumeConversation(conv); }}
-                            disabled={resumingConv === conv.id}
-                            style={{ marginTop: 6, width: "100%", padding: "5px 0", borderRadius: 6, border: "1px solid #7c4dff44", background: resumingConv === conv.id ? "#e9edef" : "#7c4dff18", color: resumingConv === conv.id ? "#667781" : "#a78bfa", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-                            {resumingConv === conv.id ? <><span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⏳</span> Gerando...</> : "✨ Retomar conversa"}
+                          <button onClick={e => { e.stopPropagation(); resumeConversation(conv); }} disabled={resumingConv === conv.id}
+                            style={{ marginTop: 5, width: "100%", padding: "4px 0", borderRadius: 6, border: "1px solid #7c4dff44", background: resumingConv === conv.id ? "#e9edef" : "#7c4dff18", color: resumingConv === conv.id ? "#667781" : "#a78bfa", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                            {resumingConv === conv.id ? <><span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⏳</span> Gerando...</> : "✨ Retomar"}
                           </button>
                         )}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
               </div>
               {/* Infinite scroll loader */}
               {loadingMoreConvs && (
