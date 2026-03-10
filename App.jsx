@@ -1938,10 +1938,20 @@ function WhatsAppScreen({ auth, T, theme }) {
                               </button>
                             </>
                           )}
-                          <button onClick={() => { setActiveInst(null); setView("inbox"); }}
-                            style={{ padding: "10px 28px", borderRadius: 10, border: "1px solid #e9edef", background: "transparent", color: "#54656f", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
-                            → Ir para o Inbox
-                          </button>
+                          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+                            <button onClick={async () => {
+                              const r = await fetch(`${API_URL}/whatsapp/debug-session?instance=${inst.instance_name}`, { headers });
+                              const d = await r.json();
+                              alert(JSON.stringify(d, null, 2));
+                            }}
+                              style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #d1d7db", background: "#f0f2f5", color: "#54656f", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>
+                              🔍 Diagnóstico
+                            </button>
+                            <button onClick={() => { setActiveInst(null); setView("inbox"); }}
+                              style={{ padding: "8px 24px", borderRadius: 8, border: "1px solid #e9edef", background: "transparent", color: "#54656f", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                              → Ir para o Inbox
+                            </button>
+                          </div>
                         </>
                       ) : (
                         <>
