@@ -4838,24 +4838,29 @@ A mensagem deve:
     setShowContactDrawer(true);
   };
   const saveContact = async () => {
-    if (!selected?.contact_id) return;
+    const contactId = selected?.contacts?.id || selected?.contact_id;
+    if (!contactId) { showToast("Contato não encontrado", "#f44336"); return; }
+    if (!contactDrawerName.trim()) { showToast("Digite um nome para o contato", "#ff6d00"); return; }
     setSavingContact(true);
     try {
-      const r = await fetch(`${API_URL}/contacts/${selected.contact_id}`, {
+      const r = await fetch(`${API_URL}/contacts/${contactId}`, {
         method: "PUT", headers,
-        body: JSON.stringify({ name: contactDrawerName, notes: contactDrawerNotes })
+        body: JSON.stringify({ name: contactDrawerName.trim(), notes: contactDrawerNotes })
       });
       if (r.ok) {
         const { contact } = await r.json();
-        // Update local state so name reflects immediately
-        setSelected(prev => ({ ...prev, contacts: { ...prev.contacts, name: contact.name, notes: contact.notes } }));
-        setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, contacts: { ...c.contacts, name: contact.name, notes: contact.notes } } : c));
-        showToast("Contato salvo!", "#00a884");
+        const newName = contact.name;
+        const newNotes = contact.notes;
+        // Update everywhere: selected conv, conversations list, so name shows immediately
+        setSelected(prev => ({ ...prev, contacts: { ...prev.contacts, name: newName, notes: newNotes } }));
+        setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, contacts: { ...c.contacts, name: newName, notes: newNotes } } : c));
+        showToast(`✅ ${newName} salvo com sucesso!`, "#00a884");
         setShowContactDrawer(false);
       } else {
-        showToast("Erro ao salvar contato", "#f44336");
+        const err = await r.json().catch(() => ({}));
+        showToast(err.detail || "Erro ao salvar contato", "#f44336");
       }
-    } catch(e) { showToast("Erro ao salvar", "#f44336"); }
+    } catch(e) { showToast("Erro de conexão", "#f44336"); }
     finally { setSavingContact(false); }
   };
   const fetchSuggestion = async () => {
@@ -5744,81 +5749,101 @@ A mensagem deve:
       {/* ── Contact Drawer ─────────────────────────────── */}
       {showContactDrawer && selected && (
         <>
-          {/* Backdrop */}
           <div onClick={() => setShowContactDrawer(false)}
-            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", zIndex: 1100 }} />
-          {/* Drawer */}
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1100 }} />
           <div style={{
-            position: "fixed", top: 0, right: 0, bottom: 0, width: 340,
-            background: T.bg, zIndex: 1101, display: "flex", flexDirection: "column",
-            boxShadow: "-4px 0 24px rgba(0,0,0,0.18)",
-            animation: "slideInRight 0.2s ease"
+            position: "fixed", top: 0, right: 0, bottom: 0, width: 360,
+            background: "#fff", zIndex: 1101, display: "flex", flexDirection: "column",
+            boxShadow: "-6px 0 32px rgba(0,0,0,0.22)", animation: "slideInRight 0.2s ease"
           }}>
             {/* Header */}
-            <div style={{ padding: "18px 20px 14px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 12 }}>
-              <Avatar name={displayName(selected.contacts?.name, selected.contacts?.phone)} size={42} phone={selected.contacts?.phone} instanceFilter={instanceFilter} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 15, color: T.text }}>{displayName(selected.contacts?.name, selected.contacts?.phone)}</div>
-                <div style={{ fontSize: 12, color: "#8696a0", marginTop: 2 }}>{formatPhone(selected.contacts?.phone)}</div>
+            <div style={{ background: "#00a884", padding: "20px 20px 16px", display: "flex", alignItems: "center", gap: 14 }}>
+              <Avatar name={displayName(selected.contacts?.name, selected.contacts?.phone)} size={46} phone={selected.contacts?.phone} instanceFilter={instanceFilter} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 16, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {displayName(selected.contacts?.name, selected.contacts?.phone)}
+                </div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", marginTop: 3 }}>
+                  {formatPhone(selected.contacts?.phone)}
+                </div>
               </div>
               <button onClick={() => setShowContactDrawer(false)}
-                style={{ background: "transparent", border: "none", color: "#8696a0", fontSize: 20, cursor: "pointer", lineHeight: 1, padding: 4 }}>✕</button>
+                style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "#fff", fontSize: 16, cursor: "pointer", borderRadius: 6, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>✕</button>
             </div>
 
             {/* Body */}
-            <div style={{ flex: 1, overflowY: "auto", padding: 20, display: "flex", flexDirection: "column", gap: 20 }}>
+            <div style={{ flex: 1, overflowY: "auto", padding: "24px 20px", display: "flex", flexDirection: "column", gap: 22 }}>
 
               {/* Nome */}
               <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "#8696a0", textTransform: "uppercase", letterSpacing: 0.8, display: "block", marginBottom: 6 }}>Nome do contato</label>
+                <label style={{ fontSize: 11, fontWeight: 800, color: "#00a884", textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 8 }}>
+                  ✏️ Nome do contato
+                </label>
                 <input
                   value={contactDrawerName}
                   onChange={e => setContactDrawerName(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && saveContact()}
                   placeholder="Ex: João Silva"
+                  autoFocus
                   style={{
-                    width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${T.border}`,
-                    background: T.input, color: T.text, fontSize: 13, fontFamily: "inherit", outline: "none",
-                    boxSizing: "border-box"
+                    width: "100%", padding: "11px 14px", borderRadius: 9,
+                    border: "2px solid #e9edef", background: "#f8f9fa",
+                    color: "#111b21", fontSize: 14, fontFamily: "inherit",
+                    outline: "none", boxSizing: "border-box", transition: "border 0.15s"
                   }}
+                  onFocus={e => e.target.style.borderColor = "#00a884"}
+                  onBlur={e => e.target.style.borderColor = "#e9edef"}
                 />
+                <div style={{ fontSize: 11, color: "#8696a0", marginTop: 5 }}>
+                  Este nome vai aparecer no lugar do número em toda a plataforma.
+                </div>
               </div>
 
-              {/* Telefone (readonly) */}
+              {/* Telefone */}
               <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "#8696a0", textTransform: "uppercase", letterSpacing: 0.8, display: "block", marginBottom: 6 }}>Telefone</label>
-                <div style={{ padding: "10px 12px", borderRadius: 8, background: T.hover, color: "#8696a0", fontSize: 13 }}>
+                <label style={{ fontSize: 11, fontWeight: 800, color: "#667781", textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 8 }}>
+                  📱 Telefone
+                </label>
+                <div style={{ padding: "11px 14px", borderRadius: 9, background: "#f0f2f5", color: "#54656f", fontSize: 14, border: "2px solid transparent" }}>
                   {formatPhone(selected.contacts?.phone)}
                 </div>
               </div>
 
               {/* Observações */}
               <div style={{ flex: 1 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "#8696a0", textTransform: "uppercase", letterSpacing: 0.8, display: "block", marginBottom: 6 }}>Observações</label>
+                <label style={{ fontSize: 11, fontWeight: 800, color: "#667781", textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 8 }}>
+                  📝 Observações internas
+                </label>
                 <textarea
                   value={contactDrawerNotes}
                   onChange={e => setContactDrawerNotes(e.target.value)}
-                  placeholder={"Ex: Cliente desde 2023, prefere contato pelo WhatsApp, interessado em plano anual..."}
-                  rows={6}
+                  placeholder="Ex: Cliente desde 2023, prefere contato pelo WhatsApp, interessado em plano anual, indicado pela Maria..."
+                  rows={7}
                   style={{
-                    width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${T.border}`,
-                    background: T.input, color: T.text, fontSize: 13, fontFamily: "inherit", outline: "none",
-                    resize: "vertical", boxSizing: "border-box", lineHeight: 1.5
+                    width: "100%", padding: "11px 14px", borderRadius: 9,
+                    border: "2px solid #e9edef", background: "#f8f9fa",
+                    color: "#111b21", fontSize: 13, fontFamily: "inherit",
+                    outline: "none", resize: "vertical", boxSizing: "border-box",
+                    lineHeight: 1.6, transition: "border 0.15s"
                   }}
+                  onFocus={e => e.target.style.borderColor = "#00a884"}
+                  onBlur={e => e.target.style.borderColor = "#e9edef"}
                 />
-                <div style={{ fontSize: 11, color: "#8696a0", marginTop: 4 }}>Visível apenas para a equipe. O cliente não vê.</div>
+                <div style={{ fontSize: 11, color: "#8696a0", marginTop: 5 }}>
+                  🔒 Visível apenas para a sua equipe. O cliente nunca vê.
+                </div>
               </div>
             </div>
 
             {/* Footer */}
-            <div style={{ padding: "14px 20px", borderTop: `1px solid ${T.border}`, display: "flex", gap: 10 }}>
+            <div style={{ padding: "16px 20px", borderTop: "1px solid #e9edef", background: "#f8f9fa", display: "flex", gap: 10 }}>
               <button onClick={() => setShowContactDrawer(false)}
-                style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: `1px solid ${T.border}`, background: "transparent", color: T.text2, fontSize: 13, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>
+                style={{ flex: 1, padding: "11px 0", borderRadius: 9, border: "2px solid #e9edef", background: "#fff", color: "#667781", fontSize: 13, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>
                 Cancelar
               </button>
               <button onClick={saveContact} disabled={savingContact}
-                style={{ flex: 2, padding: "10px 0", borderRadius: 8, border: "none", background: savingContact ? "#e9edef" : "#00a884", color: savingContact ? "#8696a0" : "#fff", fontSize: 13, cursor: savingContact ? "wait" : "pointer", fontFamily: "inherit", fontWeight: 700 }}>
-                {savingContact ? "Salvando..." : "💾 Salvar contato"}
+                style={{ flex: 2, padding: "11px 0", borderRadius: 9, border: "none", background: savingContact ? "#b2dfdb" : "#00a884", color: "#fff", fontSize: 13, cursor: savingContact ? "wait" : "pointer", fontFamily: "inherit", fontWeight: 700, transition: "background 0.15s" }}>
+                {savingContact ? "⏳ Salvando..." : "💾 Salvar contato"}
               </button>
             </div>
           </div>
