@@ -15,7 +15,7 @@ import {
 } from "recharts";
 
 const API_URL = "https://7zap-inbox-production.up.railway.app";
-const API_KEY = "7zap_inbox_secret";
+const API_KEY = import.meta.env.VITE_API_KEY || "7zap_inbox_secret";
 
 const H = (jwt) => ({
   "Content-Type": "application/json",
