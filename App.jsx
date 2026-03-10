@@ -1593,7 +1593,10 @@ function WhatsAppScreen({ auth, T, theme }) {
   const syncJobRef = useRef(null);
   const qrPollRef = useRef(null); // polling interval while QR is displayed
 
-  const fetchInstances = async () => {
+  const [instancesLoading, setInstancesLoading] = useState(true);
+
+  const fetchInstances = async (showLoading = false) => {
+    if (showLoading) setInstancesLoading(true);
     try {
       const r = await fetch(`${API_URL}/whatsapp/tenant-instances?tenant_id=${TENANT_ID}`, { headers });
       const d = await r.json();
@@ -1601,11 +1604,12 @@ function WhatsAppScreen({ auth, T, theme }) {
       setMaxNumbers(d.max_numbers || 1);
       setPlan(d.plan || "starter");
     } catch(e) {}
+    setInstancesLoading(false);
   };
 
   useEffect(() => {
-    fetchInstances();
-    const t = setInterval(fetchInstances, 12000);
+    fetchInstances(true); // show loading only on first load
+    const t = setInterval(() => fetchInstances(false), 15000); // silent refresh every 15s
     return () => clearInterval(t);
   }, []);
 
@@ -1849,7 +1853,13 @@ function WhatsAppScreen({ auth, T, theme }) {
         )}
 
         {/* Instances grid */}
-        {instances.length === 0 && !showNewForm && (
+        {instancesLoading && instances.length === 0 && !showNewForm && (
+          <div style={{ textAlign: "center", padding: "60px 20px", color: "#667781" }}>
+            <div style={{ fontSize: 32, marginBottom: 10 }}>📱</div>
+            <div style={{ fontSize: 14 }}>Carregando números conectados...</div>
+          </div>
+        )}
+        {!instancesLoading && instances.length === 0 && !showNewForm && (
           <div style={{ textAlign: "center", padding: "60px 20px", background: "#ffffff", border: "1px dashed #252540", borderRadius: 16 }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>📵</div>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>Nenhum número conectado</div>
@@ -4638,15 +4648,20 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
 
   useEffect(() => {
     if (!selected) return;
-    // Clear immediately so skeleton always shows on conversation switch
-    setMessages([]);
+    // Don't blank messages — keep previous visible while loading new ones
+    // This avoids the flash of empty state on every conversation switch
     setLoadingMessages(true);
     setMessagesOffset(0);
     setHasMoreMessages(false);
     setSuggestion("");
-    fetchMessages(selected.id, false).finally(() => setLoadingMessages(false));
-    const t = setInterval(() => backgroundRefreshMessages(selected.id), 3000);
-    return () => clearInterval(t);
+    fetchMessages(selected.id, false).finally(() => {
+      setLoadingMessages(false);
+    });
+    const t = setInterval(() => backgroundRefreshMessages(selected.id), 4000);
+    return () => {
+      clearInterval(t);
+      setMessages([]); // clear only when unmounting / leaving conversation
+    };
   }, [selected?.id]);
   const prevMsgCountRef = useRef(0);
   useEffect(() => {
