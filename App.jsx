@@ -4708,7 +4708,8 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
 
     realtimeConvsRef.current = channel;
     return () => { supabase.removeChannel(channel); realtimeConvsRef.current = null; };
-  }, [fetchConversations, fetchAllConversations, view, filter]); = useCallback(async (convId) => {
+  }, [fetchConversations, fetchAllConversations, view, filter]);
+  const backgroundRefreshMessages = useCallback(async (convId) => {
     // Silent background refresh — no spinner, no skeleton, just appends new messages
     try {
       const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=50`, { headers });
