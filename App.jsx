@@ -5662,8 +5662,6 @@ A mensagem deve:
         </div>
       )}
 
-    </div>
-
       {/* ── Global Toast ─────────────────────────────────── */}
       {toast && (
         <div style={{ position: "fixed", bottom: 80, left: "50%", transform: "translateX(-50%)", zIndex: 9999, pointerEvents: "none" }}>
@@ -5678,5 +5676,6 @@ A mensagem deve:
           </div>
         </div>
       )}
+    </div>
   );
 }
