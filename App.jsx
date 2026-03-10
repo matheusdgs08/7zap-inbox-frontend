@@ -4270,6 +4270,8 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [loadingMoreMsgs, setLoadingMoreMsgs] = useState(false);
   const [input, setInput] = useState("");
+  const textareaRef = useRef(null);
+  const fileInputRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [initialLoad, setInitialLoad] = useState(true); // true até primeira carga completar
   const [sending, setSending] = useState(false);
@@ -4715,6 +4717,7 @@ A mensagem deve:
     setSending(true);
     const text = input.trim();
     setInput("");
+    if (textareaRef.current) textareaRef.current.style.height = "auto";
     setNoteMode(false);
     // Optimistic: show message instantly before server confirms
     const tempId = `temp-${Date.now()}`;
@@ -4742,6 +4745,73 @@ A mensagem deve:
       setMessages(prev => prev.filter(m => m.id !== tempId));
     }
     setSending(false);
+  };
+
+  // Auto-resize textarea
+  const resizeTextarea = (el) => {
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 160) + "px";
+  };
+
+  const sendFile = async (file) => {
+    if (!file || !selected || sending) return;
+    const maxMB = 16;
+    if (file.size > maxMB * 1024 * 1024) {
+      showToast(`Arquivo muito grande (máx ${maxMB}MB)`, "#f44336"); return;
+    }
+    setSending(true);
+    const caption = input.trim();
+    setInput("");
+    if (textareaRef.current) { textareaRef.current.style.height = "auto"; }
+    const isImage = file.type.startsWith("image/");
+    const displayName = file.name || "arquivo";
+    const icon = isImage ? "📷" : "📎";
+    const tempId = `temp-${Date.now()}`;
+    setMessages(prev => [...prev, {
+      id: tempId, conversation_id: selected.id,
+      direction: "outbound",
+      content: `[${icon} ${displayName}]${caption ? " " + caption : ""}`,
+      type: isImage ? "image" : "document",
+      created_at: new Date().toISOString(), _pending: true
+    }]);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      if (caption) form.append("caption", caption);
+      const tok = localStorage.getItem("7crm_token");
+      const r = await fetch(`${API_URL}/conversations/${selected.id}/media`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${tok}` },
+        body: form
+      });
+      const d = await r.json();
+      if (d.message?.id) {
+        setMessages(prev => prev.map(m => m.id === tempId ? d.message : m));
+        showToast(`${icon} Enviado!`, "#00a884");
+      } else {
+        setMessages(prev => prev.filter(m => m.id !== tempId));
+        showToast("Erro ao enviar arquivo", "#f44336");
+      }
+      await fetchConversations();
+    } catch (e) {
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+      showToast("Erro ao enviar arquivo", "#f44336");
+    }
+    setSending(false);
+  };
+
+  const handlePaste = (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.startsWith("image/")) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (file) sendFile(file);
+        return;
+      }
+    }
   };
 
   const changeStatus = async (convId, newStatus) => {
@@ -5725,9 +5795,23 @@ A mensagem deve:
                       </div>
                     )}
                     <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-                      <button onClick={() => setNoteMode(n => !n)} style={{ padding: "9px 10px", borderRadius: 9, border: `1px solid ${noteMode ? "#ffd60044" : "#d1d7db"}`, background: noteMode ? "#ffd60015" : "transparent", color: noteMode ? "#ffd600" : "#667781", fontSize: 14, cursor: "pointer", flexShrink: 0 }}>📝</button>
-                      <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }} placeholder={noteMode ? "Escreva uma nota interna..." : "Digite uma mensagem... (Enter para enviar)"} rows={1} style={{ flex: 1, padding: "9px 13px", background: noteMode ? "#fffbeb" : T.input, border: `1px solid ${noteMode ? "#ffd60033" : T.inputBdr}`, borderRadius: 9, color: noteMode ? "#92400e" : "#111b21", fontSize: 14, outline: "none", resize: "none", fontFamily: "inherit", lineHeight: 1.5, maxHeight: 120, overflowY: "auto" }} />
-                      <button onClick={sendMessage} disabled={sending || !input.trim()} style={{ padding: "9px 16px", borderRadius: 9, border: "none", background: sending || !input.trim() ? "#e9edef" : noteMode ? "linear-gradient(135deg, #ffd600, #f57f17)" : "linear-gradient(135deg, #00a884, #017561)", color: sending || !input.trim() ? "#667781" : "#000", fontSize: 14, fontWeight: 700, cursor: sending || !input.trim() ? "not-allowed" : "pointer", fontFamily: "inherit", flexShrink: 0 }}>{sending ? "..." : noteMode ? "Nota" : "Enviar"}</button>
+                      {/* Nota interna */}
+                      <button onClick={() => setNoteMode(n => !n)} title="Nota interna" style={{ padding: "9px 10px", borderRadius: 9, border: `1px solid ${noteMode ? "#ffd60044" : "#d1d7db"}`, background: noteMode ? "#ffd60015" : "transparent", color: noteMode ? "#ffd600" : "#667781", fontSize: 14, cursor: "pointer", flexShrink: 0 }}>📝</button>
+                      {/* Anexar arquivo */}
+                      <input ref={fileInputRef} type="file" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip,.mp4,.mp3" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) sendFile(f); e.target.value = ""; }} />
+                      <button onClick={() => fileInputRef.current?.click()} title="Enviar arquivo ou imagem" style={{ padding: "9px 10px", borderRadius: 9, border: "1px solid #d1d7db", background: "transparent", color: "#667781", fontSize: 16, cursor: "pointer", flexShrink: 0 }}>📎</button>
+                      {/* Textarea auto-resize */}
+                      <textarea
+                        ref={textareaRef}
+                        value={input}
+                        onChange={e => { setInput(e.target.value); resizeTextarea(e.target); }}
+                        onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                        onPaste={handlePaste}
+                        placeholder={noteMode ? "Escreva uma nota interna..." : "Digite uma mensagem... (Enter para enviar, Shift+Enter para quebra de linha)"}
+                        rows={1}
+                        style={{ flex: 1, padding: "9px 13px", background: noteMode ? "#fffbeb" : T.input, border: `1px solid ${noteMode ? "#ffd60033" : T.inputBdr}`, borderRadius: 9, color: noteMode ? "#92400e" : "#111b21", fontSize: 14, outline: "none", resize: "none", fontFamily: "inherit", lineHeight: 1.5, maxHeight: 160, overflowY: "auto", transition: "height 0.1s ease" }}
+                      />
+                      <button onClick={sendMessage} disabled={sending || !input.trim()} style={{ padding: "9px 16px", borderRadius: 9, border: "none", background: sending || !input.trim() ? "#e9edef" : noteMode ? "linear-gradient(135deg, #ffd600, #f57f17)" : "linear-gradient(135deg, #00a884, #017561)", color: sending || !input.trim() ? "#667781" : "#000", fontSize: 14, fontWeight: 700, cursor: sending || !input.trim() ? "not-allowed" : "pointer", fontFamily: "inherit", flexShrink: 0, alignSelf: "flex-end" }}>{sending ? "..." : noteMode ? "Nota" : "Enviar"}</button>
                     </div>
                   </div>
                 </div>
