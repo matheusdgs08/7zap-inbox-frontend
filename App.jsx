@@ -4352,6 +4352,8 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const [aiCredits, setAiCredits] = useState(null); // { credits, limit, plan, pct, warning }
   const [showUpgrade, setShowUpgrade] = useState(null); // feature name string
   const [showBuyCredits, setShowBuyCredits] = useState(false);
+  const [syncingPhotos, setSyncingPhotos] = useState(false);
+  const [photoSyncResult, setPhotoSyncResult] = useState(null);
   const [waInstances, setWaInstances] = useState([]); // for disconnect banner
   const selectInstance = (name) => {
     setInstanceFilter(name);
@@ -5237,8 +5239,8 @@ A mensagem deve:
   const totalPendingTasks = Object.values(pendingTasksMap).reduce((a, b) => a + b, 0);
   const WORK_TABS = [
     { id: "inbox", label: "📥 Inbox" },
-    { id: "leads", label: "🏷 Pipeline" },
-    { id: "kanban", label: "🗂 Board" },
+    { id: "leads", label: "🏷 Etiquetas" },
+    { id: "kanban", label: "🗂 Kanban" },
     { id: "tasks_global", label: "✅ Tarefas" },
     { id: "disparos", label: "📢 Disparos" },
     { id: "config", label: "⚙️ Config IA" },
@@ -6226,7 +6228,7 @@ A mensagem deve:
         <div style={{ height: 58, flexShrink: 0, borderTop: `1px solid ${T.border}`, background: T.topbar, display: "flex", alignItems: "center", justifyContent: "space-around", paddingBottom: "env(safe-area-inset-bottom, 0px)", zIndex: 100 }}>
           {[
             { id: "inbox",        icon: "💬", label: "Inbox" },
-            { id: "kanban",       icon: "🗂",  label: "Board" },
+            { id: "kanban",       icon: "🗂",  label: "Kanban" },
             { id: "tasks_global", icon: "✅",  label: "Tarefas", badge: totalPendingTasks },
             { id: "disparos",     icon: "📢",  label: "Disparos" },
             { id: "__more__",     icon: "⋯",   label: "Mais" },
@@ -6262,7 +6264,7 @@ A mensagem deve:
             <div style={{ width: 40, height: 4, background: T.border, borderRadius: 2, margin: "0 auto 20px" }} />
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
               {[
-                { id: "leads",      icon: "🏷",  label: "Pipeline" },
+                { id: "leads",      icon: "🏷",  label: "Etiquetas" },
                 { id: "config",     icon: "⚙️",   label: "Config IA" },
                 { id: "relatorios", icon: "📈",   label: "Relatórios" },
                 { id: "whatsapp",   icon: "📱",   label: "WhatsApp" },
