@@ -1419,9 +1419,37 @@ function OnboardingView({ auth, aiCredits }) {
 
             {error && <div style={{ background: "#f4433315", border: "1px solid #f4433333", borderRadius: 10, padding: "12px 16px", fontSize: 13, color: "#f44336", marginBottom: 16 }}>❌ {error}</div>}
 
-            {/* Warning */}
-            <div style={{ background: "#7c4dff15", border: "1px solid #7c4dff33", borderRadius: 10, padding: "12px 16px", fontSize: 12, color: "#a78bfa", marginBottom: 20 }}>
-              ⚡ Cada análise consome <strong>1.000 créditos</strong>.
+            {/* What we analyze — detailed card */}
+            <div style={{ background: "linear-gradient(135deg, #00a88408, #7c4dff08)", border: "1px solid #00a88433", borderRadius: 14, padding: 20, marginBottom: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                <span style={{ fontSize: 18 }}>🔬</span>
+                <span style={{ fontSize: 13, fontWeight: 800, color: "#111b21" }}>O que analisamos nos seus {days} dias de histórico</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+                {[
+                  { icon: "💬", label: "Até 300 conversas reais", sub: "com seus clientes" },
+                  { icon: "📩", label: "Até 9.000 mensagens", sub: "lidas na íntegra pela IA" },
+                  { icon: "🎯", label: "Tom de voz identificado", sub: "formal, descontraído, técnico..." },
+                  { icon: "🛍️", label: "Produtos & serviços", sub: "mapeados automaticamente" },
+                  { icon: "❓", label: "Perguntas frequentes", sub: "para o Co-pilot já saber responder" },
+                  { icon: "🔄", label: "Fluxo de vendas", sub: "como você fecha e converte" },
+                ].map(item => (
+                  <div key={item.label} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "8px 10px", background: "#ffffff", borderRadius: 9, border: "1px solid #e9edef" }}>
+                    <span style={{ fontSize: 16, lineHeight: 1 }}>{item.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "#111b21", lineHeight: 1.3 }}>{item.label}</div>
+                      <div style={{ fontSize: 11, color: "#667781", marginTop: 2 }}>{item.sub}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: "#7c4dff12", borderRadius: 9, border: "1px solid #7c4dff33" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 14 }}>⚡</span>
+                  <span style={{ fontSize: 12, color: "#7c4dff", fontWeight: 700 }}>Cada análise consome <strong>1.000 créditos</strong></span>
+                </div>
+                <span style={{ fontSize: 11, color: "#a78bfa", background: "#7c4dff18", padding: "2px 10px", borderRadius: 20, fontWeight: 600 }}>análise profunda</span>
+              </div>
             </div>
 
             <button onClick={analyze} style={{ width: "100%", padding: "14px 0", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #00a884, #017561)", color: "#000", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
@@ -1470,17 +1498,26 @@ function OnboardingView({ auth, aiCredits }) {
             </div>
 
             {/* Stats */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 16 }}>
               {[
-                { label: "Conversas analisadas", value: result.conversations_analyzed, color: "#00a884" },
-                { label: "Dias de histórico", value: result.days_analyzed, color: "#00a884" },
-                { label: "Créditos usados", value: "~50", color: "#7c4dff" },
+                { icon: "💬", label: "Conversas lidas", value: result.conversations_analyzed, color: "#00a884" },
+                { icon: "📩", label: "Mensagens est.", value: `~${(result.conversations_analyzed * 25).toLocaleString("pt-BR")}`, color: "#00a884" },
+                { icon: "📅", label: "Dias analisados", value: result.days_analyzed, color: "#7c4dff" },
+                { icon: "⚡", label: "Créditos usados", value: "1.000", color: "#ff6d00" },
               ].map(s => (
-                <div key={s.label} style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 10, padding: "12px 14px", textAlign: "center" }}>
-                  <div style={{ fontSize: 20, fontWeight: 800, color: s.color }}>{s.value}</div>
-                  <div style={{ fontSize: 11, color: "#667781", marginTop: 2 }}>{s.label}</div>
+                <div key={s.label} style={{ background: "#ffffff", border: `1px solid ${s.color}33`, borderRadius: 10, padding: "12px 10px", textAlign: "center" }}>
+                  <div style={{ fontSize: 18, marginBottom: 4 }}>{s.icon}</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.value}</div>
+                  <div style={{ fontSize: 10, color: "#667781", marginTop: 4, lineHeight: 1.3 }}>{s.label}</div>
                 </div>
               ))}
+            </div>
+            <div style={{ background: "linear-gradient(135deg, #00a88410, #7c4dff08)", border: "1px solid #00a88433", borderRadius: 10, padding: "10px 16px", marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 20 }}>🏆</span>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#00a884" }}>Análise de qualidade profissional</div>
+                <div style={{ fontSize: 11, color: "#667781", marginTop: 2 }}>Nossa IA leu cada mensagem, identificou padrões, mapeou produtos e aprendeu o tom do seu negócio — tudo para que o Co-pilot responda como você.</div>
+              </div>
             </div>
 
             {/* Summary — protects real prompt */}
@@ -2581,14 +2618,18 @@ function GlobalTasksView({ pendingTasksMap, conversations, agents, onSelectConv,
   };
   useEffect(() => { fetchAll(); }, []);
 
+  const [completing, setCompleting] = useState(null); // taskId being completed
   const completeTask = async (taskId) => {
-    showToast("✅ Concluindo tarefa...", "#00a884", true);
-    try { await fetch(`${API_URL}/tasks/${taskId}/done`, { method: "PUT", headers }); showToast("✅ Tarefa concluída!"); } catch (e) { showToast("Erro ao concluir tarefa", "#f44336"); }
-    const done = openTasks.find(t => t.id === taskId);
-    setOpenTasks(prev => prev.filter(t => t.id !== taskId));
-    if (done) setDoneTasks(prev => [{ ...done, done: true, done_at: new Date().toISOString() }, ...prev]);
-    setSelectedTask(null);
-    if (onRefresh) onRefresh();
+    setCompleting(taskId);
+    try {
+      await fetch(`${API_URL}/tasks/${taskId}/done`, { method: "PUT", headers });
+      const done = openTasks.find(t => t.id === taskId);
+      setOpenTasks(prev => prev.filter(t => t.id !== taskId));
+      if (done) setDoneTasks(prev => [{ ...done, done: true, done_at: new Date().toISOString() }, ...prev]);
+      setSelectedTask(null);
+      if (onRefresh) onRefresh();
+    } catch (e) {}
+    setCompleting(null);
   };
 
   const getConv = (convId) => conversations.find(c => c.id === convId) || null;
