@@ -138,14 +138,11 @@ function Avatar({ name, size = 36, phone, instanceFilter, picUrl }) {
 
   React.useEffect(() => {
     if (picUrl) { setPhotoUrl(picUrl); _photoCache[phone] = picUrl; return; }
+    // Don't fire individual API requests for profile pics in the list —
+    // they are fetched in bulk by the backend on webhook and stored in DB.
+    // Only use in-memory cache if already loaded this session.
     if (!phone || !instanceFilter) return;
-    if (_photoCache[phone]) { setPhotoUrl(_photoCache[phone]); return; }
-    if (_photoCache[phone] === false) return; // already tried, no pic
-    _photoCache[phone] = false; // mark as in-flight
-    fetch(`${API_URL}/contacts/profile-picture?phone=${encodeURIComponent(phone)}&instance=${encodeURIComponent(instanceFilter)}`, { headers })
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.url) { _photoCache[phone] = d.url; setPhotoUrl(d.url); } })
-      .catch(() => {});
+    if (_photoCache[phone] && _photoCache[phone] !== false) { setPhotoUrl(_photoCache[phone]); return; }
   }, [phone, instanceFilter, picUrl]);
 
   if (photoUrl) return (
