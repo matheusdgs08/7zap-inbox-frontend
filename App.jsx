@@ -1890,7 +1890,7 @@ function WhatsAppScreen({ auth, T, theme }) {
             const isActive = activeInst?.id === inst.id;
             const statusColor = inst.connected ? "#00a884" : "#f44336";
             return (
-              <div key={inst.id} style={{ background: "#ffffff", border: `1.5px solid ${isActive ? "#00a88455" : inst.connected ? "#00a88422" : "#e9edef"}`, borderRadius: 14, overflow: "hidden", boxShadow: isActive ? "0 4px 16px #00a88420" : inst.connected ? "0 2px 8px #00a88415" : "none", transition: "box-shadow 0.2s, border-color 0.2s" }}>
+              <div key={inst.id} style={{ background: "#ffffff", border: `1.5px solid ${isActive ? "#00a88455" : inst.connected ? "#00a88422" : "#e9edef"}`, borderRadius: 14, overflow: "hidden", boxShadow: isActive ? "0 4px 16px #00a88420" : inst.connected ? "0 2px 8px #00a88415" : "none", transition: "box-shadow 0.2s, border-color 0.2s", gridColumn: isActive ? "1 / -1" : undefined }}>
                 {/* Card header */}
                 <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 16px 12px" }}>
                   <div style={{ width: 46, height: 46, borderRadius: 13, background: inst.connected ? "linear-gradient(135deg,#00a884,#017561)" : "#f4433318", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0, boxShadow: inst.connected ? "0 2px 8px #00a88444" : "none" }}>
