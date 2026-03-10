@@ -4414,6 +4414,20 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     setSavingPrompt(false);
   };
 
+  const syncContactNames = async () => {
+    if (!window.confirm("Buscar o nome real de todos os contatos direto do WhatsApp? Pode demorar alguns segundos.")) return;
+    try {
+      showToast("🔄 Sincronizando nomes...");
+      const inst = instanceFilter || instances[0]?.name || "default";
+      const r = await fetch(`${API_URL}/contacts/sync-names`, { method: "POST", headers, body: JSON.stringify({ tenant_id: TENANT_ID, instance: inst }) });
+      const d = await r.json();
+      showToast(`✅ ${d.updated || 0} nomes sincronizados!`);
+      fetchConversations();
+    } catch (e) {
+      showToast("❌ Erro ao sincronizar nomes.");
+    }
+  };
+
   useEffect(() => {
     const isMulti = view === "kanban" || view === "leads";
     const fn = isMulti ? fetchAllConversations : fetchConversations;
