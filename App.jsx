@@ -57,6 +57,19 @@ function sortMsgs(arr) {
   return [...arr].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 }
 
+// Merge fresh messages into existing, deduplicating by BOTH id and waha_id
+function mergeMessages(existing, fresh) {
+  const seenIds    = new Set(existing.map(m => m.id).filter(Boolean));
+  const seenWahaIds = new Set(existing.map(m => m.waha_id).filter(Boolean));
+  const newOnes = fresh.filter(m => {
+    if (m.id     && seenIds.has(m.id))         return false;
+    if (m.waha_id && seenWahaIds.has(m.waha_id)) return false;
+    return true;
+  });
+  if (newOnes.length === 0) return existing; // avoid re-render
+  return sortMsgs([...existing, ...newOnes]);
+}
+
 function formatPhone(raw) {
   if (!raw) return "";
   // Remove sufixos WhatsApp (@lid, @c.us, etc)
@@ -1890,7 +1903,7 @@ function WhatsAppScreen({ auth, T, theme }) {
             const isActive = activeInst?.id === inst.id;
             const statusColor = inst.connected ? "#00a884" : "#f44336";
             return (
-              <div key={inst.id} style={{ background: "#ffffff", border: `1.5px solid ${isActive ? "#00a88455" : inst.connected ? "#00a88422" : "#e9edef"}`, borderRadius: 14, overflow: "hidden", boxShadow: isActive ? "0 4px 16px #00a88420" : inst.connected ? "0 2px 8px #00a88415" : "none", transition: "box-shadow 0.2s, border-color 0.2s", gridColumn: isActive ? "1 / -1" : undefined }}>
+              <div key={inst.id} style={{ background: "#ffffff", border: `1.5px solid ${isActive ? "#00a88455" : inst.connected ? "#00a88422" : "#e9edef"}`, borderRadius: 14, overflow: "hidden", boxShadow: isActive ? "0 4px 16px #00a88420" : inst.connected ? "0 2px 8px #00a88415" : "none", transition: "box-shadow 0.2s, border-color 0.2s" }}>
                 {/* Card header */}
                 <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 16px 12px" }}>
                   <div style={{ width: 46, height: 46, borderRadius: 13, background: inst.connected ? "linear-gradient(135deg,#00a884,#017561)" : "#f4433318", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0, boxShadow: inst.connected ? "0 2px 8px #00a88444" : "none" }}>
@@ -4534,11 +4547,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
           const fresh = d.messages || [];
           if (fresh.length > 0) {
             msgCacheRef.current[convId] = { messages: fresh, ts: Date.now() };
-            setMessages(prev => {
-              const ids = new Set(prev.map(m => m.id));
-              const newOnes = fresh.filter(m => !ids.has(m.id));
-              return newOnes.length > 0 ? sortMsgs([...prev, ...newOnes]) : prev;
-            });
+            setMessages(prev => mergeMessages(prev, fresh));
           }
         }).catch(() => {});
       return;
@@ -4558,9 +4567,9 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
         .then(r2 => r2.json())
         .then(d2 => {
           const synced = d2.messages || [];
-          if (synced.length > msgs.length) {
+          if (synced.length > 0) {
             msgCacheRef.current[convId] = { messages: synced, ts: Date.now() };
-            setMessages(sortMsgs(synced));
+            setMessages(prev => mergeMessages(prev, synced));
           }
         }).catch(() => {});
       setMessagesOffset(0);
@@ -4685,11 +4694,16 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       const fresh = d.messages || [];
       if (fresh.length === 0) return;
       setMessages(prev => {
-        // Merge: keep existing, append truly new ones (by id)
-        const existingIds = new Set(prev.map(m => m.id || m.waha_id));
-        const newOnes = fresh.filter(m => !existingIds.has(m.id) && !existingIds.has(m.waha_id));
+        // Merge: keep existing, append truly new ones (by id AND waha_id), sorted
+        const existingIds    = new Set(prev.map(m => m.id).filter(Boolean));
+        const existingWahaIds = new Set(prev.map(m => m.waha_id).filter(Boolean));
+        const newOnes = fresh.filter(m => {
+          if (m.id     && existingIds.has(m.id))         return false;
+          if (m.waha_id && existingWahaIds.has(m.waha_id)) return false;
+          return true;
+        });
         if (newOnes.length === 0) return prev; // no change — avoid re-render
-        return [...prev, ...newOnes];
+        return sortMsgs([...prev, ...newOnes]);
       });
     } catch (e) {}
   }, []);
