@@ -552,7 +552,7 @@ function LoginScreen({ onLogin }) {
   };
 
   const box = { width: 400, padding: "40px 36px", background: "#ffffff", border: "1px solid #e9edef", borderRadius: 20, boxShadow: "0 2px 5px #0000001a, 0 8px 20px #00000012" };
-  const wrap = { display: "flex", height: "100vh", width: "100vw", background: "#f0f2f5", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans','Segoe UI',sans-serif" };
+  const wrap = { display: "flex", minHeight: "100vh", width: "100vw", background: "#f0f2f5", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans','Segoe UI',sans-serif", padding: "20px 0", boxSizing: "border-box" };
 
   // ── TELA RESET ──
   if (screen === "reset") return (
