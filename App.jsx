@@ -3838,17 +3838,17 @@ function DashboardSocios({ auth, clientes_reais }) {
 }
 
 export default function App() {
-  // Rota /admin → painel da Andressa
-  if (window.location.pathname === "/admin" || window.location.pathname === "/admin/") {
-    return <SuperAdminPanel />;
-  }
-
   const [auth, setAuth] = useState(getStoredAuth);
   const theme = "light";
   const toggleTheme = () => {};
 
   const handleLogin = (data) => { setStoredAuth(data); setAuth(data); };
   const handleLogout = () => { setStoredAuth(null); setAuth(null); };
+
+  // Rota /admin → painel da Andressa (após hooks)
+  if (window.location.pathname === "/admin" || window.location.pathname === "/admin/") {
+    return <SuperAdminPanel />;
+  }
 
   if (!auth) return <LoginScreen onLogin={handleLogin} theme={theme} toggleTheme={toggleTheme} />;
 
