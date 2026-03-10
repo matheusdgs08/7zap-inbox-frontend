@@ -4728,7 +4728,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       setMessages(sortMsgs(cached.messages));
       setHasMoreMessages(false);
       // Background refresh silently
-      fetch(`${API_URL}/conversations/${convId}/messages?limit=50`, { headers })
+      fetch(`${API_URL}/conversations/${convId}/messages?limit=16`, { headers })
         .then(r => r.json())
         .then(d => {
           const fresh = d.messages || [];
@@ -4745,13 +4745,13 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     }
     // ── Full fetch — DB first, then trigger WAHA sync em background se vazio ──
     try {
-      const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=50`, { headers });
+      const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=16`, { headers });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
       const msgs = d.messages || [];
       msgCacheRef.current[convId] = { messages: msgs, ts: Date.now() };
       setMessages(sortMsgs(msgs));
-      setHasMoreMessages(false);
+      setHasMoreMessages(d.has_more === true);
       setMessagesOffset(0);
       // Se banco vazio — busca do WAHA em background e atualiza sem travar a tela
       if (msgs.length === 0) {
@@ -4771,7 +4771,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       }
     } catch (e) {
       try {
-        const r2 = await fetch(`${API_URL}/conversations/${convId}/messages?limit=50`, { headers });
+        const r2 = await fetch(`${API_URL}/conversations/${convId}/messages?limit=16`, { headers });
         const d2 = await r2.json();
         const msgs2 = d2.messages || [];
         msgCacheRef.current[convId] = { messages: msgs2, ts: Date.now() };
@@ -4787,7 +4787,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     try {
       const oldest = currentMessages[0]?.created_at;
       if (!oldest) return;
-      const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=50&before=${encodeURIComponent(oldest)}`, { headers });
+      const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=10&before=${encodeURIComponent(oldest)}`, { headers });
       const d = await r.json();
       const older = d.messages || [];
       setMessages(prev => sortMsgs([...older, ...prev]));
@@ -4920,7 +4920,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const backgroundRefreshMessages = useCallback(async (convId) => {
     // Silent background refresh — no spinner, no skeleton, just appends new messages
     try {
-      const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=50`, { headers });
+      const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=16`, { headers });
       if (!r.ok) return;
       const d = await r.json();
       const fresh = d.messages || [];
@@ -5965,7 +5965,7 @@ A mensagem deve:
                       onMouseEnter={() => {
                         // Prefetch mensagens ao hover — quando clicar já está no cache
                         if (!msgCacheRef.current[conv.id] || Date.now() - msgCacheRef.current[conv.id].ts > 30000) {
-                          fetch(`${API_URL}/conversations/${conv.id}/messages?limit=50`, { headers })
+                          fetch(`${API_URL}/conversations/${conv.id}/messages?limit=16`, { headers })
                             .then(r => r.json())
                             .then(d => {
                               const msgs = d.messages || [];
@@ -6129,27 +6129,28 @@ A mensagem deve:
                   </div>
 
                   {/* Messages */}
-                  <div ref={chatScrollRef} onMouseEnter={() => { if (selected?.unread_count > 0) { setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, unread_count: 0 } : c)); setSelected(prev => prev ? { ...prev, unread_count: 0 } : prev); } }} style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 2, background: T.chatBg }}>
-                    {/* Load More button */}
+                  <div ref={chatScrollRef}
+                    onScroll={e => {
+                      // Auto-load older messages when scrolled to top
+                      if (!hasMoreMessages || loadingMoreMsgs) return;
+                      if (e.target.scrollTop < 80) {
+                        const scrollEl = chatScrollRef.current;
+                        const prevScrollHeight = scrollEl?.scrollHeight || 0;
+                        fetchMoreMessages(selected.id, messages).then(() => {
+                          requestAnimationFrame(() => {
+                            if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight - prevScrollHeight;
+                          });
+                        });
+                      }
+                    }}
+                    onMouseEnter={() => { if (selected?.unread_count > 0) { setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, unread_count: 0 } : c)); setSelected(prev => prev ? { ...prev, unread_count: 0 } : prev); } }} style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 2, background: T.chatBg }}>
+                    {/* Load More indicator */}
                     {hasMoreMessages && (
                       <div style={{ textAlign: "center", marginBottom: 12 }}>
-                        <button
-                          onClick={async () => {
-                            const scrollEl = chatScrollRef.current;
-                            const prevScrollHeight = scrollEl?.scrollHeight || 0;
-                            await fetchMoreMessages(selected.id, messages);
-                            // Preserve scroll position after prepending older messages
-                            if (scrollEl) {
-                              requestAnimationFrame(() => {
-                                scrollEl.scrollTop = scrollEl.scrollHeight - prevScrollHeight;
-                              });
-                            }
-                          }}
-                          disabled={loadingMoreMsgs}
-                          style={{ padding: "6px 18px", borderRadius: 20, border: "1px solid #d1d7db", background: loadingMoreMsgs ? "#f0f2f5" : "#fff", color: "#54656f", fontSize: 12, fontWeight: 600, cursor: loadingMoreMsgs ? "not-allowed" : "pointer", fontFamily: "inherit", boxShadow: "0 1px 2px #0000001a" }}
-                        >
-                          {loadingMoreMsgs ? "Carregando..." : "⬆ Carregar mais"}
-                        </button>
+                        {loadingMoreMsgs
+                          ? <span style={{ fontSize: 12, color: "#8696a0" }}>⏳ Carregando...</span>
+                          : <span style={{ fontSize: 12, color: "#8696a0", opacity: 0.6 }}>↑ Role para ver mais</span>
+                        }
                       </div>
                     )}
                     {loadingMessages ? (
