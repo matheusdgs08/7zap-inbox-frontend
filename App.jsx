@@ -1240,14 +1240,11 @@ function AdminPanel({ auth, onLogout }) {
       {showForm && (
         <div style={{ position: "fixed", inset: 0, background: "#00000055", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
           <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 16, width: 460, maxWidth: "92vw", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
-            {/* Sticky header */}
             <div style={{ display: "flex", alignItems: "center", padding: "20px 24px 16px 24px", borderBottom: "1px solid #e9edef", flexShrink: 0 }}>
               <span style={{ fontSize: 16, fontWeight: 700 }}>{editUser ? "Editar usuário" : "Novo usuário"}</span>
               <span onClick={() => setShowForm(false)} style={{ marginLeft: "auto", cursor: "pointer", color: "#667781", fontSize: 20 }}>×</span>
             </div>
-            {/* Scrollable body */}
-            <div style={{ overflowY: "auto", flex: 1, padding: "16px 24px" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ overflowY: "auto", flex: 1, padding: "16px 24px", display: "flex", flexDirection: "column", gap: 12 }}>
               <div><label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 5 }}>NOME</label><input value={fName} onChange={e => setFName(e.target.value)} placeholder="Nome completo" style={inp} /></div>
               <div><label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 5 }}>EMAIL</label><input type="email" value={fEmail} onChange={e => setFEmail(e.target.value)} placeholder="email@empresa.com" style={inp} /></div>
               <div><label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 5 }}>{editUser ? "NOVA SENHA (vazio = não alterar)" : "SENHA"}</label><input type="password" value={fPw} onChange={e => setFPw(e.target.value)} placeholder="••••••••" style={inp} /></div>
@@ -1277,10 +1274,10 @@ function AdminPanel({ auth, onLogout }) {
                   ))}
                 </div>
               </div>
-              <div><label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 8 }}>COR DO AVATAR</label>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 8 }}>COR DO AVATAR</label>
                 <div style={{ display: "flex", gap: 8 }}>{COLORS.map(c => <div key={c} onClick={() => setFColor(c)} style={{ width: 28, height: 28, borderRadius: "50%", background: c, cursor: "pointer", border: fColor === c ? "3px solid #fff" : "3px solid transparent", boxSizing: "border-box" }} />)}</div>
               </div>
-              {/* Instance access — only show if there are instances */}
               {availableInstances.length > 0 && fRole !== "admin" && (
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 700, color: "#667781", display: "block", marginBottom: 4 }}>ACESSO AOS NÚMEROS</label>
@@ -1311,11 +1308,10 @@ function AdminPanel({ auth, onLogout }) {
                 </div>
               )}
             </div>
-            </div>
-            {/* Sticky footer */}
             <div style={{ padding: "16px 24px", borderTop: "1px solid #e9edef", flexShrink: 0, display: "flex", gap: 8 }}>
-            <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
-            <button onClick={saveUser} disabled={saving} style={{ flex: 2, padding: "10px 0", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{saving ? "Salvando..." : (editUser ? "Salvar" : "Criar usuário")}</button>
+              <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
+              <button onClick={saveUser} disabled={saving} style={{ flex: 2, padding: "10px 0", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{saving ? "Salvando..." : (editUser ? "Salvar" : "Criar usuário")}</button>
+            </div>
           </div>
         </div>
       )}
