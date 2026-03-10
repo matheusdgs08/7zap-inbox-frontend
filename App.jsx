@@ -4253,20 +4253,30 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}&limit=50`, { headers });
       if (r.status === 401) {
         const err = await r.json().catch(() => ({}));
-        if ((err.detail || "").includes("Sess\u00e3o encerrada")) {
+        if ((err.detail || "").includes("Sessão encerrada")) {
           onLogout();
-          alert("\u26a0\ufe0f Sua sess\u00e3o foi encerrada pois outro dispositivo fez login com esta conta.");
+          alert("\u26a0\ufe0f Sua sessão foi encerrada pois outro dispositivo fez login com esta conta.");
         }
         return;
       }
       const d = await r.json();
-      const merged = mergeConvs(d.conversations || []);
-      setConversations(merged);
+      const fresh = mergeConvs(d.conversations || []);
+      setConversations(prev => {
+        // Se o usuário já carregou mais páginas (prev.length > fresh.length),
+        // ATUALIZA as conversas existentes em vez de substituir tudo.
+        // Isso evita que o poll de 4s apague as páginas extras carregadas.
+        if (prev.length > fresh.length) {
+          const freshMap = new Map(fresh.map(c => [c.id, c]));
+          // Update existing entries that appear in fresh; keep the rest as-is
+          return prev.map(c => freshMap.has(c.id) ? mergeConvs([{ ...c, ...freshMap.get(c.id) }])[0] : c);
+        }
+        return fresh;
+      });
       setHasMoreConvs(d.has_more === true);
       setSelected(prev => {
         if (!prev) return prev;
-        const fresh = merged.find(c => c.id === prev.id);
-        return fresh || prev;
+        const updated = fresh.find(c => c.id === prev.id);
+        return updated ? { ...prev, ...updated } : prev;
       });
     } catch (e) {}
     setLoading(false);
@@ -4296,13 +4306,19 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     try {
       const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}&limit=50`, { headers });
       const d = await r.json();
-      const merged = mergeConvs(d.conversations || []);
-      setConversations(merged);
+      const fresh = mergeConvs(d.conversations || []);
+      setConversations(prev => {
+        if (prev.length > fresh.length) {
+          const freshMap = new Map(fresh.map(c => [c.id, c]));
+          return prev.map(c => freshMap.has(c.id) ? mergeConvs([{ ...c, ...freshMap.get(c.id) }])[0] : c);
+        }
+        return fresh;
+      });
       setHasMoreConvs(d.has_more === true);
       setSelected(prev => {
         if (!prev) return prev;
-        const fresh = merged.find(c => c.id === prev.id);
-        return fresh || prev;
+        const updated = fresh.find(c => c.id === prev.id);
+        return updated ? { ...prev, ...updated } : prev;
       });
     } catch (e) {}
     setLoading(false);
