@@ -5068,6 +5068,7 @@ A mensagem deve:
     if (!input.trim() || !selected || sending) return;
     setSending(true);
     const text = input.trim();
+    const isNote = noteMode; // snapshot BEFORE any setState
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
     setNoteMode(false);
@@ -5075,7 +5076,8 @@ A mensagem deve:
     const tempId = `temp-${Date.now()}`;
     setMessages(prev => [...prev, {
       id: tempId, conversation_id: selected.id,
-      direction: noteMode ? "note" : "outbound",
+      direction: isNote ? "note" : "outbound",
+      is_internal_note: isNote,
       content: text, type: "text",
       created_at: new Date().toISOString(), _pending: true
     }]);
@@ -6193,8 +6195,8 @@ A mensagem deve:
                       </div>
                     ) : messages.length === 0 ? <div style={{ textAlign: "center", color: "#667781", fontSize: 13, marginTop: 40 }}>Nenhuma mensagem ainda</div>
                       : messages.map((msg, i) => {
-                        const isOut = msg.direction === "outbound";
-                        const isInternal = msg.is_internal_note;
+                        const isOut = msg.direction === "outbound" || msg.direction === "note";
+                        const isInternal = msg.is_internal_note || msg.direction === "note";
                         return (
                           <div key={msg.id || i} style={{ display: "flex", justifyContent: isOut ? "flex-end" : "flex-start", marginBottom: 2 }}>
                             <div style={{ maxWidth: "65%", padding: "7px 12px 8px 12px", borderRadius: isOut ? "8px 0px 8px 8px" : "0px 8px 8px 8px", background: isInternal ? "#fff8dc" : isOut ? T.msgOut : T.msgIn, boxShadow: `0 1px 2px ${T.shadow}`, fontSize: 14, lineHeight: 1.5, color: T.text }}>
