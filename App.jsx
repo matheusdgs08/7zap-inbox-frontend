@@ -4585,7 +4585,8 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
 
   const fetchConversations = useCallback(async () => {
     try {
-      const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}&limit=10`, { headers });
+      const instParam = instanceFilter ? `&instance_name=${encodeURIComponent(instanceFilter)}` : "";
+      const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}&limit=10${instParam}`, { headers });
       if (r.status === 401) {
         const err = await r.json().catch(() => ({}));
         if ((err.detail || "").includes("Sessão encerrada")) {
@@ -4616,7 +4617,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     } catch (e) {}
     setLoading(false);
     setInitialLoad(false);
-  }, [filter, mergeConvs]);
+  }, [filter, mergeConvs, instanceFilter]);
 
   const fetchMoreConversations = useCallback(async () => {
     if (loadingMoreConvs) return;
