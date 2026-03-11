@@ -4709,7 +4709,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     }
     // ── Full fetch — DB first, then trigger WAHA sync in background ──────
     try {
-      const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=10`, { headers });
+      const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=30`, { headers });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
       const msgs = d.messages || [];
@@ -4719,7 +4719,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       // If DB was empty, call /history which syncs WAHA synchronously
       if (msgs.length === 0) {
         try {
-          const r2 = await fetch(`${API_URL}/conversations/${convId}/history?limit=10`, { headers });
+          const r2 = await fetch(`${API_URL}/conversations/${convId}/history?limit=30`, { headers });
           const d2 = await r2.json();
           const synced = d2.messages || [];
           if (synced.length > 0) {
@@ -4729,18 +4729,47 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
           }
         } catch {}
       } else {
-        // DB has messages — sync in background (don't touch hasMoreMessages)
-        fetch(`${API_URL}/conversations/${convId}/history?limit=10`, { headers })
+        // DB has messages — sync WAHA in background (don't touch hasMoreMessages)
+        fetch(`${API_URL}/conversations/${convId}/history?limit=30`, { headers })
           .then(r2 => r2.json())
           .then(d2 => {
             const synced = d2.messages || [];
             if (synced.length > msgs.length) {
               saveMsgCache(convId, { messages: synced, has_more: d2.has_more === true, ts: Date.now() });
               setMessages(sortMsgs(synced));
-              // Only update hasMoreMessages if we're still on this conversation
               setHasMoreMessages(d2.has_more === true);
             }
           }).catch(() => {});
+        // Background: silently fetch remaining pages until history is complete (max 300 msgs)
+        if (d.has_more) {
+          (async () => {
+            let allMsgs = [...msgs];
+            let hasMore = d.has_more;
+            let pages = 0;
+            const MAX_PAGES = 9; // 30 initial + 9×30 = 300 mensagens máximo
+            while (hasMore && pages < MAX_PAGES) {
+              // Abort if user switched conversation
+              if (msgCacheRef.current.__activeConv !== convId) break;
+              const oldest = allMsgs[0]?.created_at;
+              if (!oldest) break;
+              try {
+                const rp = await fetch(`${API_URL}/conversations/${convId}/messages?limit=30&before=${encodeURIComponent(oldest)}`, { headers });
+                const dp = await rp.json();
+                const older = dp.messages || [];
+                if (older.length === 0) break;
+                allMsgs = [...older, ...allMsgs];
+                hasMore = dp.has_more === true;
+                pages++;
+                // Update UI progressively
+                saveMsgCache(convId, { messages: allMsgs, has_more: hasMore, ts: Date.now() });
+                if (msgCacheRef.current.__activeConv === convId) {
+                  setMessages(sortMsgs(allMsgs));
+                  setHasMoreMessages(hasMore);
+                }
+              } catch { break; }
+            }
+          })();
+        }
       }
       setMessagesOffset(0);
     } catch (e) {
@@ -4886,6 +4915,8 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     setMessagesOffset(0);
     setHasMoreMessages(false);
     setSuggestion("");
+    // Track which conversation is active — background fetch loop checks this to abort
+    msgCacheRef.current.__activeConv = selected.id;
     // Only show skeleton if no cache — avoids piscando on every click
     const hasCached = msgCacheRef.current[selected.id]?.messages?.length > 0;
     if (!hasCached) setLoadingMessages(true);
