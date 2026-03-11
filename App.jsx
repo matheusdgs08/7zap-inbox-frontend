@@ -1654,6 +1654,39 @@ function WhatsAppScreen({ auth, T, theme }) {
     }).catch(() => { setSyncing(false); setSyncPhase("error"); });
   };
 
+  const startDeepSync = (inst) => {
+    setSyncing(true); setSyncResult(null); setSyncProgress(5); setSyncPhase("syncing");
+    setAutoSyncInst(inst);
+    const start = Date.now();
+    // Progress animation while waiting
+    const prog = setInterval(() => setSyncProgress(p => Math.min(p + 2, 90)), 1500);
+    fetch(`${API_URL}/whatsapp/deep-sync`, {
+      method: "POST", headers,
+      body: JSON.stringify({ tenant_id: TENANT_ID, instance: inst.instance_name })
+    }).then(r => r.json()).then(d => {
+      clearInterval(prog);
+      setSyncProgress(100);
+      setSyncResult({ ok: true, ...d });
+      setSyncing(false);
+      setSyncPhase("done");
+      showToast(`✅ Deep sync: ${d.stats?.messages_saved || 0} mensagens importadas`, "#00a884");
+    }).catch(() => { clearInterval(prog); setSyncing(false); setSyncPhase("error"); });
+  };
+
+  const resolveInstanceLids = async (inst) => {
+    showToast("⏳ Resolvendo números...", "#ff9800");
+    try {
+      const r = await fetch(`${API_URL}/whatsapp/resolve-lids`, {
+        method: "POST", headers,
+        body: JSON.stringify({ tenant_id: TENANT_ID, instance: inst.instance_name })
+      });
+      const d = await r.json();
+      showToast(`✅ ${d.stats?.lids_resolved || 0} números resolvidos, ${d.stats?.duplicates_merged || 0} duplicatas removidas`, "#00a884");
+    } catch {
+      showToast("❌ Erro ao resolver números", "#f44336");
+    }
+  };
+
   const triggerAutoSync = async (instName, phone) => {
     fetchInstances();
     // 1. Fix webhook first (ensure WAHA Plus points to our backend)
@@ -2037,6 +2070,14 @@ function WhatsAppScreen({ auth, T, theme }) {
                             <button onClick={() => startAutoSync(inst)} disabled={syncing}
                               style={{ padding: "10px 24px", borderRadius: 10, border: "1px solid #00a88444", background: "#00a88415", color: "#00a884", fontSize: 13, fontWeight: 700, cursor: syncing ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
                               {syncing ? "⏳ Importando..." : "📥 Importar histórico"}
+                            </button>
+                            <button onClick={() => startDeepSync(inst)} disabled={syncing}
+                              style={{ padding: "10px 24px", borderRadius: 10, border: "1px solid #9c27b044", background: "#9c27b015", color: "#9c27b0", fontSize: 13, fontWeight: 700, cursor: syncing ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+                              {syncing && autoSyncInst?.instance_name === inst.instance_name ? "⏳ Importando..." : "📦 Deep Sync (histórico completo)"}
+                            </button>
+                            <button onClick={() => resolveInstanceLids(inst)}
+                              style={{ padding: "10px 24px", borderRadius: 10, border: "1px solid #ff980044", background: "#ff980015", color: "#ff9800", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                              🔧 Corrigir números (LID)
                             </button>
 
                             <button onClick={() => { setActiveInst(null); setView("inbox"); }}
