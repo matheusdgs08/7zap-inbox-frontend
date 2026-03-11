@@ -4610,7 +4610,8 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       const last = conversations[conversations.length - 1];
       if (!last?.last_message_at) return;
       const before = encodeURIComponent(last.last_message_at);
-      const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}&limit=10&before=${before}`, { headers });
+      const instParam = instanceFilter ? `&instance_name=${encodeURIComponent(instanceFilter)}` : "";
+      const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}&limit=10&before=${before}${instParam}`, { headers });
       const d = await r.json();
       const more = mergeConvs(d.conversations || []);
       // Append avoiding duplicates
@@ -4621,7 +4622,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       setHasMoreConvs(d.has_more === true);
     } catch (e) {}
     setLoadingMoreConvs(false);
-  }, [conversations, loadingMoreConvs, mergeConvs]);
+  }, [conversations, loadingMoreConvs, mergeConvs, instanceFilter]);
   const fetchAllConversations = useCallback(async () => {
     try {
       const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}&limit=10`, { headers });
@@ -4685,7 +4686,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
         if (prev.length > 0 && prev[0]?.conversation_id === convId) return prev; // already loaded, keep
         return sortMsgs(cached.messages);
       });
-      setHasMoreMessages(false);
+      setHasMoreMessages(cached.has_more === true);
       // Background refresh silently — only append new ones, never replace
       fetch(`${API_URL}/conversations/${convId}/messages?limit=10`, { headers })
         .then(r => r.json())
@@ -4712,7 +4713,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
       const msgs = d.messages || [];
-      saveMsgCache(convId, { messages: msgs, ts: Date.now() });
+      saveMsgCache(convId, { messages: msgs, has_more: d.has_more === true, ts: Date.now() });
       setMessages(sortMsgs(msgs));
       setHasMoreMessages(d.has_more === true);
       // If DB was empty, call /history which syncs WAHA synchronously
@@ -4722,20 +4723,22 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
           const d2 = await r2.json();
           const synced = d2.messages || [];
           if (synced.length > 0) {
-            saveMsgCache(convId, { messages: synced, ts: Date.now() });
+            saveMsgCache(convId, { messages: synced, has_more: d2.has_more === true, ts: Date.now() });
             setMessages(sortMsgs(synced));
             setHasMoreMessages(d2.has_more === true);
           }
         } catch {}
       } else {
-        // DB has messages — sync in background
+        // DB has messages — sync in background (don't touch hasMoreMessages)
         fetch(`${API_URL}/conversations/${convId}/history?limit=10`, { headers })
           .then(r2 => r2.json())
           .then(d2 => {
             const synced = d2.messages || [];
             if (synced.length > msgs.length) {
-              saveMsgCache(convId, { messages: synced, ts: Date.now() });
+              saveMsgCache(convId, { messages: synced, has_more: d2.has_more === true, ts: Date.now() });
               setMessages(sortMsgs(synced));
+              // Only update hasMoreMessages if we're still on this conversation
+              setHasMoreMessages(d2.has_more === true);
             }
           }).catch(() => {});
       }
@@ -4764,7 +4767,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       setMessages(prev => {
         const merged = sortMsgs([...older, ...prev]);
         // Save full merged list to cache so switching convs and back restores everything
-        saveMsgCache(convId, { messages: merged, ts: Date.now() });
+        saveMsgCache(convId, { messages: merged, has_more: d.has_more === true, ts: Date.now() });
         return merged;
       });
       setHasMoreMessages(d.has_more === true);
