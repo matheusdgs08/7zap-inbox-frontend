@@ -5087,10 +5087,11 @@ A mensagem deve:
         body: JSON.stringify({ conversation_id: selected.id, text, is_internal_note: noteMode })
       });
       const d = await r.json();
-      if (d.id) {
+      const saved = d.message || d;  // backend returns { message: msg } or msg directly
+      if (saved.id) {
         // Replace temp with real message
         saveMsgCache(selectedRef.current?.id, { messages: [], ts: 0 }); // invalidate cache on send
-        setMessages(prev => sortMsgs(prev.map(m => m.id === tempId ? d : m)));
+        setMessages(prev => sortMsgs(prev.map(m => m.id === tempId ? saved : m)));
       } else {
         // Remove temp on failure
         setMessages(prev => prev.filter(m => m.id !== tempId));
