@@ -1803,7 +1803,52 @@ function WhatsAppScreen({ auth, T, theme }) {
   const PLAN_LABELS = { starter: "Starter", pro: "Pro", business: "Business", trial: "Trial", enterprise: "Enterprise" };
 
   return (
-    <div style={{ flex: 1, overflowY: "auto", padding: "24px 20px" }}>
+    <div style={{ flex: 1, overflowY: "auto", padding: "24px 20px", position: "relative" }}>
+
+      {/* ── Blocking overlay during sync ───────────────────────────────── */}
+      {syncing && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 9999,
+          background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          flexDirection: "column", gap: 20
+        }}>
+          <div style={{
+            background: "#fff", borderRadius: 20, padding: "40px 48px",
+            display: "flex", flexDirection: "column", alignItems: "center",
+            gap: 16, maxWidth: 380, width: "90%", textAlign: "center",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.3)"
+          }}>
+            <div style={{
+              width: 64, height: 64, borderRadius: "50%",
+              background: "linear-gradient(135deg,#00a884,#017561)",
+              display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28
+            }}>📲</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#111b21" }}>Importando histórico</div>
+            <div style={{ fontSize: 13, color: "#667781", lineHeight: 1.6 }}>
+              Buscando conversas e mensagens do WhatsApp.<br/>
+              <strong>Não feche esta tela.</strong>
+            </div>
+            <div style={{ width: "100%" }}>
+              <div style={{ background: "#e9edef", borderRadius: 20, height: 10, overflow: "hidden" }}>
+                <div style={{
+                  height: "100%", borderRadius: 20,
+                  background: "linear-gradient(90deg,#00a884,#017561)",
+                  width: `${syncProgress || 5}%`,
+                  transition: "width 0.6s ease"
+                }} />
+              </div>
+              <div style={{ fontSize: 12, color: "#667781", marginTop: 6, fontWeight: 600 }}>
+                {Math.round(syncProgress || 5)}% concluído
+              </div>
+            </div>
+            <div style={{ fontSize: 11, color: "#8696a0" }}>
+              ⏱ Isso leva alguns segundos...
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
 
         {/* Header */}
@@ -2196,6 +2241,7 @@ function WhatsAppScreen({ auth, T, theme }) {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
