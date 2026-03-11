@@ -4074,6 +4074,84 @@ function DashboardSocios({ auth, clientes_reais }) {
   );
 }
 
+// Simple global loading counter
+const _loadingListeners = new Set();
+let _loadingCount = 0;
+function globalLoadingStart() {
+  _loadingCount++;
+  _loadingListeners.forEach(fn => fn(_loadingCount));
+}
+function globalLoadingDone() {
+  _loadingCount = Math.max(0, _loadingCount - 1);
+  _loadingListeners.forEach(fn => fn(_loadingCount));
+}
+function useGlobalLoading() {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    const fn = (c) => setCount(c);
+    _loadingListeners.add(fn);
+    return () => _loadingListeners.delete(fn);
+  }, []);
+  return count;
+}
+
+// ─── Fetch interceptor: qualquer fetch de mutação dispara a barra ──────────
+// Só intercepta POST/PUT/DELETE — GET não mostra barra (não bloqueia UI)
+;(function() {
+  const _orig = window.fetch;
+  window.fetch = function(url, opts = {}) {
+    const method = (opts.method || "GET").toUpperCase();
+    const isMutation = ["POST","PUT","DELETE","PATCH"].includes(method);
+    if (isMutation) globalLoadingStart();
+    return _orig.call(this, url, opts).finally(() => {
+      if (isMutation) globalLoadingDone();
+    });
+  };
+})();
+
+function TopLoadingBar() {
+  const count = useGlobalLoading();
+  const [progress, setProgress] = useState(0);
+  const [show, setShow] = useState(false);
+  const timerRef = useRef(null);
+  const prevCount = useRef(0);
+
+  useEffect(() => {
+    if (count > 0 && prevCount.current === 0) {
+      // New request started
+      setShow(true);
+      setProgress(15);
+      clearInterval(timerRef.current);
+      timerRef.current = setInterval(() => {
+        setProgress(p => p >= 80 ? p : p + Math.random() * 8);
+      }, 350);
+    } else if (count === 0 && prevCount.current > 0) {
+      // All done
+      clearInterval(timerRef.current);
+      setProgress(100);
+      setTimeout(() => { setShow(false); setProgress(0); }, 400);
+    }
+    prevCount.current = count;
+    return () => clearInterval(timerRef.current);
+  }, [count]);
+
+  if (!show) return null;
+  return (
+    <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: 3, zIndex: 99999, pointerEvents: "none" }}>
+      <div style={{
+        height: "100%", width: `${progress}%`,
+        background: "linear-gradient(90deg, #00a884, #25d366, #00a884)",
+        backgroundSize: "200% 100%",
+        animation: "lbShimmer 1.4s linear infinite",
+        borderRadius: "0 3px 3px 0",
+        transition: progress === 100 ? "width 0.15s ease" : "width 0.35s ease",
+        boxShadow: "0 0 10px #25d36680",
+      }} />
+      <style>{`@keyframes lbShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
+    </div>
+  );
+}
+
 export default function App() {
   const [auth, setAuth] = useState(getStoredAuth);
   const theme = "light";
@@ -4082,14 +4160,18 @@ export default function App() {
   const handleLogin = (data) => { setStoredAuth(data); setAuth(data); };
   const handleLogout = () => { setStoredAuth(null); setAuth(null); };
 
-  // Rota /admin → painel da Andressa (após hooks)
   if (window.location.pathname === "/admin" || window.location.pathname === "/admin/") {
     return <SuperAdminPanel />;
   }
 
   if (!auth) return <LoginScreen onLogin={handleLogin} theme={theme} toggleTheme={toggleTheme} />;
 
-  return <AppInner auth={auth} onLogout={handleLogout} theme={theme} toggleTheme={toggleTheme} />;
+  return (
+    <>
+      <TopLoadingBar />
+      <AppInner auth={auth} onLogout={handleLogout} theme={theme} toggleTheme={toggleTheme} />
+    </>
+  );
 }
 
 // Permission helpers
