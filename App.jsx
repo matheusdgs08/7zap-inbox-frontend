@@ -4669,7 +4669,27 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [messagesError, setMessagesError] = useState(null);
 
-  const msgCacheRef = useRef({}); // { [convId]: { messages, ts } }
+  // msgCacheRef: in-memory cache. Also backed by sessionStorage for page reloads.
+  const msgCacheRef = useRef((() => {
+    try {
+      const stored = sessionStorage.getItem('7zap_msg_cache');
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return {};
+  })());
+
+  // Helper to persist cache entry to sessionStorage
+  const saveMsgCache = (convId, data) => {
+    msgCacheRef.current[convId] = data;
+    try {
+      // Only persist convs with more than 10 messages (worth saving) or any messages
+      const toSave = {};
+      Object.entries(msgCacheRef.current).forEach(([id, entry]) => {
+        if (entry?.messages?.length > 0) toSave[id] = entry;
+      });
+      sessionStorage.setItem('7zap_msg_cache', JSON.stringify(toSave));
+    } catch {}
+  };
 
   const fetchMessages = useCallback(async (convId) => {
     setMessagesError(null);
@@ -4695,7 +4715,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
               if (newOnes.length === 0) return prev;
               const merged = sortMsgs([...prev, ...newOnes]);
               // Update cache with merged
-              if (msgCacheRef.current[convId]) msgCacheRef.current[convId].messages = fresh;
+              if (msgCacheRef.current[convId]) { msgCacheRef.current[convId].messages = fresh; saveMsgCache(convId, msgCacheRef.current[convId]); }
               return merged;
             });
           }
@@ -4708,7 +4728,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
       const msgs = d.messages || [];
-      msgCacheRef.current[convId] = { messages: msgs, ts: Date.now() };
+      saveMsgCache(convId, { messages: msgs, ts: Date.now() });
       setMessages(sortMsgs(msgs));
       setHasMoreMessages(d.has_more === true);
       // If DB was empty, call /history which syncs WAHA synchronously
@@ -4718,7 +4738,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
           const d2 = await r2.json();
           const synced = d2.messages || [];
           if (synced.length > 0) {
-            msgCacheRef.current[convId] = { messages: synced, ts: Date.now() };
+            saveMsgCache(convId, { messages: synced, ts: Date.now() });
             setMessages(sortMsgs(synced));
             setHasMoreMessages(d2.has_more === true);
           }
@@ -4730,7 +4750,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
           .then(d2 => {
             const synced = d2.messages || [];
             if (synced.length > msgs.length) {
-              msgCacheRef.current[convId] = { messages: synced, ts: Date.now() };
+              saveMsgCache(convId, { messages: synced, ts: Date.now() });
               setMessages(sortMsgs(synced));
             }
           }).catch(() => {});
@@ -4741,7 +4761,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
         const r2 = await fetch(`${API_URL}/conversations/${convId}/messages?limit=10`, { headers });
         const d2 = await r2.json();
         const msgs2 = d2.messages || [];
-        msgCacheRef.current[convId] = { messages: msgs2, ts: Date.now() };
+        saveMsgCache(convId, { messages: msgs2, ts: Date.now() });
         setMessages(sortMsgs(msgs2));
         setHasMoreMessages(d2.has_more === true);
       } catch {
@@ -4760,7 +4780,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       setMessages(prev => {
         const merged = sortMsgs([...older, ...prev]);
         // Save full merged list to cache so switching convs and back restores everything
-        msgCacheRef.current[convId] = { messages: merged, ts: Date.now() };
+        saveMsgCache(convId, { messages: merged, ts: Date.now() });
         return merged;
       });
       setHasMoreMessages(d.has_more === true);
@@ -4984,7 +5004,7 @@ A mensagem deve:
       const d = await r.json();
       if (d.id) {
         // Replace temp with real message
-        msgCacheRef.current[selectedRef.current?.id] = { messages: [], ts: 0 }; // invalidate cache on send
+        saveMsgCache(selectedRef.current?.id, { messages: [], ts: 0 }); // invalidate cache on send
         setMessages(prev => sortMsgs(prev.map(m => m.id === tempId ? d : m)));
       } else {
         // Remove temp on failure
