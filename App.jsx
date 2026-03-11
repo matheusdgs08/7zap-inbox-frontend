@@ -4392,6 +4392,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const [hasMoreConvs, setHasMoreConvs] = useState(false);
   const [loadingMoreConvs, setLoadingMoreConvs] = useState(false);
   const convListRef = useRef(null);
+  const convInstanceRef = useRef(null); // tracks which instanceFilter the current conversations were fetched for
   const [selected, setSelected] = useState(null);
   const [messages, setMessages] = useState([]);
   const [messagesOffset, setMessagesOffset] = useState(0);
@@ -4576,7 +4577,11 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       }
       const d = await r.json();
       const fresh = mergeConvs(d.conversations || []);
+      const instanceChanged = convInstanceRef.current !== instanceFilter;
+      convInstanceRef.current = instanceFilter;
       setConversations(prev => {
+        // Se a instância mudou, sempre substitui tudo (não faz merge)
+        if (instanceChanged) return fresh;
         // Se o usuário já carregou mais páginas (prev.length > fresh.length),
         // ATUALIZA as conversas existentes em vez de substituir tudo.
         // Isso evita que o poll de 4s apague as páginas extras carregadas.
