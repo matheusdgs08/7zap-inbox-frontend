@@ -1803,7 +1803,7 @@ function WhatsAppScreen({ auth, T, theme }) {
   const PLAN_LABELS = { starter: "Starter", pro: "Pro", business: "Business", trial: "Trial", enterprise: "Enterprise" };
 
   return (
-    <div style={{ flex: 1, overflowY: "auto", padding: "24px 20px", position: "relative" }}>
+    <div style={{ flex: 1, overflowY: "auto", padding: "24px 20px" }}>
 
       {/* ── Blocking overlay during sync ───────────────────────────────── */}
       {syncing && (
@@ -2241,7 +2241,6 @@ function WhatsAppScreen({ auth, T, theme }) {
           </div>
         </div>
       )}
-      </div>
     </div>
   );
 }
