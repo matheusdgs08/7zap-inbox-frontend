@@ -4585,7 +4585,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
 
   const fetchConversations = useCallback(async () => {
     try {
-      const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}&limit=50`, { headers });
+      const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}&limit=10`, { headers });
       if (r.status === 401) {
         const err = await r.json().catch(() => ({}));
         if ((err.detail || "").includes("Sessão encerrada")) {
@@ -4625,7 +4625,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       const last = conversations[conversations.length - 1];
       if (!last?.last_message_at) return;
       const before = encodeURIComponent(last.last_message_at);
-      const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}&limit=50&before=${before}`, { headers });
+      const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}&limit=10&before=${before}`, { headers });
       const d = await r.json();
       const more = mergeConvs(d.conversations || []);
       // Append avoiding duplicates
@@ -4639,7 +4639,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   }, [conversations, loadingMoreConvs, mergeConvs]);
   const fetchAllConversations = useCallback(async () => {
     try {
-      const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}&limit=50`, { headers });
+      const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}&limit=10`, { headers });
       const d = await r.json();
       const fresh = mergeConvs(d.conversations || []);
       setConversations(prev => {
@@ -5894,7 +5894,7 @@ A mensagem deve:
                   ↓ Carregar mais conversas
                 </button>
               )}
-              {!hasMoreConvs && conversations.length > 50 && (
+              {!hasMoreConvs && conversations.length > 0 && (
                 <div style={{ padding: "10px 0", textAlign: "center", color: "#d1d7db", fontSize: 11 }}>
                   — fim das conversas —
                 </div>
