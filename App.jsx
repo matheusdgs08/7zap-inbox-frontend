@@ -4439,6 +4439,13 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const [waInstances, setWaInstances] = useState([]); // for disconnect banner
   const selectInstance = (name) => {
     setInstanceFilter(name);
+    // Clear selected conversation if it doesn't belong to the new instance
+    setSelected(prev => {
+      if (!prev) return prev;
+      if (!name) return prev; // "all" — keep
+      if (prev.instance_name === name || !prev.instance_name) return prev;
+      return null; // belongs to different instance — clear
+    });
     try {
       if (name) sessionStorage.setItem("7crm_instance", name);
       else sessionStorage.removeItem("7crm_instance");
