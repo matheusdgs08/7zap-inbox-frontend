@@ -4702,17 +4702,30 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       msgCacheRef.current[convId] = { messages: msgs, ts: Date.now() };
       setMessages(sortMsgs(msgs));
       setHasMoreMessages(d.has_more === true);
-      // ALWAYS trigger background WAHA sync so messages stay fresh
-      // /history endpoint returns DB + kicks WAHA sync in background
-      fetch(`${API_URL}/conversations/${convId}/history?limit=10`, { headers })
-        .then(r2 => r2.json())
-        .then(d2 => {
+      // If DB was empty, call /history which syncs WAHA synchronously
+      if (msgs.length === 0) {
+        try {
+          const r2 = await fetch(`${API_URL}/conversations/${convId}/history?limit=10`, { headers });
+          const d2 = await r2.json();
           const synced = d2.messages || [];
-          if (synced.length > msgs.length) {
+          if (synced.length > 0) {
             msgCacheRef.current[convId] = { messages: synced, ts: Date.now() };
             setMessages(sortMsgs(synced));
+            setHasMoreMessages(d2.has_more === true);
           }
-        }).catch(() => {});
+        } catch {}
+      } else {
+        // DB has messages — sync in background
+        fetch(`${API_URL}/conversations/${convId}/history?limit=10`, { headers })
+          .then(r2 => r2.json())
+          .then(d2 => {
+            const synced = d2.messages || [];
+            if (synced.length > msgs.length) {
+              msgCacheRef.current[convId] = { messages: synced, ts: Date.now() };
+              setMessages(sortMsgs(synced));
+            }
+          }).catch(() => {});
+      }
       setMessagesOffset(0);
     } catch (e) {
       try {
