@@ -4485,7 +4485,20 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       try {
         const r = await fetch(`${API_URL}/whatsapp/tenant-instances?tenant_id=${TENANT_ID}`, { headers });
         const d = await r.json();
-        setWaInstances(d.instances || []);
+        const insts = d.instances || [];
+        setWaInstances(insts);
+        // Auto-correct instanceFilter if it points to a non-existent instance
+        if (insts.length > 0) {
+          setInstanceFilter(prev => {
+            const exists = insts.find(i => i.instance_name === prev);
+            if (!exists) {
+              const first = insts[0].instance_name;
+              try { sessionStorage.setItem("7crm_instance", first); } catch {}
+              return first;
+            }
+            return prev;
+          });
+        }
       } catch (e) {}
     };
     fetchWaStatus();
