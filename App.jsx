@@ -4676,19 +4676,27 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     // ── Instant cache hit (< 30s old) ──────────────────────────────────
     const cached = msgCacheRef.current[convId];
     if (cached && Date.now() - cached.ts < 30000 && cached.messages.length > 0) {
-      setMessages(sortMsgs(cached.messages));
+      // Restore all loaded messages (not just cache) — preserves "Carregar mais" pages
+      setMessages(prev => {
+        if (prev.length > 0 && prev[0]?.conversation_id === convId) return prev; // already loaded, keep
+        return sortMsgs(cached.messages);
+      });
       setHasMoreMessages(false);
-      // Background refresh silently
+      // Background refresh silently — only append new ones, never replace
       fetch(`${API_URL}/conversations/${convId}/messages?limit=10`, { headers })
         .then(r => r.json())
         .then(d => {
           const fresh = d.messages || [];
           if (fresh.length > 0) {
-            msgCacheRef.current[convId] = { messages: fresh, ts: Date.now() };
+            // Only update cache if we don't have more pages loaded
             setMessages(prev => {
               const ids = new Set(prev.map(m => m.id));
               const newOnes = fresh.filter(m => !ids.has(m.id));
-              return newOnes.length > 0 ? sortMsgs([...prev, ...newOnes]) : prev;
+              if (newOnes.length === 0) return prev;
+              const merged = sortMsgs([...prev, ...newOnes]);
+              // Update cache with merged
+              if (msgCacheRef.current[convId]) msgCacheRef.current[convId].messages = fresh;
+              return merged;
             });
           }
         }).catch(() => {});
@@ -4749,7 +4757,12 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=10&before=${encodeURIComponent(oldest)}`, { headers });
       const d = await r.json();
       const older = d.messages || [];
-      setMessages(prev => sortMsgs([...older, ...prev]));
+      setMessages(prev => {
+        const merged = sortMsgs([...older, ...prev]);
+        // Save full merged list to cache so switching convs and back restores everything
+        msgCacheRef.current[convId] = { messages: merged, ts: Date.now() };
+        return merged;
+      });
       setHasMoreMessages(d.has_more === true);
     } catch (e) {}
     setLoadingMoreMsgs(false);
@@ -5267,7 +5280,11 @@ A mensagem deve:
   const canManage = auth.user?.role === "admin" || PERMS_ORDER.indexOf(auth.user?.permissions || "read_write") >= PERMS_ORDER.indexOf("read_write_manage");
   const canDelete = auth.user?.role === "admin" || PERMS_ORDER.indexOf(auth.user?.permissions || "read_write") >= PERMS_ORDER.indexOf("full");
 
-  const filtered = conversations.filter(c => {
+  const filtered = [...conversations].sort((a, b) => {
+    const ta = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
+    const tb = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
+    return tb - ta;
+  }).filter(c => {
     const name = (c.contacts?.name || "").toLowerCase();
     const phone = (c.contacts?.phone || "").replace(/\D/g, "");
     const q = search.toLowerCase().trim();
