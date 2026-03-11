@@ -4566,7 +4566,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const fetchConversations = useCallback(async () => {
     try {
       const instParam = instanceFilter ? `&instance_name=${encodeURIComponent(instanceFilter)}` : "";
-      const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}&limit=10${instParam}`, { headers });
+      const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}&limit=50${instParam}`, { headers });
       if (r.status === 401) {
         const err = await r.json().catch(() => ({}));
         if ((err.detail || "").includes("Sessão encerrada")) {
@@ -4580,14 +4580,9 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       const instanceChanged = convInstanceRef.current !== instanceFilter;
       convInstanceRef.current = instanceFilter;
       setConversations(prev => {
-        // Se a instância mudou, sempre substitui tudo (não faz merge)
         if (instanceChanged) return fresh;
-        // Se o usuário já carregou mais páginas (prev.length > fresh.length),
-        // ATUALIZA as conversas existentes em vez de substituir tudo.
-        // Isso evita que o poll de 4s apague as páginas extras carregadas.
         if (prev.length > fresh.length) {
           const freshMap = new Map(fresh.map(c => [c.id, c]));
-          // Update existing entries that appear in fresh; keep the rest as-is
           return prev.map(c => freshMap.has(c.id) ? mergeConvs([{ ...c, ...freshMap.get(c.id) }])[0] : c);
         }
         return fresh;
@@ -4598,6 +4593,35 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
         const updated = fresh.find(c => c.id === prev.id);
         return updated ? { ...prev, ...updated } : prev;
       });
+
+      // Background: auto-load remaining pages silently (max 500 conversas)
+      if (d.has_more && instanceChanged) {
+        (async () => {
+          let allConvs = [...fresh];
+          let hasMore = d.has_more;
+          const currentInstance = instanceFilter;
+          while (hasMore && allConvs.length < 500) {
+            if (convInstanceRef.current !== currentInstance) break; // instância mudou
+            const last = allConvs[allConvs.length - 1];
+            if (!last?.last_message_at) break;
+            try {
+              const rp = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}&limit=50&before=${encodeURIComponent(last.last_message_at)}${instParam}`, { headers });
+              const dp = await rp.json();
+              const more = mergeConvs(dp.conversations || []);
+              if (more.length === 0) break;
+              allConvs = [...allConvs, ...more];
+              hasMore = dp.has_more === true;
+              if (convInstanceRef.current === currentInstance) {
+                setConversations(prev => {
+                  const ids = new Set(prev.map(c => c.id));
+                  return [...prev, ...more.filter(c => !ids.has(c.id))];
+                });
+                setHasMoreConvs(hasMore);
+              }
+            } catch { break; }
+          }
+        })();
+      }
     } catch (e) {}
     setLoading(false);
     setInitialLoad(false);
