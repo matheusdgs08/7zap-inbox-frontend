@@ -4737,8 +4737,11 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       const d = await r.json();
       const prefs = d.preferences || {};
       if (prefs.instance_filter) {
-        setInstanceFilter(prefs.instance_filter);
-        try { sessionStorage.setItem("7crm_instance", prefs.instance_filter); } catch {}
+        // Only apply if sessionStorage doesn't already have a value (avoid overwriting with stale instance)
+        try {
+          const already = sessionStorage.getItem("7crm_instance");
+          if (!already) { setInstanceFilter(prefs.instance_filter); sessionStorage.setItem("7crm_instance", prefs.instance_filter); }
+        } catch { setInstanceFilter(prefs.instance_filter); }
       }
     } catch (e) {}
   }, []);
