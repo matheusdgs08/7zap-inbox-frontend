@@ -4620,7 +4620,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       setMessages(sortMsgs(cached.messages));
       setHasMoreMessages(false);
       // Background refresh silently
-      fetch(`${API_URL}/conversations/${convId}/messages?limit=50`, { headers })
+      fetch(`${API_URL}/conversations/${convId}/messages?limit=10`, { headers })
         .then(r => r.json())
         .then(d => {
           const fresh = d.messages || [];
@@ -4637,16 +4637,16 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     }
     // ── Full fetch — DB first, then trigger WAHA sync in background ──────
     try {
-      const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=50`, { headers });
+      const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=10`, { headers });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
       const msgs = d.messages || [];
       msgCacheRef.current[convId] = { messages: msgs, ts: Date.now() };
       setMessages(sortMsgs(msgs));
-      setHasMoreMessages(false);
+      setHasMoreMessages(d.has_more === true);
       // ALWAYS trigger background WAHA sync so messages stay fresh
       // /history endpoint returns DB + kicks WAHA sync in background
-      fetch(`${API_URL}/conversations/${convId}/history?limit=50`, { headers })
+      fetch(`${API_URL}/conversations/${convId}/history?limit=10`, { headers })
         .then(r2 => r2.json())
         .then(d2 => {
           const synced = d2.messages || [];
@@ -4658,7 +4658,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       setMessagesOffset(0);
     } catch (e) {
       try {
-        const r2 = await fetch(`${API_URL}/conversations/${convId}/messages?limit=50`, { headers });
+        const r2 = await fetch(`${API_URL}/conversations/${convId}/messages?limit=10`, { headers });
         const d2 = await r2.json();
         const msgs2 = d2.messages || [];
         msgCacheRef.current[convId] = { messages: msgs2, ts: Date.now() };
@@ -4674,7 +4674,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     try {
       const oldest = currentMessages[0]?.created_at;
       if (!oldest) return;
-      const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=50&before=${encodeURIComponent(oldest)}`, { headers });
+      const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=10&before=${encodeURIComponent(oldest)}`, { headers });
       const d = await r.json();
       const older = d.messages || [];
       setMessages(prev => sortMsgs([...older, ...prev]));
@@ -4771,7 +4771,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const backgroundRefreshMessages = useCallback(async (convId) => {
     // Silent background refresh — no spinner, no skeleton, just appends new messages
     try {
-      const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=50`, { headers });
+      const r = await fetch(`${API_URL}/conversations/${convId}/messages?limit=10`, { headers });
       if (!r.ok) return;
       const d = await r.json();
       const fresh = d.messages || [];
