@@ -2010,8 +2010,8 @@ function WhatsAppScreen({ auth, T, theme }) {
                               <div style={{ fontSize: 15, fontWeight: 800, color: "#111b21" }}>Nada importado ainda</div>
                               <div style={{ fontSize: 12, color: "#667781", background: "#fff8e1", border: "1px solid #fcd34d", borderRadius: 10, padding: "10px 16px", maxWidth: 340, lineHeight: 1.6, textAlign: "left" }}>
                                 <strong>Por que isso acontece?</strong><br/>
-                                O WAHA pode precisar de alguns minutos após a primeira conexão para carregar o histórico. Clique em "Tentar novamente" após 1-2 minutos.<br/><br/>
-                                As mensagens <strong>novas</strong> já chegam normalmente — o histórico antigo é que demora para estar disponível.
+                                O WhatsApp demora <strong>1 a 2 horas</strong> para sincronizar o histórico completo após a primeira conexão. Isso é normal — o processo roda em segundo plano.<br/><br/>
+                                Volte aqui daqui a 1-2 horas e clique em "Tentar novamente". As mensagens <strong>novas</strong> já chegam normalmente enquanto isso.
                               </div>
                               <button onClick={() => startAutoSync(inst)} disabled={syncing}
                                 style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
@@ -2019,24 +2019,7 @@ function WhatsAppScreen({ auth, T, theme }) {
                               </button>
                             </>
                           )}
-                          <div style={{ fontSize: 11, color: "#667781", maxWidth: 320, textAlign: "center", lineHeight: 1.5, background: "#fff8e1", border: "1px solid #fcd34d", borderRadius: 8, padding: "8px 14px" }}>
-                            ⚠️ Mensagens <strong>novas</strong> só chegam após corrigir o webhook abaixo.
-                          </div>
                           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
-                            <button onClick={async () => {
-                              const btn = event.target; btn.disabled = true; btn.textContent = "⏳ Corrigindo...";
-                              const r = await fetch(`${API_URL}/whatsapp/fix-webhook`, {
-                                method: "POST", headers,
-                                body: JSON.stringify({ instance_name: inst.instance_name })
-                              });
-                              const d = await r.json();
-                              if (d.webhook_ok) alert("✅ Webhook configurado!\n\nAgora envie uma mensagem de teste para +55 11 94077-4447 de outro número.");
-                              else alert("Resultado do diagnóstico:\n" + JSON.stringify(d, null, 2));
-                              btn.disabled = false; btn.textContent = "🔧 Corrigir webhook";
-                            }}
-                              style={{ padding: "9px 20px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#7c4dff,#5e35b1)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
-                              🔧 Corrigir webhook
-                            </button>
                             <button onClick={() => { setActiveInst(null); setView("inbox"); }}
                               style={{ padding: "9px 20px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#fff", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
                               → Ir para o Inbox
@@ -2055,18 +2038,7 @@ function WhatsAppScreen({ auth, T, theme }) {
                               style={{ padding: "10px 24px", borderRadius: 10, border: "1px solid #00a88444", background: "#00a88415", color: "#00a884", fontSize: 13, fontWeight: 700, cursor: syncing ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
                               {syncing ? "⏳ Importando..." : "📥 Importar histórico"}
                             </button>
-                            <button onClick={async () => {
-                              const r = await fetch(`${API_URL}/whatsapp/fix-webhook`, {
-                                method: "POST", headers,
-                                body: JSON.stringify({ instance_name: inst.instance_name })
-                              });
-                              const d = await r.json();
-                              if (d.webhook_ok) alert("✅ Webhook configurado! Mensagens devem chegar agora. Teste enviando uma mensagem.");
-                              else alert("⚠️ Resultado: " + JSON.stringify(d, null, 2));
-                            }}
-                              style={{ padding: "10px 24px", borderRadius: 10, border: "1px solid #7c4dff44", background: "#7c4dff15", color: "#7c4dff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
-                              🔧 Corrigir webhook
-                            </button>
+
                             <button onClick={() => { setActiveInst(null); setView("inbox"); }}
                               style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#fff", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
                               → Ir para o Inbox
