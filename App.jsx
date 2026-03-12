@@ -4577,6 +4577,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const [markingUnread, setMarkingUnread] = useState(false);
   const [blockingContact, setBlockingContact] = useState(false);
   const [togglingAutoMode, setTogglingAutoMode] = useState(false);
+  const [pausedByAgentConvs, setPausedByAgentConvs] = useState({}); // { convId: true } — pausa temporária Redis
   const [savingLabel, setSavingLabel] = useState(false);
   const [deletingConv, setDeletingConv] = useState(false);
   const [assigningConv, setAssigningConv] = useState(false);   // assign modal
@@ -5279,7 +5280,7 @@ A mensagem deve:
     try {
       const r = await fetch(`${API_URL}/conversations/${selected.id}/messages`, {
         method: "POST", headers,
-        body: JSON.stringify({ conversation_id: selected.id, text, is_internal_note: noteMode })
+        body: JSON.stringify({ conversation_id: selected.id, text, is_internal_note: noteMode, sent_by: auth?.id })
       });
       const d = await r.json();
       const saved = d.message || d;  // backend returns { message: msg } or msg directly
@@ -5287,6 +5288,14 @@ A mensagem deve:
         // Replace temp with real message
         saveMsgCache(selectedRef.current?.id, { messages: [], ts: 0 }); // invalidate cache on send
         setMessages(prev => sortMsgs(prev.map(m => m.id === tempId ? saved : m)));
+        // Marca conversa como pausada por atendente (auto-pilot pausa 30min)
+        if (!isNote) {
+          const convInstCfg = getConvInstanceConfig(selected);
+          const globalMode = convInstCfg?.copilot_auto_mode || "off";
+          if (globalMode !== "off") {
+            setPausedByAgentConvs(prev => ({ ...prev, [selected.id]: true }));
+          }
+        }
       } else {
         // Remove temp on failure
         setMessages(prev => prev.filter(m => m.id !== tempId));
@@ -6552,8 +6561,22 @@ A mensagem deve:
                         // auto_mode na conversa: true = ativo, false = pausado manualmente
                         // Se campo não existe, herda do global (assume ativo)
                         const isAutoActive = selected?.copilot_auto_mode !== false && selected?.copilot_auto_mode !== "false";
+                        const isPausedByAgent = !!pausedByAgentConvs[selected?.id];
                         const modeLabel = globalMode === "always" ? "Sempre" : globalMode === "schedule" ? "Horário" : "Por conv.";
                         return (
+                          <>
+                            {isPausedByAgent && (
+                              <span
+                                title="IA pausada por 30min — você respondeu. Clique para reativar agora"
+                                onClick={async () => {
+                                  await fetch(`${API_URL}/conversations/${selected.id}/auto-mode`, { method: "PUT", headers, body: JSON.stringify({ enabled: true }) }).catch(() => {});
+                                  setPausedByAgentConvs(prev => { const n = { ...prev }; delete n[selected.id]; return n; });
+                                }}
+                                style={{ cursor: "pointer", fontSize: 11, background: "#ff6d0022", color: "#ff6d00", border: "1px solid #ff6d0055", borderRadius: 6, padding: "5px 8px", fontWeight: 700, display: "flex", alignItems: "center", gap: 4, userSelect: "none" }}
+                              >
+                                ⏸ IA pausada 30min <span style={{ fontSize: 10, opacity: 0.7 }}>× reativar</span>
+                              </span>
+                            )}
                           <button
                             title={isAutoActive ? "IA respondendo automaticamente — clique para pausar NESTA conversa" : "IA pausada nesta conversa — clique para reativar"}
                             disabled={togglingAutoMode}
@@ -6564,6 +6587,8 @@ A mensagem deve:
                               await fetch(`${API_URL}/conversations/${selected.id}/auto-mode`, { method: "PUT", headers, body: JSON.stringify({ enabled: newVal }) }).catch(() => {});
                               setSelected(prev => ({ ...prev, copilot_auto_mode: newVal }));
                               setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, copilot_auto_mode: newVal } : c));
+                              // Se reativou → remove pausa temporária local
+                              if (newVal) setPausedByAgentConvs(prev => { const n = { ...prev }; delete n[selected.id]; return n; });
                               setTogglingAutoMode(false);
                             }}
                             style={{
@@ -6576,6 +6601,7 @@ A mensagem deve:
                             }}>
                             {togglingAutoMode ? "⏳..." : isAutoActive ? `🤖 Auto ON` : `⏸ Auto OFF`}
                           </button>
+                          </>
                         );
                       })()}
                       <button onClick={() => setShowTasks(t => !t)} style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 6, border: `1px solid ${showTasks ? "#00a88444" : pendingTasksMap[selected?.id] > 0 ? "#ff6d0044" : "#d1d7db"}`, background: showTasks ? "#00a88415" : pendingTasksMap[selected?.id] > 0 ? "#ff6d0010" : "transparent", color: showTasks ? "#00a884" : pendingTasksMap[selected?.id] > 0 ? "#ff6d00" : "#8696a0", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>✅ Tarefas{!showTasks && pendingTasksMap[selected?.id] > 0 && <span style={{ background: "#ff6d00", color: "#000", fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 10 }}>{pendingTasksMap[selected.id]}</span>}</button>
