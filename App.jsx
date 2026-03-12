@@ -4657,6 +4657,8 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const [copilotScheduleEnd, setCopilotScheduleEnd] = useState("09:00");
   const [savingPrompt, setSavingPrompt] = useState(false);
   const [promptSaved, setPromptSaved] = useState(false);
+  const [syncingPhotos, setSyncingPhotos] = useState(false);
+  const [photoSyncResult, setPhotoSyncResult] = useState(null);
   const bottomRef = useRef(null);
   const chatScrollRef = useRef(null);
   const pollRef = useRef(null);
