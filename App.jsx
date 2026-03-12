@@ -5127,25 +5127,25 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   }, [messages]);
   useEffect(() => { fetchAgents(); fetchTenant(); fetchCredits(); fetchPendingTasks(); fetchLabels(); loadUserPreferences(); const t = setInterval(fetchPendingTasks, 30000); const t2 = setInterval(fetchCredits, 60000); return () => { clearInterval(t); clearInterval(t2); }; }, [fetchAgents, fetchTenant, fetchCredits, fetchPendingTasks, fetchLabels, loadUserPreferences]);
 
-  // Auto-seleciona instância ao entrar em Config IA
+  // Ao entrar em Config IA, sincroniza com a instância ativa do Inbox (instanceFilter)
   useEffect(() => {
     if (view === "config") {
-      const connected = waInstances.filter(i => i.status === "connected" || i.connected);
-      if (connected.length > 0) {
-        const target = configIaInstance || connected[0].instance_name;
+      // Usa sempre a instância selecionada no Inbox
+      const target = instanceFilter || (waInstances.find(i => i.status === "connected" || i.connected)?.instance_name);
+      if (target && target !== configIaInstance) {
         setConfigIaInstance(target);
-        if (!instanceConfigs[target]) {
-          fetchInstanceConfig(target);
-        } else {
-          const cfg = instanceConfigs[target];
-          setCopilotPrompt(cfg.copilot_prompt || "");
-          setCopilotAutoMode(cfg.copilot_auto_mode || "off");
-          setCopilotScheduleStart(cfg.copilot_schedule_start || "18:00");
-          setCopilotScheduleEnd(cfg.copilot_schedule_end || "09:00");
-        }
+        fetchInstanceConfig(target);
+      } else if (target && !instanceConfigs[target]) {
+        fetchInstanceConfig(target);
+      } else if (target && instanceConfigs[target]) {
+        const cfg = instanceConfigs[target];
+        setCopilotPrompt(cfg.copilot_prompt || "");
+        setCopilotAutoMode(cfg.copilot_auto_mode || "off");
+        setCopilotScheduleStart(cfg.copilot_schedule_start || "18:00");
+        setCopilotScheduleEnd(cfg.copilot_schedule_end || "09:00");
       }
     }
-  }, [view, waInstances]);
+  }, [view, instanceFilter, waInstances]);
 
   const resumeConversation = async (conv) => {
     if (resumingConv) return;
@@ -5863,43 +5863,27 @@ A mensagem deve:
             <div style={{ maxWidth: 1100, margin: "0 auto" }}>
             <div style={{ marginBottom: 28 }}><div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>⚙️ Configurações</div><div style={{ fontSize: 13, color: T.text2 }}>Personalize o comportamento do 7zap para sua empresa</div></div>
 
-            {/* ── Seletor de Instância ── */}
-            <div style={{ background: "linear-gradient(135deg,#7c4dff12,#7c4dff06)", border: `2px solid #7c4dff55`, borderRadius: 14, padding: "20px 24px", marginBottom: 24 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-                <span style={{ fontSize: 20 }}>📱</span>
-                <div style={{ fontSize: 15, fontWeight: 800, color: "#a78bfa" }}>Selecione o número para configurar</div>
-              </div>
-              <div style={{ fontSize: 12, color: T.text2, marginBottom: 14, paddingLeft: 30 }}>
-                ⚠️ <strong>Cada número tem seu próprio prompt e modo de IA.</strong> A configuração abaixo afeta <strong>somente</strong> o número selecionado — os outros não são alterados.
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                {waInstances.filter(i => i.status === "connected" || i.connected).map(inst => {
-                  const isSelected = configIaInstance === inst.instance_name;
-                  return (
-                    <button key={inst.instance_name}
-                      onClick={() => {
-                        setConfigIaInstance(inst.instance_name);
-                        fetchInstanceConfig(inst.instance_name);
-                      }}
-                      style={{ padding: "10px 18px", borderRadius: 10, border: `2px solid ${isSelected ? "#7c4dff" : T.border}`,
-                        background: isSelected ? "#7c4dff18" : T.bg, color: isSelected ? "#a78bfa" : T.text,
-                        fontSize: 13, fontWeight: isSelected ? 700 : 500, cursor: "pointer", fontFamily: "inherit",
-                        display: "flex", alignItems: "center", gap: 8, transition: "all 0.15s" }}>
-                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#25d366", display: "inline-block" }}></span>
-                      <span>{inst.label || inst.instance_name}</span>
-                      <span style={{ fontSize: 11, color: T.text2 }}>{(inst.phone || inst.instance_name) ? `+${inst.phone || ''}` : ""}</span>
-                      {isSelected && <span style={{ fontSize: 11, background: "#7c4dff", color: "#fff", padding: "2px 10px", borderRadius: 20, fontWeight: 800 }}>✏️ Editando</span>}
-                    </button>
-                  );
-                })}
-                {waInstances.filter(i => i.status === "connected" || i.connected).length === 0 && (
-                  <div style={{ fontSize: 13, color: T.text2 }}>Nenhuma instância conectada. Conecte um número em Configurações → WhatsApp.</div>
-                )}
-              </div>
-              {!configIaInstance && waInstances.filter(i => i.status === "connected" || i.connected).length > 0 && (
-                <div style={{ marginTop: 10, fontSize: 12, color: "#f59e0b", fontWeight: 600 }}>👆 Selecione um número acima para configurar sua IA</div>
-              )}
-            </div>
+            {/* ── Número ativo (read-only, segue instanceFilter) ── */}
+            {(() => {
+              const activeInst = waInstances.find(i => i.instance_name === configIaInstance);
+              if (!activeInst) return null;
+              return (
+                <div style={{ background: "linear-gradient(135deg,#7c4dff12,#7c4dff06)", border: "2px solid #7c4dff44", borderRadius: 14, padding: "16px 20px", marginBottom: 24, display: "flex", alignItems: "center", gap: 14 }}>
+                  <span style={{ fontSize: 22 }}>📱</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, color: T.text2, marginBottom: 2 }}>Configurando o número ativo no Inbox</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#25d366", display: "inline-block", flexShrink: 0 }}></span>
+                      <span style={{ fontSize: 16, fontWeight: 800, color: "#a78bfa" }}>{activeInst.label || activeInst.instance_name}</span>
+                      {activeInst.phone && <span style={{ fontSize: 13, color: T.text2 }}>+{activeInst.phone}</span>}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 11, color: T.text2, textAlign: "right", maxWidth: 200 }}>
+                    Para configurar outro número,<br/>selecione-o no <strong>Inbox</strong> primeiro.
+                  </div>
+                </div>
+              );
+            })()}
 
             {configIaInstance ? (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 24, alignItems: "start" }}>
