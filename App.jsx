@@ -4594,13 +4594,18 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
         const r = await fetch(`${API_URL}/whatsapp/tenant-instances?tenant_id=${TENANT_ID}`, { headers });
         const d = await r.json();
         const insts = d.instances || [];
-        setWaInstances(insts);
+        // Filter instances by user's allowed_instances (if not admin and has restrictions)
+        const userAllowed = auth?.user?.allowed_instances || [];
+        const visibleInsts = (auth?.user?.role === "admin" || userAllowed.length === 0)
+          ? insts
+          : insts.filter(i => userAllowed.includes(i.instance_name) || userAllowed.includes(i.id));
+        setWaInstances(visibleInsts);
         // Auto-correct instanceFilter if it points to a non-existent instance
-        if (insts.length > 0) {
+        if (visibleInsts.length > 0) {
           setInstanceFilter(prev => {
-            const exists = insts.find(i => i.instance_name === prev);
+            const exists = visibleInsts.find(i => i.instance_name === prev);
             if (!exists) {
-              const first = insts[0].instance_name;
+              const first = visibleInsts[0].instance_name;
               try { sessionStorage.setItem("7crm_instance", first); } catch {}
               return first;
             }
@@ -5558,11 +5563,11 @@ A mensagem deve:
   const totalPendingTasks = Object.values(pendingTasksMap).reduce((a, b) => a + b, 0);
   const WORK_TABS = [
     { id: "inbox", label: "📥 Inbox" },
-    { id: "leads", label: "🏷 Pipeline" },
-    { id: "kanban", label: "🗂 Board" },
+    { id: "leads", label: "🏷 Funil" },
+    { id: "kanban", label: "🗂 Kanban" },
     { id: "tasks_global", label: "✅ Tarefas" },
     { id: "disparos", label: "📢 Disparos" },
-    { id: "config", label: "⚙️ Config IA" },
+    ...(auth.user.role === "admin" ? [{ id: "config", label: "⚙️ Config IA" }] : []),
     ...(auth.user.role === "admin" ? [{ id: "onboarding", label: "🧠 Onboarding IA" }] : []),
     ...(auth.user.role === "admin" ? [{ id: "relatorios", label: "📈 Relatórios" }] : []),
     ...(trialInfo?.status === "trial" ? [{ id: "upgrade", label: "⭐ Assinar" }] : []),
@@ -6408,17 +6413,40 @@ A mensagem deve:
                       <button onClick={() => setShowLabelPicker(true)} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e9edef", background: "transparent", color: "#8696a0", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>🏷 Etiqueta</button>
                       <button onClick={() => setShowAssign(true)} disabled={assigningConv} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e9edef", background: "transparent", color: assigningConv ? "#d1d7db" : "#8696a0", fontSize: 11, cursor: assigningConv ? "wait" : "pointer", fontFamily: "inherit", fontWeight: 600 }}>{assigningConv ? "⏳..." : "👤 Atribuir"}</button>
                       <button onClick={fetchSuggestion} disabled={loadingSuggest} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #7c4dff44", background: loadingSuggest ? "#e9edef" : "#7c4dff15", color: loadingSuggest ? "#667781" : "#a78bfa", fontSize: 11, cursor: loadingSuggest ? "not-allowed" : "pointer", fontFamily: "inherit", fontWeight: 600 }}>{loadingSuggest ? "⏳..." : "✨ Co-pilot"}</button>
-                      {copilotAutoMode === "per_conv" && (
-                        <button disabled={togglingAutoMode} onClick={async () => {
-                          setTogglingAutoMode(true);
-                          const newVal = !selected.auto_mode;
-                          autoModeRef.current[selected.id] = newVal;
-                          await fetch(`${API_URL}/conversations/${selected.id}/auto-mode`, { method: "PUT", headers, body: JSON.stringify({ enabled: newVal }) }).catch(() => {});
-                          setSelected(prev => ({ ...prev, auto_mode: newVal }));
-                          setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, auto_mode: newVal } : c));
-                          setTogglingAutoMode(false);
-                        }} style={{ padding: "5px 10px", borderRadius: 6, border: `1px solid ${selected.auto_mode ? "#00a88444" : "#d1d7db"}`, background: togglingAutoMode ? "#f0f2f5" : selected.auto_mode ? "#00a88418" : "transparent", color: togglingAutoMode ? "#b0bec5" : selected.auto_mode ? "#00a884" : "#667781", fontSize: 11, cursor: togglingAutoMode ? "not-allowed" : "pointer", fontFamily: "inherit", fontWeight: 700 }}>{togglingAutoMode ? "⏳..." : `🤖 Auto ${selected.auto_mode ? "ON" : "OFF"}`}</button>
-                      )}
+                      {(() => {
+                        // Mostra toggle de auto-pilot por conversa quando há modo ativo (qualquer modo != off)
+                        const convInstCfg = getConvInstanceConfig(selected);
+                        const globalMode = convInstCfg?.copilot_auto_mode || "off";
+                        if (globalMode === "off") return null;
+                        // auto_mode na conversa: true = ativo, false = pausado manualmente
+                        // Se campo não existe, herda do global (assume ativo)
+                        const isAutoActive = selected?.copilot_auto_mode !== false && selected?.copilot_auto_mode !== "false";
+                        const modeLabel = globalMode === "always" ? "Sempre" : globalMode === "schedule" ? "Horário" : "Por conv.";
+                        return (
+                          <button
+                            title={isAutoActive ? "IA respondendo automaticamente — clique para pausar NESTA conversa" : "IA pausada nesta conversa — clique para reativar"}
+                            disabled={togglingAutoMode}
+                            onClick={async () => {
+                              setTogglingAutoMode(true);
+                              const newVal = !isAutoActive;
+                              autoModeRef.current[selected.id] = newVal;
+                              await fetch(`${API_URL}/conversations/${selected.id}/auto-mode`, { method: "PUT", headers, body: JSON.stringify({ enabled: newVal }) }).catch(() => {});
+                              setSelected(prev => ({ ...prev, copilot_auto_mode: newVal }));
+                              setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, copilot_auto_mode: newVal } : c));
+                              setTogglingAutoMode(false);
+                            }}
+                            style={{
+                              padding: "5px 10px", borderRadius: 6,
+                              border: `1px solid ${isAutoActive ? "#00a88444" : "#ff6d0044"}`,
+                              background: togglingAutoMode ? "#f0f2f5" : isAutoActive ? "#00a88418" : "#ff6d0010",
+                              color: togglingAutoMode ? "#b0bec5" : isAutoActive ? "#00a884" : "#ff6d00",
+                              fontSize: 11, cursor: togglingAutoMode ? "not-allowed" : "pointer",
+                              fontFamily: "inherit", fontWeight: 700, display: "flex", alignItems: "center", gap: 4
+                            }}>
+                            {togglingAutoMode ? "⏳..." : isAutoActive ? `🤖 Auto ON` : `⏸ Auto OFF`}
+                          </button>
+                        );
+                      })()}
                       <button onClick={() => setShowTasks(t => !t)} style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 6, border: `1px solid ${showTasks ? "#00a88444" : pendingTasksMap[selected?.id] > 0 ? "#ff6d0044" : "#d1d7db"}`, background: showTasks ? "#00a88415" : pendingTasksMap[selected?.id] > 0 ? "#ff6d0010" : "transparent", color: showTasks ? "#00a884" : pendingTasksMap[selected?.id] > 0 ? "#ff6d00" : "#8696a0", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>✅ Tarefas{!showTasks && pendingTasksMap[selected?.id] > 0 && <span style={{ background: "#ff6d00", color: "#000", fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 10 }}>{pendingTasksMap[selected.id]}</span>}</button>
                     </div>
                   </div>
@@ -6751,7 +6779,7 @@ A mensagem deve:
         <div style={{ height: 58, flexShrink: 0, borderTop: `1px solid ${T.border}`, background: T.topbar, display: "flex", alignItems: "center", justifyContent: "space-around", paddingBottom: "env(safe-area-inset-bottom, 0px)", zIndex: 100 }}>
           {[
             { id: "inbox",        icon: "💬", label: "Inbox" },
-            { id: "kanban",       icon: "🗂",  label: "Board" },
+            { id: "kanban",       icon: "🗂",  label: "Kanban" },
             { id: "tasks_global", icon: "✅",  label: "Tarefas", badge: totalPendingTasks },
             { id: "disparos",     icon: "📢",  label: "Disparos" },
             { id: "__more__",     icon: "⋯",   label: "Mais" },
@@ -6787,8 +6815,8 @@ A mensagem deve:
             <div style={{ width: 40, height: 4, background: T.border, borderRadius: 2, margin: "0 auto 20px" }} />
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
               {[
-                { id: "leads",      icon: "🏷",  label: "Pipeline" },
-                { id: "config",     icon: "⚙️",   label: "Config IA" },
+                { id: "leads",      icon: "🏷",  label: "Funil" },
+                ...(auth.user.role === "admin" ? [{ id: "config",     icon: "⚙️",   label: "Config IA" }] : []),
                 { id: "relatorios", icon: "📈",   label: "Relatórios" },
                 { id: "whatsapp",   icon: "📱",   label: "WhatsApp" },
                 { id: "admin",      icon: "🔐",   label: "Admin" },
