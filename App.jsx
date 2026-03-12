@@ -6029,6 +6029,43 @@ A mensagem deve:
                 )}
               </div>
 
+              {/* Quality banner */}
+              {convQuality && (() => {
+                const pct = convQuality.quality_pct;
+                const total = convQuality.total;
+                const target = convQuality.target;
+                const remaining = Math.max(0, target - total);
+                const color = pct < 40 ? "#f44336" : pct < 75 ? "#ff9800" : "#00a884";
+                const bgColor = pct < 40 ? "#fff5f5" : pct < 75 ? "#fff8f0" : "#f0faf7";
+                const borderColor = pct < 40 ? "#f4433630" : pct < 75 ? "#ff980030" : "#00a88430";
+                if (pct >= 100) return null; // esconde quando 100%
+                return (
+                  <div style={{ background: bgColor, border: `1px solid ${borderColor}`, borderRadius: 12, padding: "14px 18px", marginBottom: 16, display: "flex", gap: 14, alignItems: "center" }}>
+                    <span style={{ fontSize: 28, flexShrink: 0 }}>{pct < 40 ? "⚠️" : pct < 75 ? "📊" : "🚀"}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color, marginBottom: 4 }}>
+                        {pct < 40 ? "Poucas conversas para gerar um bom prompt" : pct < 75 ? "Progresso razoável — pode melhorar ainda mais" : "Quase lá! Prompt com boa qualidade em breve"}
+                      </div>
+                      <div style={{ fontSize: 11, color: "#667781", marginBottom: 8 }}>
+                        {remaining > 0
+                          ? `Este número tem ${total} conversa${total !== 1 ? "s" : ""} salvas. Precisamos de ${target} para gerar um prompt de alta qualidade — faltam ${remaining}.`
+                          : "Histórico suficiente para um prompt excelente!"}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ flex: 1, height: 7, background: "#e0e0e0", borderRadius: 6, overflow: "hidden" }}>
+                          <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 6, transition: "width 0.8s ease" }} />
+                        </div>
+                        <span style={{ fontSize: 12, fontWeight: 700, color, minWidth: 38 }}>{pct}%</span>
+                        <button onClick={() => setConfigTab("onboarding")}
+                          style={{ padding: "4px 12px", borderRadius: 8, border: `1px solid ${color}44`, background: `${color}15`, color, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+                          🧠 Gerar mesmo assim →
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Prompt — editável diretamente */}
               <div style={{ fontSize: 12, fontWeight: 700, color: T.text2, marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span>🧠 PROMPT DA IA</span>
