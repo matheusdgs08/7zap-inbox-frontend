@@ -3453,28 +3453,33 @@ function KanbanBoard({ conversations, columns, onMoveCard, onSelectConv, onManag
 
 
 // ─── Reports View ─────────────────────────────────────────────────────────────
-function ReportsView({ auth, T = { app: "#f0f2f5", card: "#ffffff", border: "#e9edef", text: "#111b21", text2: "#667781" } }) {
+function ReportsView({ auth, T = { app: "#f0f2f5", card: "#ffffff", border: "#e9edef", text: "#111b21", text2: "#667781" }, waInstances = [], defaultInstance = null }) {
   const [tab, setTab] = useState("mensagens");
   const [days, setDays] = useState(30);
   const [data, setData] = useState({});
   const [loading, setLoading] = useState(false);
+  const [reportInstance, setReportInstance] = useState(defaultInstance || null); // null = todos
 
-  const fetchReport = async (type) => {
+  const fetchReport = async (type, inst) => {
     setLoading(true);
+    const instParam = (inst !== undefined ? inst : reportInstance);
     try {
-      const r = await fetch(`${API_URL}/reports/${type}?tenant_id=${TENANT_ID}&days=${days}`, { headers });
+      const instQ = instParam ? `&instance_name=${encodeURIComponent(instParam)}` : "";
+      const r = await fetch(`${API_URL}/reports/${type}?tenant_id=${TENANT_ID}&days=${days}${instQ}`, { headers });
       const d = await r.json();
       setData(prev => ({ ...prev, [type]: d }));
     } catch(e) {}
     setLoading(false);
   };
 
-  useEffect(() => {
-    fetchReport("messages");
-    fetchReport("agents");
-    fetchReport("broadcasts");
-    fetchReport("credits");
-  }, [days]);
+  const fetchAll = (inst) => {
+    fetchReport("messages", inst);
+    fetchReport("agents", inst);
+    fetchReport("broadcasts", inst);
+    fetchReport("credits", inst);
+  };
+
+  useEffect(() => { fetchAll(reportInstance); }, [days, reportInstance]);
 
   const TABS = [
     { id: "mensagens", label: "💬 Mensagens" },
@@ -3505,6 +3510,23 @@ function ReportsView({ auth, T = { app: "#f0f2f5", card: "#ffffff", border: "#e9
             {t.label}
           </button>
         ))}
+        {/* Instance filter pills */}
+        {waInstances.length >= 2 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: 8, paddingLeft: 8, borderLeft: "1px solid #e9edef" }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: "#667781", whiteSpace: "nowrap" }}>📱</span>
+            {[{ instance_name: null, label: "Todos" }, ...waInstances].map(inst => {
+              const isActive = reportInstance === inst.instance_name;
+              return (
+                <button key={inst.instance_name || "all"}
+                  onClick={() => setReportInstance(inst.instance_name)}
+                  style={{ padding: "4px 10px", borderRadius: 20, border: `1px solid ${isActive ? "#00a88466" : "#e9edef"}`, background: isActive ? "#00a88418" : "transparent", color: isActive ? "#00a884" : "#667781", fontSize: 11, fontWeight: isActive ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 4 }}>
+                  {inst.instance_name && <span style={{ width: 6, height: 6, borderRadius: "50%", background: inst.connected ? "#00a884" : "#f44336", display: "inline-block" }} />}
+                  {inst.label || inst.instance_name || "Todos"}
+                </button>
+              );
+            })}
+          </div>
+        )}
         <div style={{ flex: 1 }} />
         <div style={{ display: "flex", gap: 6 }}>
           {[7,30,90].map(d => (
@@ -5837,7 +5859,7 @@ A mensagem deve:
 
         {/* Relatórios */}
         {view === "relatorios" && auth.user.role === "admin" && (
-          <ReportsView auth={auth} T={T} />
+          <ReportsView auth={auth} T={T} waInstances={waInstances} defaultInstance={instanceFilter} />
         )}
 
 
