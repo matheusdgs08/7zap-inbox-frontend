@@ -1318,7 +1318,7 @@ function AdminPanel({ auth, onLogout }) {
 
 
 // ─── Onboarding Inteligente ───────────────────────────────────────────────────
-function OnboardingView({ auth, aiCredits, instanceName, waInstances }) {
+function OnboardingView({ auth, aiCredits, instanceName, waInstances, embeddedMode, onDone }) {
   const [mode, setMode] = useState("choose"); // choose | questionnaire | analyzing_q | analyzing_h | result | done
   const [answers, setAnswers] = useState({ empresa: "", segmento: "", tom: "", produtos: "", duvidas_comuns: "", regras: "", objetivo: "" });
   const [days, setDays] = useState(90);
@@ -1367,7 +1367,7 @@ function OnboardingView({ auth, aiCredits, instanceName, waInstances }) {
     setLoading(false);
   };
 
-  const savePrompt = async () => { setSaving(true); setSaved(true); setTimeout(() => setMode("done"), 800); setSaving(false); };
+  const savePrompt = async () => { setSaving(true); setSaved(true); setTimeout(() => { if (onDone) onDone(); else setMode("done"); }, 800); setSaving(false); };
 
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: 40 }}>
@@ -4572,6 +4572,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const [showUpgrade, setShowUpgrade] = useState(null); // feature name string
   const [showBuyCredits, setShowBuyCredits] = useState(false);
   const [showSaveSuccessModal, setShowSaveSuccessModal] = useState(false);
+  const [configTab, setConfigTab] = useState("settings"); // "settings" | "onboarding"
   const [convQuality, setConvQuality] = useState(null); // { total, quality_pct, quality_label, target }
   const [waInstances, setWaInstances] = useState([]); // for disconnect banner
   const selectInstance = (name) => {
@@ -5609,7 +5610,6 @@ A mensagem deve:
     { id: "tasks_global", label: "✅ Tarefas" },
     { id: "disparos", label: "📢 Disparos" },
     ...(auth.user.role === "admin" ? [{ id: "config", label: "⚙️ Config IA" }] : []),
-    ...(auth.user.role === "admin" ? [{ id: "onboarding", label: "🧠 Onboarding IA" }] : []),
     ...(auth.user.role === "admin" ? [{ id: "relatorios", label: "📈 Relatórios" }] : []),
     ...(trialInfo?.status === "trial" ? [{ id: "upgrade", label: "⭐ Assinar" }] : []),
   ];
@@ -5840,14 +5840,11 @@ A mensagem deve:
           <ReportsView auth={auth} T={T} />
         )}
 
-        {/* Onboarding IA */}
-        {view === "onboarding" && auth.user.role === "admin" && (
-          <OnboardingView auth={auth} aiCredits={aiCredits} instanceName={configIaInstance} waInstances={waInstances} />
-        )}
+
 
         {/* WhatsApp Connection */}
         {view === "whatsapp" && auth.user.role === "admin" && (
-          <WhatsAppScreen auth={auth} T={T} theme={theme} onConnected={() => setView("onboarding")} />
+          <WhatsAppScreen auth={auth} T={T} theme={theme} onConnected={() => { setView("config"); setConfigTab("onboarding"); }} />
         )}
 
         {/* Upgrade */}
@@ -5900,7 +5897,25 @@ A mensagem deve:
         {view === "config" && (
           <div style={{ flex: 1, overflowY: "auto", padding: "32px 40px" }}>
             <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-            <div style={{ marginBottom: 28 }}><div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>⚙️ Configurações</div><div style={{ fontSize: 13, color: T.text2 }}>Personalize o comportamento do 7zap para sua empresa</div></div>
+            {/* Header + Tabs */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>⚙️ Config IA</div>
+              <div style={{ fontSize: 13, color: T.text2, marginBottom: 20 }}>Configure o Co-pilot e gere o prompt ideal para cada número</div>
+              <div style={{ display: "flex", gap: 4, borderBottom: `2px solid ${T.border}`, paddingBottom: 0 }}>
+                {[
+                  { id: "settings", label: "⚙️ Configurações" },
+                  { id: "onboarding", label: "🧠 Gerar Prompt com IA" }
+                ].map(tab => (
+                  <button key={tab.id} onClick={() => setConfigTab(tab.id)}
+                    style={{ padding: "8px 18px", borderRadius: "8px 8px 0 0", border: "none", background: configTab === tab.id ? T.card : "transparent", color: configTab === tab.id ? "#7c3aed" : T.text2, fontSize: 13, fontWeight: configTab === tab.id ? 700 : 500, cursor: "pointer", fontFamily: "inherit", borderBottom: configTab === tab.id ? `2px solid #7c3aed` : "2px solid transparent", marginBottom: -2, transition: "all 0.15s" }}>
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {configTab === "onboarding" ? (
+              <OnboardingView auth={auth} aiCredits={aiCredits} instanceName={configIaInstance} waInstances={waInstances} embeddedMode={true} onDone={() => setConfigTab("settings")} />
+            ) : (<>
 
             {/* ── Número ativo (read-only, segue instanceFilter) ── */}
             {(() => {
@@ -6022,7 +6037,7 @@ A mensagem deve:
                     style={{ padding: "5px 12px", borderRadius: 7, border: "1px solid #7c4dff55", background: "#7c4dff12", color: "#a78bfa", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
                     📋 Importar
                   </button>
-                  <button onClick={() => setView("onboarding")}
+                  <button onClick={() => setConfigTab("onboarding")}
                     style={{ padding: "5px 12px", borderRadius: 7, border: "1px solid #00a88455", background: "#00a88412", color: "#00a884", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
                     🧠 Gerar com IA
                   </button>
@@ -6139,6 +6154,7 @@ A mensagem deve:
                 <div style={{ fontSize: 13, color: T.text2 }}>Cada número WhatsApp tem seu próprio prompt e modo de IA. Clique em um dos números acima para começar.</div>
               </div>
             )}
+            </>) }
             </div>
           </div>
         )}
