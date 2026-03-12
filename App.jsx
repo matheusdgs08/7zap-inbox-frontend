@@ -1318,7 +1318,7 @@ function AdminPanel({ auth, onLogout }) {
 
 
 // ─── Onboarding Inteligente ───────────────────────────────────────────────────
-function OnboardingView({ auth, aiCredits }) {
+function OnboardingView({ auth, aiCredits, instanceName }) {
   const [mode, setMode] = useState("choose"); // choose | questionnaire | analyzing_q | analyzing_h | result | done
   const [answers, setAnswers] = useState({ empresa: "", segmento: "", tom: "", produtos: "", duvidas_comuns: "", regras: "", objetivo: "" });
   const [days, setDays] = useState(90);
@@ -1356,7 +1356,7 @@ function OnboardingView({ auth, aiCredits }) {
     try {
       const r = await fetch(`${API_URL}/onboarding/analyze`, {
         method: "POST", headers,
-        body: JSON.stringify({ tenant_id: TENANT_ID, days })
+        body: JSON.stringify({ tenant_id: TENANT_ID, days, instance_name: instanceName })
       });
       const d = await r.json();
       clearInterval(pi);
@@ -4650,6 +4650,8 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const [kanbanCols, setKanbanCols] = useState(loadColumns);
   const [suggestion, setSuggestion] = useState("");
   const [loadingSuggest, setLoadingSuggest] = useState(false);
+  const [configIaInstance, setConfigIaInstance] = useState(null); // instância selecionada no Config IA
+  const [instanceConfigs, setInstanceConfigs] = useState({}); // { [instance_name]: { prompt, auto_mode, ... } }
   const [copilotPrompt, setCopilotPrompt] = useState("");
   const [copilotPromptSummary, setCopilotPromptSummary] = useState("");
   const [showImportPrompt, setShowImportPrompt] = useState(false);
@@ -4968,12 +4970,22 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
 
   const fetchTenant = useCallback(async () => {
     try { const r = await fetch(`${API_URL}/tenant?tenant_id=${TENANT_ID}`, { headers }); const d = await r.json();
+      // Dados globais do tenant (créditos, plano) — prompt/modo agora é por instância
+      if (d.ai_credits !== undefined) setAiCredits({ credits: d.ai_credits, limit: d.ai_credits_limit, plan: d.plan, pct: d.ai_credits_pct, warning: d.ai_credits_pct <= 25 });
+    } catch (e) {}
+  }, []);
+
+  const fetchInstanceConfig = useCallback(async (instanceName) => {
+    if (!instanceName) return;
+    try {
+      const r = await fetch(`${API_URL}/whatsapp/instance-config?tenant_id=${TENANT_ID}&instance_name=${instanceName}`, { headers });
+      if (!r.ok) return;
+      const d = await r.json();
+      setInstanceConfigs(prev => ({ ...prev, [instanceName]: d }));
       setCopilotPrompt(d.copilot_prompt || "");
-      if (d.copilot_prompt_summary) setCopilotPromptSummary(d.copilot_prompt_summary);
       setCopilotAutoMode(d.copilot_auto_mode || "off");
       setCopilotScheduleStart(d.copilot_schedule_start || "18:00");
       setCopilotScheduleEnd(d.copilot_schedule_end || "09:00");
-      if (d.ai_credits !== undefined) setAiCredits({ credits: d.ai_credits, limit: d.ai_credits_limit, plan: d.plan, pct: d.ai_credits_pct, warning: d.ai_credits_pct <= 25 });
     } catch (e) {}
   }, []);
 
@@ -4998,7 +5010,10 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const savePrompt = async () => {
     setSavingPrompt(true); setPromptSaved(false);
     try {
-      await fetch(`${API_URL}/tenant/copilot-prompt`, { method: "PUT", headers, body: JSON.stringify({ tenant_id: TENANT_ID, copilot_prompt: copilotPrompt, copilot_auto_mode: copilotAutoMode, copilot_schedule_start: copilotScheduleStart, copilot_schedule_end: copilotScheduleEnd }) });
+      const body = { tenant_id: TENANT_ID, copilot_prompt: copilotPrompt, copilot_auto_mode: copilotAutoMode, copilot_schedule_start: copilotScheduleStart, copilot_schedule_end: copilotScheduleEnd };
+      if (configIaInstance) body.instance_name = configIaInstance;
+      await fetch(`${API_URL}/tenant/copilot-prompt`, { method: "PUT", headers, body: JSON.stringify(body) });
+      if (configIaInstance) setInstanceConfigs(prev => ({ ...prev, [configIaInstance]: { ...prev[configIaInstance], copilot_prompt: copilotPrompt, copilot_auto_mode: copilotAutoMode, copilot_schedule_start: copilotScheduleStart, copilot_schedule_end: copilotScheduleEnd } }));
       setPromptSaved(true); setTimeout(() => setPromptSaved(false), 3000);
     } catch (e) {}
     setSavingPrompt(false);
@@ -5386,13 +5401,27 @@ A mensagem deve:
   };
 
   // ─── Auto-pilot helpers ────────────────────────────────────────────────
+  // Retorna config de IA da instância de uma conversa (fallback: estado global)
+  const getConvInstanceConfig = useCallback((conv) => {
+    const instName = conv?.instance_name;
+    return instName && instanceConfigs[instName] ? instanceConfigs[instName] : {
+      copilot_auto_mode: copilotAutoMode,
+      copilot_schedule_start: copilotScheduleStart,
+      copilot_schedule_end: copilotScheduleEnd,
+    };
+  }, [instanceConfigs, copilotAutoMode, copilotScheduleStart, copilotScheduleEnd]);
+
   const isAutoActive = useCallback((conv) => {
-    if (copilotAutoMode === "always") return true;
-    if (copilotAutoMode === "per_conv") return !!conv?.auto_mode;
-    if (copilotAutoMode === "schedule") {
+    const cfg = getConvInstanceConfig(conv);
+    const mode = cfg.copilot_auto_mode || "off";
+    const schedStart = cfg.copilot_schedule_start || "18:00";
+    const schedEnd = cfg.copilot_schedule_end || "09:00";
+    if (mode === "always") return true;
+    if (mode === "per_conv") return !!conv?.auto_mode;
+    if (mode === "schedule") {
       const now = new Date();
-      const [sh, sm] = (copilotScheduleStart || "18:00").split(":").map(Number);
-      const [eh, em] = (copilotScheduleEnd || "09:00").split(":").map(Number);
+      const [sh, sm] = schedStart.split(":").map(Number);
+      const [eh, em] = schedEnd.split(":").map(Number);
       const nowMins = now.getHours() * 60 + now.getMinutes();
       const startMins = sh * 60 + sm;
       const endMins = eh * 60 + em;
@@ -5735,7 +5764,7 @@ A mensagem deve:
 
         {/* Onboarding IA */}
         {view === "onboarding" && auth.user.role === "admin" && (
-          <OnboardingView auth={auth} aiCredits={aiCredits} />
+          <OnboardingView auth={auth} aiCredits={aiCredits} instanceName={configIaInstance} />
         )}
 
         {/* WhatsApp Connection */}
@@ -5794,10 +5823,44 @@ A mensagem deve:
           <div style={{ flex: 1, overflowY: "auto", padding: "32px 40px" }}>
             <div style={{ maxWidth: 1100, margin: "0 auto" }}>
             <div style={{ marginBottom: 28 }}><div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>⚙️ Configurações</div><div style={{ fontSize: 13, color: T.text2 }}>Personalize o comportamento do 7zap para sua empresa</div></div>
+
+            {/* ── Seletor de Instância ── */}
+            <div style={{ background: T.card, border: `2px solid #7c4dff44`, borderRadius: 14, padding: "18px 24px", marginBottom: 24 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: T.text2, marginBottom: 12 }}>📱 CONFIGURANDO A IA PARA O NÚMERO:</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                {instances.filter(i => i.status === "connected").map(inst => {
+                  const isSelected = configIaInstance === inst.instance_name;
+                  return (
+                    <button key={inst.instance_name}
+                      onClick={() => {
+                        setConfigIaInstance(inst.instance_name);
+                        fetchInstanceConfig(inst.instance_name);
+                      }}
+                      style={{ padding: "10px 18px", borderRadius: 10, border: `2px solid ${isSelected ? "#7c4dff" : T.border}`,
+                        background: isSelected ? "#7c4dff18" : T.bg, color: isSelected ? "#a78bfa" : T.text,
+                        fontSize: 13, fontWeight: isSelected ? 700 : 500, cursor: "pointer", fontFamily: "inherit",
+                        display: "flex", alignItems: "center", gap: 8, transition: "all 0.15s" }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#25d366", display: "inline-block" }}></span>
+                      <span>{inst.label || inst.instance_name}</span>
+                      <span style={{ fontSize: 11, color: T.text2 }}>{inst.phone ? `+${inst.phone}` : ""}</span>
+                      {isSelected && <span style={{ fontSize: 11, background: "#7c4dff", color: "#fff", padding: "1px 8px", borderRadius: 20 }}>✓ Editando</span>}
+                    </button>
+                  );
+                })}
+                {instances.filter(i => i.status === "connected").length === 0 && (
+                  <div style={{ fontSize: 13, color: T.text2 }}>Nenhuma instância conectada. Conecte um número em Configurações → WhatsApp.</div>
+                )}
+              </div>
+              {!configIaInstance && instances.filter(i => i.status === "connected").length > 0 && (
+                <div style={{ marginTop: 10, fontSize: 12, color: "#f59e0b", fontWeight: 600 }}>👆 Selecione um número acima para configurar sua IA</div>
+              )}
+            </div>
+
+            {configIaInstance ? (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 24, alignItems: "start" }}>
             <div style={{ background: T.card, border: "1px solid #e9edef", borderRadius: 14, padding: 28, marginBottom: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><span style={{ fontSize: 18 }}>✨</span><span style={{ fontSize: 16, fontWeight: 700 }}>Co-pilot IA</span><span style={{ background: "#7c4dff22", color: "#a78bfa", fontSize: 11, fontWeight: 700, padding: "2px 10px", borderRadius: 20 }}>Co-pilot IA</span></div>
-              <div style={{ fontSize: 13, color: T.text2, marginBottom: 20 }}>Prompt + modo automático do Co-pilot para sua empresa.</div>
+              <div style={{ fontSize: 13, color: T.text2, marginBottom: 20 }}>Prompt + modo automático do Co-pilot para <strong>{instances.find(i=>i.instance_name===configIaInstance)?.label || configIaInstance}</strong>.</div>
 
               {/* Auto mode */}
               <div style={{ background: T.bg, border: "1px solid #e9edef", borderRadius: 12, padding: 20, marginBottom: 20 }}>
@@ -6015,6 +6078,16 @@ A mensagem deve:
             </div>{/* end right column */}
 
             </div>{/* end grid */}
+            ) : (
+              /* Nenhuma instância selecionada */
+              instances.filter(i => i.status === "connected").length > 0 && (
+                <div style={{ background: T.card, border: "1px dashed #7c4dff55", borderRadius: 14, padding: "48px 24px", textAlign: "center" }}>
+                  <div style={{ fontSize: 40, marginBottom: 12 }}>📱</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>Selecione um número para configurar</div>
+                  <div style={{ fontSize: 13, color: T.text2 }}>Cada número WhatsApp tem seu próprio prompt e modo de IA.<br/>Clique em um dos números acima para começar.</div>
+                </div>
+              )
+            )}
             </div>{/* end maxWidth wrapper */}
           </div>
         )}
@@ -6703,7 +6776,18 @@ A mensagem deve:
                 if (["whatsapp","admin","relatorios"].includes(t.id) && auth.user.role !== "admin") return false;
                 return true;
               }).map(tab => (
-                <button key={tab.id} onClick={() => { setView(tab.id); setShowMobileMenu(false); }}
+                <button key={tab.id} onClick={() => {
+                  setView(tab.id);
+                  setShowMobileMenu(false);
+                  if (tab.id === "config") {
+                    const connectedInsts = instances.filter(i => i.status === "connected");
+                    if (connectedInsts.length > 0 && !configIaInstance) {
+                      const first = connectedInsts[0].instance_name;
+                      setConfigIaInstance(first);
+                      fetchInstanceConfig(first);
+                    }
+                  }
+                }}
                   style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "14px 8px", borderRadius: 14, border: "none", background: view === tab.id ? "#00a88418" : T.hover, color: view === tab.id ? "#00a884" : T.text, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
                   <span style={{ fontSize: 24 }}>{tab.icon}</span>
                   <span style={{ textAlign: "center", lineHeight: 1.2, fontSize: 10 }}>{tab.label}</span>
