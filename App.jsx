@@ -1315,169 +1315,244 @@ function AdminPanel({ auth, onLogout }) {
 }
 
 
+
+
 // ─── Onboarding Inteligente ───────────────────────────────────────────────────
 function OnboardingView({ auth, aiCredits }) {
-  const [step, setStep] = useState("intro"); // intro | analyzing | result | done
+  const [mode, setMode] = useState("choose"); // choose | questionnaire | analyzing_q | analyzing_h | result | done
+  const [answers, setAnswers] = useState({ empresa: "", segmento: "", tom: "", produtos: "", duvidas_comuns: "", regras: "", objetivo: "" });
   const [days, setDays] = useState(90);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
-  const [editedPrompt, setEditedPrompt] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [progress, setProgress] = useState(0);
 
-  const analyze = async () => {
-    setLoading(true); setError(""); setStep("analyzing"); setProgress(0);
-    
-    // Simula progresso enquanto aguarda
-    const progressInterval = setInterval(() => {
-      setProgress(p => Math.min(p + Math.random() * 8, 90));
-    }, 800);
+  const inp = { width: "100%", padding: "9px 12px", background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 8, color: "#111b21", fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box" };
+  const label = { fontSize: 12, fontWeight: 700, color: "#54656f", marginBottom: 5, display: "block" };
 
+  const runQuestionnaire = async () => {
+    if (!answers.empresa || !answers.produtos) { setError("Preencha pelo menos o nome da empresa e os produtos/serviços."); return; }
+    setLoading(true); setError(""); setMode("analyzing_q"); setProgress(0);
+    const pi = setInterval(() => setProgress(p => Math.min(p + Math.random() * 10, 90)), 700);
+    try {
+      const r = await fetch(`${API_URL}/onboarding/questionnaire`, {
+        method: "POST", headers,
+        body: JSON.stringify({ tenant_id: TENANT_ID, answers })
+      });
+      const d = await r.json();
+      clearInterval(pi);
+      if (!r.ok) { setError(d.detail || "Erro ao gerar prompt"); setMode("questionnaire"); setLoading(false); return; }
+      setProgress(100);
+      setTimeout(() => { setResult({ ...d, type: "questionnaire" }); setMode("result"); }, 500);
+    } catch (e) { clearInterval(pi); setError("Erro de conexão."); setMode("questionnaire"); }
+    setLoading(false);
+  };
+
+  const runAnalyze = async () => {
+    setLoading(true); setError(""); setMode("analyzing_h"); setProgress(0);
+    const pi = setInterval(() => setProgress(p => Math.min(p + Math.random() * 8, 90)), 800);
     try {
       const r = await fetch(`${API_URL}/onboarding/analyze`, {
         method: "POST", headers,
         body: JSON.stringify({ tenant_id: TENANT_ID, days })
       });
       const d = await r.json();
-      clearInterval(progressInterval);
-      if (!r.ok) { setError(d.detail || "Erro na análise"); setStep("intro"); setLoading(false); return; }
+      clearInterval(pi);
+      if (!r.ok) { setError(d.detail || "Erro na análise"); setMode("choose"); setLoading(false); return; }
       setProgress(100);
-      setTimeout(() => {
-        setResult(d);
-        setStep("result");
-      }, 500);
-    } catch (e) {
-      clearInterval(progressInterval);
-      setError("Erro de conexão. Tente novamente.");
-      setStep("intro");
-    }
+      setTimeout(() => { setResult({ ...d, type: "analyze" }); setMode("result"); }, 500);
+    } catch (e) { clearInterval(pi); setError("Erro de conexão."); setMode("choose"); }
     setLoading(false);
   };
 
-  const savePrompt = async () => {
-    setSaving(true);
-    try {
-      // Prompt was already saved to DB by the analyze endpoint — just confirm
-      setSaved(true);
-      setTimeout(() => setStep("done"), 800);
-    } catch (e) {}
-    setSaving(false);
-  };
-
-  const inp = { width: "100%", padding: "9px 12px", background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 8, color: "#111b21", fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box" };
+  const savePrompt = async () => { setSaving(true); setSaved(true); setTimeout(() => setMode("done"), 800); setSaving(false); };
 
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: 40 }}>
       <div style={{ maxWidth: 680, margin: "0 auto" }}>
 
-        {/* ── INTRO ── */}
-        {step === "intro" && (
+        {/* ── CHOOSE MODE ── */}
+        {mode === "choose" && (
           <>
-            <div style={{ marginBottom: 32 }}>
+            <div style={{ marginBottom: 28 }}>
               <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>🧠 Onboarding Inteligente</div>
-              <div style={{ fontSize: 13, color: "#667781" }}>A IA lê seu histórico do WhatsApp e aprende como sua empresa funciona</div>
+              <div style={{ fontSize: 13, color: "#667781" }}>Configure o Co-pilot para responder como sua empresa</div>
             </div>
 
-            {/* How it works */}
-            <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 14, padding: 24, marginBottom: 20 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Como funciona</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                {[
-                  { n: "1", title: "Seleciona o período", desc: "Escolha quantos dias de histórico a IA vai analisar", icon: "📅" },
-                  { n: "2", title: "IA analisa as conversas", desc: `Nossa IA lê até ${aiCredits?.plan === "business" ? "500" : "200"} conversas e identifica padrões do seu negócio`, icon: "🔍" },
-                  { n: "3", title: "Prompt gerado automaticamente", desc: "Tom de voz, FAQ, produtos e regras da sua empresa — tudo automatico", icon: "✨" },
-                  { n: "4", title: "Revise e ative", desc: "Edite se quiser e salve. Co-pilot começa a usar imediatamente", icon: "🚀" },
-                ].map(s => (
-                  <div key={s.n} style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
-                    <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#00a88420", border: "1px solid #00a88440", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>{s.icon}</div>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#111b21", marginBottom: 2 }}>{s.title}</div>
-                      <div style={{ fontSize: 12, color: "#667781" }}>{s.desc}</div>
-                    </div>
+            {error && <div style={{ background: "#f4433315", border: "1px solid #f4433333", borderRadius: 10, padding: "12px 16px", fontSize: 13, color: "#f44336", marginBottom: 16 }}>❌ {error}</div>}
+
+            {/* OPÇÃO 1 — Questionário (recomendado) */}
+            <div
+              onClick={() => { setError(""); setMode("questionnaire"); }}
+              style={{ background: "linear-gradient(135deg,#00a88408,#00a88412)", border: "2px solid #00a884", borderRadius: 16, padding: 24, marginBottom: 16, cursor: "pointer", transition: "transform 0.1s", position: "relative" }}
+            >
+              <div style={{ position: "absolute", top: 12, right: 16, background: "#00a884", color: "#fff", fontSize: 10, fontWeight: 800, padding: "3px 10px", borderRadius: 20 }}>RECOMENDADO</div>
+              <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+                <div style={{ fontSize: 36, flexShrink: 0 }}>📋</div>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: "#111b21", marginBottom: 4 }}>Questionário guiado</div>
+                  <div style={{ fontSize: 12, color: "#54656f", lineHeight: 1.6, marginBottom: 12 }}>
+                    Responda 6 perguntas rápidas sobre sua empresa e a IA cria o prompt perfeito — funciona desde o primeiro dia, sem precisar de histórico.
                   </div>
-                ))}
+                  <div style={{ display: "flex", gap: 16 }}>
+                    <span style={{ fontSize: 11, color: "#00a884", fontWeight: 700 }}>⚡ Apenas 50 créditos</span>
+                    <span style={{ fontSize: 11, color: "#00a884", fontWeight: 700 }}>⏱ ~2 minutos</span>
+                    <span style={{ fontSize: 11, color: "#00a884", fontWeight: 700 }}>✅ Sem precisar de histórico</span>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Period selector */}
-            <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 14, padding: 24, marginBottom: 20 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>📅 Período de análise</div>
-              <div style={{ fontSize: 12, color: "#667781", marginBottom: 16 }}>Mais dias = análise mais rica. Recomendamos 90 dias.</div>
-              <div style={{ display: "flex", gap: 8 }}>
-                {[30, 60, 90, 180].map(d => (
-                  <button key={d} onClick={() => setDays(d)} style={{ flex: 1, padding: "10px 0", borderRadius: 9, border: `2px solid ${days === d ? "#00a884" : "#d1d7db"}`, background: days === d ? "#00a88415" : "#f0f2f5", color: days === d ? "#00a884" : "#667781", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
-                    {d} dias
-                  </button>
-                ))}
+            {/* OPÇÃO 2 — Analisar histórico */}
+            <div
+              onClick={() => { setError(""); }}
+              style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 16, padding: 24, marginBottom: 8, opacity: 0.8 }}
+            >
+              <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+                <div style={{ fontSize: 36, flexShrink: 0 }}>🔍</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: "#111b21", marginBottom: 4 }}>Analisar histórico de conversas</div>
+                  <div style={{ fontSize: 12, color: "#54656f", lineHeight: 1.6, marginBottom: 12 }}>
+                    A IA lê suas conversas do WhatsApp e aprende automaticamente sobre seu negócio. Funciona melhor quando você já tem conversas salvas no 7CRM.
+                  </div>
+                  <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+                    {[30, 60, 90, 180].map(d => (
+                      <button key={d} onClick={(e) => { e.stopPropagation(); setDays(d); }} style={{ padding: "6px 14px", borderRadius: 8, border: `1.5px solid ${days === d ? "#7c4dff" : "#d1d7db"}`, background: days === d ? "#7c4dff15" : "#f0f2f5", color: days === d ? "#7c4dff" : "#667781", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                        {d} dias
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                    <span style={{ fontSize: 11, color: "#667781" }}>⚡ 1.000 créditos</span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); runAnalyze(); }}
+                      style={{ padding: "8px 18px", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#7c4dff,#5c35cc)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                      Analisar histórico →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style={{ fontSize: 11, color: "#54656f", textAlign: "center", marginTop: 8 }}>
+              💡 Dica: Se você acabou de conectar o WhatsApp, use o questionário. O histórico vai sendo construído com o tempo.
+            </div>
+          </>
+        )}
+
+        {/* ── QUESTIONNAIRE ── */}
+        {mode === "questionnaire" && (
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
+              <button onClick={() => setMode("choose")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "#667781", padding: 0 }}>←</button>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700 }}>📋 Conte sobre sua empresa</div>
+                <div style={{ fontSize: 12, color: "#667781" }}>Preencha o que souber — quanto mais detalhes, melhor o Co-pilot</div>
               </div>
             </div>
 
             {error && <div style={{ background: "#f4433315", border: "1px solid #f4433333", borderRadius: 10, padding: "12px 16px", fontSize: 13, color: "#f44336", marginBottom: 16 }}>❌ {error}</div>}
 
-            {/* What we analyze — detailed card */}
-            <div style={{ background: "linear-gradient(135deg, #00a88408, #7c4dff08)", border: "1px solid #00a88433", borderRadius: 14, padding: 20, marginBottom: 20 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-                <span style={{ fontSize: 18 }}>🔬</span>
-                <span style={{ fontSize: 13, fontWeight: 800, color: "#111b21" }}>O que analisamos nos seus {days} dias de histórico</span>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
-                {[
-                  { icon: "💬", label: "Até 300 conversas reais", sub: "com seus clientes" },
-                  { icon: "📩", label: "Até 9.000 mensagens", sub: "lidas na íntegra pela IA" },
-                  { icon: "🎯", label: "Tom de voz identificado", sub: "formal, descontraído, técnico..." },
-                  { icon: "🛍️", label: "Produtos & serviços", sub: "mapeados automaticamente" },
-                  { icon: "❓", label: "Perguntas frequentes", sub: "para o Co-pilot já saber responder" },
-                  { icon: "🔄", label: "Fluxo de vendas", sub: "como você fecha e converte" },
-                ].map(item => (
-                  <div key={item.label} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "8px 10px", background: "#ffffff", borderRadius: 9, border: "1px solid #e9edef" }}>
-                    <span style={{ fontSize: 16, lineHeight: 1 }}>{item.icon}</span>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: "#111b21", lineHeight: 1.3 }}>{item.label}</div>
-                      <div style={{ fontSize: 11, color: "#667781", marginTop: 2 }}>{item.sub}</div>
-                    </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ background: "#fff", border: "1px solid #e9edef", borderRadius: 12, padding: 20 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: "#111b21", marginBottom: 16 }}>Informações básicas</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div>
+                    <span style={label}>🏢 Nome da empresa *</span>
+                    <input style={inp} placeholder="Ex: Academia Fit Studio" value={answers.empresa} onChange={e => setAnswers(a => ({...a, empresa: e.target.value}))} />
                   </div>
-                ))}
-              </div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: "#7c4dff12", borderRadius: 9, border: "1px solid #7c4dff33" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 14 }}>⚡</span>
-                  <span style={{ fontSize: 12, color: "#7c4dff", fontWeight: 700 }}>Cada análise consome <strong>1.000 créditos</strong></span>
+                  <div>
+                    <span style={label}>🏷️ Segmento / tipo de negócio *</span>
+                    <input style={inp} placeholder="Ex: Academia de musculação" value={answers.segmento} onChange={e => setAnswers(a => ({...a, segmento: e.target.value}))} />
+                  </div>
                 </div>
-                <span style={{ fontSize: 11, color: "#a78bfa", background: "#7c4dff18", padding: "2px 10px", borderRadius: 20, fontWeight: 600 }}>análise profunda</span>
+              </div>
+
+              <div style={{ background: "#fff", border: "1px solid #e9edef", borderRadius: 12, padding: 20 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: "#111b21", marginBottom: 16 }}>Tom de voz e atendimento</div>
+                <div>
+                  <span style={label}>🎙️ Como você quer que o atendente responda?</span>
+                  <input style={inp} placeholder="Ex: Amigável e informal, como um amigo. Sempre chamar pelo nome." value={answers.tom} onChange={e => setAnswers(a => ({...a, tom: e.target.value}))} />
+                </div>
+                <div style={{ marginTop: 12 }}>
+                  <span style={label}>🎯 Qual é o principal objetivo do atendimento?</span>
+                  <input style={inp} placeholder="Ex: Converter leads em matrículas, renovar planos, tirar dúvidas" value={answers.objetivo} onChange={e => setAnswers(a => ({...a, objetivo: e.target.value}))} />
+                </div>
+              </div>
+
+              <div style={{ background: "#fff", border: "1px solid #e9edef", borderRadius: 12, padding: 20 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: "#111b21", marginBottom: 16 }}>Produtos e dúvidas</div>
+                <div>
+                  <span style={label}>🛍️ Quais produtos/serviços você oferece? *</span>
+                  <textarea style={{...inp, minHeight: 80, resize: "vertical"}} placeholder="Ex: Plano mensal R$99, trimestral R$250, aula experimental grátis, personal trainer..." value={answers.produtos} onChange={e => setAnswers(a => ({...a, produtos: e.target.value}))} />
+                </div>
+                <div style={{ marginTop: 12 }}>
+                  <span style={label}>❓ Quais são as dúvidas mais comuns dos seus clientes?</span>
+                  <textarea style={{...inp, minHeight: 80, resize: "vertical"}} placeholder="Ex: Horário de funcionamento, se tem estacionamento, como fazer matrícula, quais modalidades tem..." value={answers.duvidas_comuns} onChange={e => setAnswers(a => ({...a, duvidas_comuns: e.target.value}))} />
+                </div>
+              </div>
+
+              <div style={{ background: "#fff", border: "1px solid #e9edef", borderRadius: 12, padding: 20 }}>
+                <span style={label}>📏 Regras importantes de atendimento</span>
+                <textarea style={{...inp, minHeight: 72, resize: "vertical"}} placeholder="Ex: Nunca dar desconto sem consultar o dono. Sempre pedir o nome. Não prometer datas sem confirmar." value={answers.regras} onChange={e => setAnswers(a => ({...a, regras: e.target.value}))} />
               </div>
             </div>
 
-            <button onClick={analyze} style={{ width: "100%", padding: "14px 0", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #00a884, #017561)", color: "#000", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
-              🧠 Analisar meu histórico e gerar prompt →
-            </button>
+            <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+              <button onClick={() => setMode("choose")} style={{ padding: "12px 20px", borderRadius: 10, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>← Voltar</button>
+              <button onClick={runQuestionnaire} disabled={loading} style={{ flex: 1, padding: "12px 0", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#000", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
+                🧠 Gerar meu Co-pilot personalizado →
+              </button>
+            </div>
+            <div style={{ textAlign: "center", fontSize: 11, color: "#54656f", marginTop: 8 }}>⚡ Consome apenas 50 créditos • Pronto em ~15 segundos</div>
           </>
         )}
 
-        {/* ── ANALYZING ── */}
-        {step === "analyzing" && (
+        {/* ── ANALYZING (questionnaire) ── */}
+        {mode === "analyzing_q" && (
           <div style={{ textAlign: "center", paddingTop: 60 }}>
             <div style={{ fontSize: 48, marginBottom: 24 }}>🧠</div>
-            <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Analisando suas conversas...</div>
-            <div style={{ fontSize: 13, color: "#667781", marginBottom: 40 }}>Nossa IA está lendo o histórico e aprendendo sobre seu negócio. Isso pode levar até 60 segundos.</div>
-            
-            {/* Progress bar */}
+            <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Criando seu Co-pilot...</div>
+            <div style={{ fontSize: 13, color: "#667781", marginBottom: 40 }}>A IA está processando as informações da sua empresa e gerando um prompt personalizado.</div>
             <div style={{ background: "#e9edef", borderRadius: 20, height: 8, marginBottom: 12, overflow: "hidden" }}>
-              <div style={{ height: "100%", borderRadius: 20, background: "linear-gradient(90deg, #00a884, #00a884)", width: `${progress}%`, transition: "width 0.8s ease" }} />
+              <div style={{ height: "100%", borderRadius: 20, background: "linear-gradient(90deg,#00a884,#017561)", width: `${progress}%`, transition: "width 0.8s ease" }} />
             </div>
             <div style={{ fontSize: 12, color: "#667781" }}>{Math.round(progress)}% concluído</div>
+            <div style={{ marginTop: 40, display: "flex", flexDirection: "column", gap: 10, textAlign: "left", background: "#fff", border: "1px solid #e9edef", borderRadius: 12, padding: 20 }}>
+              {[
+                { label: "Processando informações da empresa...", done: progress > 20 },
+                { label: "Definindo tom de voz e regras...", done: progress > 45 },
+                { label: "Mapeando produtos e perguntas frequentes...", done: progress > 65 },
+                { label: "Gerando prompt personalizado...", done: progress > 85 },
+              ].map(s => (
+                <div key={s.label} style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13, color: s.done ? "#00a884" : "#54656f" }}>
+                  <span>{s.done ? "✓" : "⏳"}</span>{s.label}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
-            <div style={{ marginTop: 40, display: "flex", flexDirection: "column", gap: 10, textAlign: "left", background: "#ffffff", border: "1px solid #e9edef", borderRadius: 12, padding: 20 }}>
+        {/* ── ANALYZING (histórico) ── */}
+        {mode === "analyzing_h" && (
+          <div style={{ textAlign: "center", paddingTop: 60 }}>
+            <div style={{ fontSize: 48, marginBottom: 24 }}>🔍</div>
+            <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Analisando suas conversas...</div>
+            <div style={{ fontSize: 13, color: "#667781", marginBottom: 40 }}>Nossa IA está lendo o histórico e aprendendo sobre seu negócio. Isso pode levar até 60 segundos.</div>
+            <div style={{ background: "#e9edef", borderRadius: 20, height: 8, marginBottom: 12, overflow: "hidden" }}>
+              <div style={{ height: "100%", borderRadius: 20, background: "linear-gradient(90deg,#7c4dff,#5c35cc)", width: `${progress}%`, transition: "width 0.8s ease" }} />
+            </div>
+            <div style={{ fontSize: 12, color: "#667781" }}>{Math.round(progress)}% concluído</div>
+            <div style={{ marginTop: 40, display: "flex", flexDirection: "column", gap: 10, textAlign: "left", background: "#fff", border: "1px solid #e9edef", borderRadius: 12, padding: 20 }}>
               {[
                 { label: "Buscando conversas...", done: progress > 15 },
                 { label: "Lendo mensagens...", done: progress > 35 },
                 { label: "Identificando padrões...", done: progress > 60 },
                 { label: "Gerando prompt personalizado...", done: progress > 85 },
               ].map(s => (
-                <div key={s.label} style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13, color: s.done ? "#00a884" : "#54656f" }}>
-                  <span>{s.done ? "✓" : "⏳"}</span>
-                  {s.label}
+                <div key={s.label} style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13, color: s.done ? "#7c4dff" : "#54656f" }}>
+                  <span>{s.done ? "✓" : "⏳"}</span>{s.label}
                 </div>
               ))}
             </div>
@@ -1485,50 +1560,26 @@ function OnboardingView({ auth, aiCredits }) {
         )}
 
         {/* ── RESULT ── */}
-        {step === "result" && result && (
+        {mode === "result" && result && (
           <>
             <div style={{ marginBottom: 24 }}>
-              <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>✨ Prompt gerado!</div>
+              <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>✨ Co-pilot configurado!</div>
               <div style={{ fontSize: 13, color: "#667781" }}>
-                Analisamos <strong style={{ color: "#00a884" }}>{result.conversations_analyzed} conversas</strong> dos últimos <strong style={{ color: "#00a884" }}>{result.days_analyzed} dias</strong>. Revise e salve.
+                {result.type === "questionnaire"
+                  ? "Prompt gerado com base nas informações da sua empresa."
+                  : <>Analisamos <strong style={{ color: "#00a884" }}>{result.conversations_analyzed} conversas</strong> dos últimos <strong style={{ color: "#00a884" }}>{result.days_analyzed} dias</strong>.</>
+                }
               </div>
             </div>
 
-            {/* Stats */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 16 }}>
-              {[
-                { icon: "💬", label: "Conversas lidas", value: result.conversations_analyzed, color: "#00a884" },
-                { icon: "📩", label: "Mensagens est.", value: `~${(result.conversations_analyzed * 25).toLocaleString("pt-BR")}`, color: "#00a884" },
-                { icon: "📅", label: "Dias analisados", value: result.days_analyzed, color: "#7c4dff" },
-                { icon: "⚡", label: "Créditos usados", value: "1.000", color: "#ff6d00" },
-              ].map(s => (
-                <div key={s.label} style={{ background: "#ffffff", border: `1px solid ${s.color}33`, borderRadius: 10, padding: "12px 10px", textAlign: "center" }}>
-                  <div style={{ fontSize: 18, marginBottom: 4 }}>{s.icon}</div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.value}</div>
-                  <div style={{ fontSize: 10, color: "#667781", marginTop: 4, lineHeight: 1.3 }}>{s.label}</div>
-                </div>
-              ))}
-            </div>
-            <div style={{ background: "linear-gradient(135deg, #00a88410, #7c4dff08)", border: "1px solid #00a88433", borderRadius: 10, padding: "10px 16px", marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 20 }}>🏆</span>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "#00a884" }}>Análise de qualidade profissional</div>
-                <div style={{ fontSize: 11, color: "#667781", marginTop: 2 }}>Nossa IA leu cada mensagem, identificou padrões, mapeou produtos e aprendeu o tom do seu negócio — tudo para que o Co-pilot responda como você.</div>
-              </div>
-            </div>
-
-            {/* Summary — protects real prompt */}
-            <div style={{ background: "#ffffff", border: "1px solid #00a88433", borderRadius: 14, padding: 24, marginBottom: 20 }}>
+            <div style={{ background: "#fff", border: "1px solid #00a88433", borderRadius: 14, padding: 24, marginBottom: 20 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                <div style={{ fontSize: 14, fontWeight: 700 }}>🧠 O que a IA aprendeu sobre seu negócio</div>
+                <div style={{ fontSize: 14, fontWeight: 700 }}>🧠 O que o Co-pilot aprendeu</div>
                 <span style={{ fontSize: 11, background: "#00a88422", color: "#00a884", padding: "2px 10px", borderRadius: 20, fontWeight: 700 }}>ativo</span>
-              </div>
-              <div style={{ fontSize: 12, color: "#667781", marginBottom: 16 }}>
-                Seu Co-pilot foi configurado com base nas suas conversas. Abaixo um resumo do que ele aprendeu:
               </div>
               <div style={{ background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 10, padding: "16px 18px" }}>
                 {(result.summary || "").split("\n").filter(l => l.trim()).map((line, i) => (
-                  <div key={i} style={{ fontSize: 13, color: "#c8c8e0", marginBottom: 8, lineHeight: 1.5 }}>{line}</div>
+                  <div key={i} style={{ fontSize: 13, color: "#111b21", marginBottom: 8, lineHeight: 1.5 }}>{line}</div>
                 ))}
               </div>
               <div style={{ marginTop: 12, fontSize: 11, color: "#54656f", display: "flex", alignItems: "center", gap: 6 }}>
@@ -1537,27 +1588,27 @@ function OnboardingView({ auth, aiCredits }) {
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setStep("intro")} style={{ padding: "12px 20px", borderRadius: 10, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>← Refazer análise</button>
+              <button onClick={() => setMode("choose")} style={{ padding: "12px 20px", borderRadius: 10, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>← Refazer</button>
               <button onClick={savePrompt} disabled={saving} style={{ flex: 1, padding: "12px 0", borderRadius: 10, border: "none", background: saved ? "#00a884" : "linear-gradient(135deg,#00a884,#017561)", color: "#000", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
-                {saving ? "Ativando..." : saved ? "✓ Co-pilot ativado!" : "🚀 Ativar Co-pilot com este aprendizado →"}
+                {saving ? "Ativando..." : saved ? "✓ Co-pilot ativado!" : "🚀 Usar este Co-pilot →"}
               </button>
             </div>
           </>
         )}
 
         {/* ── DONE ── */}
-        {step === "done" && (
+        {mode === "done" && (
           <div style={{ textAlign: "center", paddingTop: 60 }}>
             <div style={{ fontSize: 64, marginBottom: 24 }}>🎉</div>
-            <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Co-pilot configurado!</div>
-            <div style={{ fontSize: 14, color: "#667781", marginBottom: 32 }}>Seu Co-pilot agora conhece sua empresa. Abra uma conversa no Inbox e clique em ✨ para ver a mágica.</div>
+            <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Co-pilot ativado!</div>
+            <div style={{ fontSize: 14, color: "#667781", marginBottom: 32 }}>Abra uma conversa no Inbox e clique em ✨ Co-pilot para ver as sugestões.</div>
             <div style={{ background: "#00a88415", border: "1px solid #00a88433", borderRadius: 14, padding: 24, marginBottom: 32, textAlign: "left" }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#00a884", marginBottom: 12 }}>O que mudou:</div>
-              {["Co-pilot agora usa o prompt personalizado da sua empresa", "Sugestões de resposta muito mais precisas e no tom certo", "FAQ automático baseado nas suas perguntas reais", "Você pode refinar o prompt a qualquer momento em Configurações"].map(f => (
-                <div key={f} style={{ display: "flex", gap: 8, fontSize: 13, color: "#8696a0", marginBottom: 8 }}><span style={{ color: "#00a884" }}>✓</span>{f}</div>
+              {["Co-pilot agora usa o prompt personalizado da sua empresa", "Sugestões muito mais precisas e no tom certo", "Você pode refinar as informações a qualquer momento aqui"].map(f => (
+                <div key={f} style={{ display: "flex", gap: 8, fontSize: 13, color: "#54656f", marginBottom: 8 }}><span style={{ color: "#00a884" }}>✓</span>{f}</div>
               ))}
             </div>
-            <button onClick={() => setStep("intro")} style={{ padding: "10px 24px", borderRadius: 10, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 13, cursor: "pointer", fontFamily: "inherit", marginRight: 10 }}>Refazer análise</button>
+            <button onClick={() => setMode("choose")} style={{ padding: "10px 24px", borderRadius: 10, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Reconfigurar</button>
           </div>
         )}
 
@@ -1565,6 +1616,7 @@ function OnboardingView({ auth, aiCredits }) {
     </div>
   );
 }
+
 
 
 // ─── WhatsApp Connection Screen ───────────────────────────────────────────────
@@ -6194,7 +6246,16 @@ A mensagem deve:
                           Tentar novamente
                         </button>
                       </div>
-                    ) : messages.length === 0 ? <div style={{ textAlign: "center", color: "#667781", fontSize: 13, marginTop: 40 }}>Nenhuma mensagem ainda</div>
+                    ) : messages.length === 0 ? (
+                      <div style={{ textAlign: "center", padding: "48px 32px" }}>
+                        <div style={{ fontSize: 36, marginBottom: 12 }}>💬</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "#111b21", marginBottom: 8 }}>Nenhuma mensagem carregada</div>
+                        <div style={{ fontSize: 12, color: "#667781", lineHeight: 1.6, maxWidth: 320, margin: "0 auto" }}>
+                          O histórico de mensagens é registrado a partir do momento em que você conectou sua conta ao 7CRM.<br /><br />
+                          Para ver conversas anteriores, consulte o WhatsApp no seu celular. 📱
+                        </div>
+                      </div>
+                    )
                       : messages.map((msg, i) => {
                         const isOut = msg.direction === "outbound" || msg.direction === "note";
                         const isInternal = msg.is_internal_note || msg.direction === "note";
