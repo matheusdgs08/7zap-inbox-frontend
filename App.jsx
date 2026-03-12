@@ -4652,6 +4652,8 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const [loadingSuggest, setLoadingSuggest] = useState(false);
   const [copilotPrompt, setCopilotPrompt] = useState("");
   const [copilotPromptSummary, setCopilotPromptSummary] = useState("");
+  const [showImportPrompt, setShowImportPrompt] = useState(false);
+  const [importPromptText, setImportPromptText] = useState("");
   const [copilotAutoMode, setCopilotAutoMode] = useState("off"); // off | schedule | always | per_conv
   const [copilotScheduleStart, setCopilotScheduleStart] = useState("18:00");
   const [copilotScheduleEnd, setCopilotScheduleEnd] = useState("09:00");
@@ -5815,7 +5817,7 @@ A mensagem deve:
                     </button>
                   </div>
                 )}
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
                   {[
                     { id: "off",      label: "⛔ Desativado",   desc: "Só sugere resposta",              locked: false },
                     { id: "schedule", label: "🕐 Por horário",  desc: "Fora do horário comercial",        locked: true  },
@@ -5828,7 +5830,7 @@ A mensagem deve:
                     return (
                       <div key={m.id}
                         onClick={() => { if (isLocked) { setView("upgrade"); return; } setCopilotAutoMode(m.id); }}
-                        style={{ flex: "1 1 180px", padding: "12px 14px", borderRadius: 10, position: "relative", transition: "all 0.15s",
+                        style={{ padding: "12px 14px", borderRadius: 10, position: "relative", transition: "all 0.15s",
                           border: `2px solid ${isActive ? "#7c4dff" : isLocked ? T.border : "#d1d7db"}`,
                           background: isActive ? "#7c4dff18" : isLocked ? T.bg : T.card,
                           cursor: isLocked ? "not-allowed" : "pointer",
@@ -5871,7 +5873,13 @@ A mensagem deve:
               </div>
 
               {/* Prompt — read-only display */}
-              <div style={{ fontSize: 12, fontWeight: 700, color: T.text2, marginBottom: 8 }}>🧠 O QUE A IA SABE SOBRE SEU NEGÓCIO</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: T.text2, marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span>🧠 O QUE A IA SABE SOBRE SEU NEGÓCIO</span>
+                <button onClick={() => setShowImportPrompt(true)}
+                  style={{ padding: "5px 14px", borderRadius: 8, border: "1px solid #7c4dff55", background: "#7c4dff12", color: "#a78bfa", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                  📋 Importar prompt
+                </button>
+              </div>
               {copilotPrompt ? (
                 <div style={{ background: "linear-gradient(135deg, #f5f0ff, #faf5ff)", border: "1px solid #a78bfa55", borderRadius: 12, padding: "18px 20px", marginBottom: 16, maxHeight: 340, overflowY: "auto" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, paddingBottom: 12, borderBottom: "1px solid #a78bfa22" }}>
@@ -6707,6 +6715,40 @@ A mensagem deve:
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={onLogout} style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #f4433333", background: "transparent", color: "#f44336", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Sair</button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Import Prompt Modal ──────────────────────────── */}
+      {showImportPrompt && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 9000, background: "#00000066", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+          onClick={() => setShowImportPrompt(false)}>
+          <div style={{ background: T.card, borderRadius: 16, padding: 28, width: "100%", maxWidth: 560, boxShadow: "0 8px 40px #00000044" }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>📋 Importar prompt</div>
+            <div style={{ fontSize: 13, color: T.text2, marginBottom: 16 }}>Cole aqui o prompt que você usa em outra ferramenta (ChatGPT, Bubble, N8N, etc). Ele vai substituir o prompt atual.</div>
+            <textarea
+              value={importPromptText}
+              onChange={e => setImportPromptText(e.target.value)}
+              placeholder="Cole seu prompt aqui..."
+              style={{ width: "100%", minHeight: 220, padding: 14, borderRadius: 10, border: `1px solid ${T.border}`, background: T.bg, color: T.text, fontSize: 13, fontFamily: "inherit", resize: "vertical", outline: "none", boxSizing: "border-box" }}
+            />
+            <div style={{ display: "flex", gap: 10, marginTop: 16, justifyContent: "flex-end" }}>
+              <button onClick={() => { setShowImportPrompt(false); setImportPromptText(""); }}
+                style={{ padding: "9px 20px", borderRadius: 9, border: `1px solid ${T.border}`, background: "transparent", color: T.text2, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                Cancelar
+              </button>
+              <button onClick={() => {
+                if (!importPromptText.trim()) return;
+                setCopilotPrompt(importPromptText.trim());
+                setShowImportPrompt(false);
+                setImportPromptText("");
+                showToast("✅ Prompt importado! Clique em Salvar para confirmar.", "#00a884");
+              }}
+                style={{ padding: "9px 24px", borderRadius: 9, border: "none", background: "linear-gradient(135deg, #7c4dff, #5b21b6)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                ✅ Importar
+              </button>
             </div>
           </div>
         </div>
