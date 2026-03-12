@@ -6395,9 +6395,9 @@ A mensagem deve:
                             onMouseEnter={() => setHoverMsgId(msg.id)}
                             onMouseLeave={() => setHoverMsgId(null)}
                             style={{ display: "flex", justifyContent: isOut ? "flex-end" : "flex-start", marginBottom: 6, position: "relative", alignItems: "flex-end", gap: 4 }}>
-                            {/* Emoji picker — aparece no hover */}
+                            {/* Emoji picker — aparece no hover, sempre à direita */}
                             {hoverMsgId === msg.id && !isInternal && msg.id && (
-                              <div style={{ display: "flex", gap: 2, background: T.topbar, border: `1px solid ${T.border}`, borderRadius: 20, padding: "3px 6px", boxShadow: "0 2px 8px #0002", position: "absolute", [isOut ? "left" : "right"]: "calc(100% + 6px)", bottom: 0, zIndex: 10, whiteSpace: "nowrap" }}>
+                              <div style={{ display: "flex", gap: 2, background: T.topbar, border: `1px solid ${T.border}`, borderRadius: 20, padding: "3px 6px", boxShadow: "0 2px 8px #0002", position: "absolute", right: 0, top: -36, zIndex: 10, whiteSpace: "nowrap" }}>
                                 {["👍","❤️","😂","😮","😢","🙏"].map(emoji => (
                                   <button key={emoji} onClick={async () => {
                                     setHoverMsgId(null);
