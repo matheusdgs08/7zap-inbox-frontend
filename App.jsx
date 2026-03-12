@@ -1,4 +1,3 @@
-// build-202603121919
 import SuperAdminPanel from "./AdminPanel";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 const API_URL = "https://7zap-inbox-production.up.railway.app";
@@ -5026,14 +5025,26 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     } catch (e) {}
   }, []);
   const savePrompt = async () => {
+    if (!configIaInstance) {
+      showToast("⚠️ Nenhum número selecionado. Selecione um número no Inbox primeiro.");
+      return;
+    }
     setSavingPrompt(true); setPromptSaved(false);
     try {
-      const body = { tenant_id: TENANT_ID, copilot_prompt: copilotPrompt, copilot_auto_mode: copilotAutoMode, copilot_schedule_start: copilotScheduleStart, copilot_schedule_end: copilotScheduleEnd };
-      if (configIaInstance) body.instance_name = configIaInstance;
-      await fetch(`${API_URL}/tenant/copilot-prompt`, { method: "PUT", headers, body: JSON.stringify(body) });
-      if (configIaInstance) setInstanceConfigs(prev => ({ ...prev, [configIaInstance]: { ...prev[configIaInstance], copilot_prompt: copilotPrompt, copilot_auto_mode: copilotAutoMode, copilot_schedule_start: copilotScheduleStart, copilot_schedule_end: copilotScheduleEnd } }));
+      const body = {
+        tenant_id: TENANT_ID,
+        instance_name: configIaInstance,   // SEMPRE obrigatório
+        copilot_prompt: copilotPrompt,
+        copilot_auto_mode: copilotAutoMode,
+        copilot_schedule_start: copilotScheduleStart,
+        copilot_schedule_end: copilotScheduleEnd
+      };
+      const r = await fetch(`${API_URL}/tenant/copilot-prompt`, { method: "PUT", headers, body: JSON.stringify(body) });
+      const d = await r.json();
+      if (!r.ok) { showToast("❌ Erro ao salvar: " + (d.detail || "tente novamente")); setSavingPrompt(false); return; }
+      setInstanceConfigs(prev => ({ ...prev, [configIaInstance]: { ...prev[configIaInstance], copilot_prompt: copilotPrompt, copilot_auto_mode: copilotAutoMode, copilot_schedule_start: copilotScheduleStart, copilot_schedule_end: copilotScheduleEnd } }));
       setPromptSaved(true); setTimeout(() => setPromptSaved(false), 3000);
-    } catch (e) {}
+    } catch (e) { showToast("❌ Erro ao salvar configurações."); }
     setSavingPrompt(false);
   };
 
