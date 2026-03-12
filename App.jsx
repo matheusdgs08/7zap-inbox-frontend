@@ -6022,29 +6022,10 @@ A mensagem deve:
                     style={{ padding: "5px 12px", borderRadius: 7, border: "1px solid #7c4dff55", background: "#7c4dff12", color: "#a78bfa", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
                     📋 Importar
                   </button>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    {convQuality && (() => {
-                      const pct = convQuality.quality_pct;
-                      const color = pct < 20 ? "#f44336" : pct < 50 ? "#ff9800" : pct < 80 ? "#2196f3" : "#00a884";
-                      const remaining = Math.max(0, convQuality.target - convQuality.total);
-                      return (
-                        <div title={remaining > 0 ? `Faltam ${remaining} conversas para qualidade máxima (${convQuality.target} necessárias)` : "Qualidade máxima atingida!"} style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2, minWidth: 80 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                            <span style={{ fontSize: 10, fontWeight: 700, color }}>{pct}%</span>
-                            <span style={{ fontSize: 10, color: "#667781" }}>{convQuality.quality_label}</span>
-                          </div>
-                          <div style={{ width: 80, height: 5, background: "#e0e0e0", borderRadius: 4, overflow: "hidden" }}>
-                            <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 4, transition: "width 0.6s" }} />
-                          </div>
-                          {remaining > 0 && <span style={{ fontSize: 9, color: "#999" }}>faltam {remaining} convs</span>}
-                        </div>
-                      );
-                    })()}
-                    <button onClick={() => setView("onboarding")}
-                      style={{ padding: "5px 12px", borderRadius: 7, border: "1px solid #00a88455", background: "#00a88412", color: "#00a884", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
-                      🧠 Gerar com IA
-                    </button>
-                  </div>
+                  <button onClick={() => setView("onboarding")}
+                    style={{ padding: "5px 12px", borderRadius: 7, border: "1px solid #00a88455", background: "#00a88412", color: "#00a884", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                    🧠 Gerar com IA
+                  </button>
                 </div>
               </div>
               <textarea
