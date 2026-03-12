@@ -5789,23 +5789,23 @@ A mensagem deve:
         {view === "config" && (
           <div style={{ flex: 1, overflowY: "auto", padding: "32px 40px" }}>
             <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-            <div style={{ marginBottom: 28 }}><div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>⚙️ Configurações</div><div style={{ fontSize: 13, color: "#667781" }}>Personalize o comportamento do 7zap para sua empresa</div></div>
+            <div style={{ marginBottom: 28 }}><div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>⚙️ Configurações</div><div style={{ fontSize: 13, color: T.text2 }}>Personalize o comportamento do 7zap para sua empresa</div></div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 24, alignItems: "start" }}>
-            <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 14, padding: 28, marginBottom: 0 }}>
+            <div style={{ background: T.card, border: "1px solid #e9edef", borderRadius: 14, padding: 28, marginBottom: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><span style={{ fontSize: 18 }}>✨</span><span style={{ fontSize: 16, fontWeight: 700 }}>Co-pilot IA</span><span style={{ background: "#7c4dff22", color: "#a78bfa", fontSize: 11, fontWeight: 700, padding: "2px 10px", borderRadius: 20 }}>Co-pilot IA</span></div>
-              <div style={{ fontSize: 13, color: "#667781", marginBottom: 20 }}>Prompt + modo automático do Co-pilot para sua empresa.</div>
+              <div style={{ fontSize: 13, color: T.text2, marginBottom: 20 }}>Prompt + modo automático do Co-pilot para sua empresa.</div>
 
               {/* Auto mode */}
-              <div style={{ background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 12, padding: 20, marginBottom: 20 }}>
+              <div style={{ background: T.bg, border: "1px solid #e9edef", borderRadius: 12, padding: 20, marginBottom: 20 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>🤖 Modo Automático</div>
-                <div style={{ fontSize: 12, color: "#667781", marginBottom: 14 }}>Quando ativo, o Co-pilot responde sozinho sem precisar de aprovação humana.</div>
+                <div style={{ fontSize: 12, color: T.text2, marginBottom: 14 }}>Quando ativo, o Co-pilot responde sozinho sem precisar de aprovação humana.</div>
                 {/* Starter locked banner */}
                 {aiCredits?.plan === "starter" && (
                   <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "#7c4dff12", border: "1px solid #7c4dff33", borderRadius: 10, marginBottom: 14 }}>
                     <span style={{ fontSize: 16 }}>🔒</span>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: "#a78bfa", marginBottom: 2 }}>Modos de IA disponíveis no plano Pro</div>
-                      <div style={{ fontSize: 11, color: "#667781" }}>No Starter só o modo Desativado está disponível. Faça upgrade para liberar o Co-pilot completo.</div>
+                      <div style={{ fontSize: 11, color: T.text2 }}>No Starter só o modo Desativado está disponível. Faça upgrade para liberar o Co-pilot completo.</div>
                     </div>
                     <button onClick={() => setView("upgrade")}
                       style={{ padding: "6px 14px", borderRadius: 7, border: "none", background: "linear-gradient(135deg, #7c4dff, #5b21b6)", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
@@ -5827,15 +5827,15 @@ A mensagem deve:
                       <div key={m.id}
                         onClick={() => { if (isLocked) { setView("upgrade"); return; } setCopilotAutoMode(m.id); }}
                         style={{ flex: "1 1 180px", padding: "12px 14px", borderRadius: 10, position: "relative", transition: "all 0.15s",
-                          border: `2px solid ${isActive ? "#7c4dff" : isLocked ? "#e9edef" : "#d1d7db"}`,
-                          background: isActive ? "#7c4dff18" : isLocked ? "#f0f2f5" : "#ffffff",
+                          border: `2px solid ${isActive ? "#7c4dff" : isLocked ? T.border : "#d1d7db"}`,
+                          background: isActive ? "#7c4dff18" : isLocked ? T.bg : T.card,
                           cursor: isLocked ? "not-allowed" : "pointer",
                           opacity: isLocked ? 0.5 : 1 }}>
                         {isLocked && (
                           <span style={{ position: "absolute", top: 7, right: 8, fontSize: 9, fontWeight: 800, color: "#7c4dff", background: "#7c4dff18", border: "1px solid #7c4dff33", padding: "2px 7px", borderRadius: 20 }}>🔒 PRO</span>
                         )}
                         <div style={{ fontSize: 13, fontWeight: 700, color: isActive ? "#a78bfa" : isLocked ? "#54656f" : "#8696a0", marginBottom: 3 }}>{m.label}</div>
-                        <div style={{ fontSize: 11, color: isLocked ? "#2a2a3a" : "#667781" }}>{m.desc}</div>
+                        <div style={{ fontSize: 11, color: isLocked ? T.text2 : T.text2 }}>{m.desc}</div>
                       </div>
                     );
                   })}
@@ -5843,15 +5843,15 @@ A mensagem deve:
                 {copilotAutoMode === "schedule" && (
                   <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                     <div>
-                      <div style={{ fontSize: 11, color: "#667781", marginBottom: 4, fontWeight: 700 }}>INÍCIO DO PERÍODO AUTOMÁTICO</div>
+                      <div style={{ fontSize: 11, color: T.text2, marginBottom: 4, fontWeight: 700 }}>INÍCIO DO PERÍODO AUTOMÁTICO</div>
                       <input type="time" value={copilotScheduleStart} onChange={e => setCopilotScheduleStart(e.target.value)}
-                        style={{ padding: "7px 12px", background: "#ffffff", border: "1px solid #e9edef", borderRadius: 8, color: "#111b21", fontSize: 13, outline: "none", colorScheme: "dark" }} />
+                        style={{ padding: "7px 12px", background: T.card, border: "1px solid #e9edef", borderRadius: 8, color: "#111b21", fontSize: 13, outline: "none", colorScheme: "dark" }} />
                     </div>
-                    <div style={{ color: "#667781", paddingTop: 18 }}>até</div>
+                    <div style={{ color: T.text2, paddingTop: 18 }}>até</div>
                     <div>
-                      <div style={{ fontSize: 11, color: "#667781", marginBottom: 4, fontWeight: 700 }}>FIM DO PERÍODO AUTOMÁTICO</div>
+                      <div style={{ fontSize: 11, color: T.text2, marginBottom: 4, fontWeight: 700 }}>FIM DO PERÍODO AUTOMÁTICO</div>
                       <input type="time" value={copilotScheduleEnd} onChange={e => setCopilotScheduleEnd(e.target.value)}
-                        style={{ padding: "7px 12px", background: "#ffffff", border: "1px solid #e9edef", borderRadius: 8, color: "#111b21", fontSize: 13, outline: "none", colorScheme: "dark" }} />
+                        style={{ padding: "7px 12px", background: T.card, border: "1px solid #e9edef", borderRadius: 8, color: "#111b21", fontSize: 13, outline: "none", colorScheme: "dark" }} />
                     </div>
                     <div style={{ fontSize: 11, color: "#7c4dff", paddingTop: 18 }}>Automático das {copilotScheduleStart} às {copilotScheduleEnd}</div>
                   </div>
@@ -5869,7 +5869,7 @@ A mensagem deve:
               </div>
 
               {/* Prompt — read-only display */}
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#667781", marginBottom: 8 }}>🧠 O QUE A IA SABE SOBRE SEU NEGÓCIO</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: T.text2, marginBottom: 8 }}>🧠 O QUE A IA SABE SOBRE SEU NEGÓCIO</div>
               {copilotPrompt ? (
                 <div style={{ background: "linear-gradient(135deg, #f5f0ff, #faf5ff)", border: "1px solid #a78bfa55", borderRadius: 12, padding: "18px 20px", marginBottom: 16, maxHeight: 340, overflowY: "auto" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, paddingBottom: 12, borderBottom: "1px solid #a78bfa22" }}>
@@ -5912,7 +5912,7 @@ A mensagem deve:
                 </div>
               )}
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                <button onClick={savePrompt} disabled={savingPrompt} style={{ padding: "10px 28px", borderRadius: 9, border: "none", background: savingPrompt ? "#e9edef" : "linear-gradient(135deg, #7c4dff, #5b21b6)", color: savingPrompt ? "#667781" : "#fff", fontSize: 14, fontWeight: 700, cursor: savingPrompt ? "not-allowed" : "pointer", fontFamily: "inherit" }}>{savingPrompt ? "Salvando..." : "💾 Salvar configurações"}</button>
+                <button onClick={savePrompt} disabled={savingPrompt} style={{ padding: "10px 28px", borderRadius: 9, border: "none", background: savingPrompt ? T.border : "linear-gradient(135deg, #7c4dff, #5b21b6)", color: savingPrompt ? T.text2 : "#fff", fontSize: 14, fontWeight: 700, cursor: savingPrompt ? "not-allowed" : "pointer", fontFamily: "inherit" }}>{savingPrompt ? "Salvando..." : "💾 Salvar configurações"}</button>
                 {promptSaved && <span style={{ fontSize: 13, color: "#00a884", fontWeight: 600 }}>✓ Salvo!</span>}
               </div>
               {/* Credits card — direto abaixo do salvar */}
@@ -5920,7 +5920,7 @@ A mensagem deve:
                 <span style={{ fontSize: 22 }}>⚡</span>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: "#00a884", marginBottom: 2 }}>Créditos de IA</div>
-                  <div style={{ fontSize: 11, color: "#667781" }}>
+                  <div style={{ fontSize: 11, color: T.text2 }}>
                     {aiCredits ? `${aiCredits.credits.toLocaleString("pt-BR")} créditos restantes de ${aiCredits.limit.toLocaleString("pt-BR")}` : "Carregando..."}
                   </div>
                 </div>
@@ -5933,9 +5933,9 @@ A mensagem deve:
 
             {/* Right column — company info sidebar */}
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 14, padding: 24 }}>
+              <div style={{ background: T.card, border: "1px solid #e9edef", borderRadius: 14, padding: 24 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>🏢 Sua Empresa</div>
-                <div style={{ fontSize: 12, color: "#667781", marginBottom: 20 }}>Informações do plano e uso atual</div>
+                <div style={{ fontSize: 12, color: T.text2, marginBottom: 20 }}>Informações do plano e uso atual</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
                   {[
                     { label: "Plano atual", value: (aiCredits?.plan || "pro").charAt(0).toUpperCase() + (aiCredits?.plan || "pro").slice(1), color: "#7c4dff" },
@@ -5943,17 +5943,17 @@ A mensagem deve:
                     { label: "Atendentes", value: `${agents.length} ativo${agents.length !== 1 ? "s" : ""}`, color: "#00a884" },
                     { label: "Status", value: "🟢 Online", color: "#00a884" },
                   ].map(({ label, value, color }) => (
-                    <div key={label} style={{ background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 10, padding: "12px 16px" }}>
-                      <div style={{ fontSize: 11, color: "#667781", marginBottom: 4 }}>{label}</div>
+                    <div key={label} style={{ background: T.bg, border: "1px solid #e9edef", borderRadius: 10, padding: "12px 16px" }}>
+                      <div style={{ fontSize: 11, color: T.text2, marginBottom: 4 }}>{label}</div>
                       <div style={{ fontSize: 14, fontWeight: 700, color }}>{value}</div>
                     </div>
                   ))}
                 </div>
-                <div style={{ padding: "12px 16px", background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 10, display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ padding: "12px 16px", background: T.bg, border: "1px solid #e9edef", borderRadius: 10, display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ fontSize: 18 }}>🔐</span>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 12, fontWeight: 600, color: "#8696a0", marginBottom: 2 }}>Gestão de usuários</div>
-                    <div style={{ fontSize: 11, color: "#667781" }}>Convites, permissões e acesso</div>
+                    <div style={{ fontSize: 11, color: T.text2 }}>Convites, permissões e acesso</div>
                   </div>
                   <button onClick={() => setView("admin")}
                     style={{ padding: "6px 14px", borderRadius: 7, border: "1px solid #7c4dff44", background: "#7c4dff15", color: "#a78bfa", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
@@ -5962,13 +5962,13 @@ A mensagem deve:
                 </div>
               </div>
 
-              <div style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 14, padding: 20 }}>
+              <div style={{ background: T.card, border: "1px solid #e9edef", borderRadius: 14, padding: 20 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>👥 Contatos</div>
-                <div style={{ fontSize: 12, color: "#667781", marginBottom: 14 }}>Manutenção dos dados de contato</div>
+                <div style={{ fontSize: 12, color: T.text2, marginBottom: 14 }}>Manutenção dos dados de contato</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 2 }}>Sincronizar nomes</div>
-                    <div style={{ fontSize: 11, color: "#667781" }}>Busca o nome real de cada contato no WhatsApp</div>
+                    <div style={{ fontSize: 11, color: T.text2 }}>Busca o nome real de cada contato no WhatsApp</div>
                   </div>
                   <button onClick={syncContactNames}
                     style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid #00a88444", background: "#00a88415", color: "#00a884", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
@@ -5980,7 +5980,7 @@ A mensagem deve:
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12, paddingTop: 12, borderTop: "1px solid #f0f2f5" }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 2 }}>Sincronizar fotos de perfil</div>
-                    <div style={{ fontSize: 11, color: "#667781" }}>Busca a foto do WhatsApp de todos os {conversations.length > 0 ? "301" : ""} contatos</div>
+                    <div style={{ fontSize: 11, color: T.text2 }}>Busca a foto do WhatsApp de todos os {conversations.length > 0 ? "301" : ""} contatos</div>
                     {photoSyncResult && <div style={{ fontSize: 11, color: "#00a884", marginTop: 3 }}>✅ {photoSyncResult.updated} fotos encontradas · {photoSyncResult.no_photo} sem foto · {photoSyncResult.failed} erros</div>}
                   </div>
                   <button
@@ -5997,7 +5997,7 @@ A mensagem deve:
                       } catch { showToast("❌ Erro ao sincronizar"); }
                       setSyncingPhotos(false);
                     }}
-                    style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid #7c4dff44", background: syncingPhotos ? "#e9edef" : "#7c4dff15", color: syncingPhotos ? "#667781" : "#7c4dff", fontSize: 11, fontWeight: 700, cursor: syncingPhotos ? "default" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+                    style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid #7c4dff44", background: syncingPhotos ? T.border : "#7c4dff15", color: syncingPhotos ? T.text2 : "#7c4dff", fontSize: 11, fontWeight: 700, cursor: syncingPhotos ? "default" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
                     {syncingPhotos ? "⏳ Buscando..." : "📸 Sincronizar →"}
                   </button>
                 </div>
