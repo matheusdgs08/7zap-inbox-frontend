@@ -1397,7 +1397,7 @@ function OnboardingView({ auth, aiCredits }) {
                     Responda 6 perguntas rápidas sobre sua empresa e a IA cria o prompt perfeito — funciona desde o primeiro dia, sem precisar de histórico.
                   </div>
                   <div style={{ display: "flex", gap: 16 }}>
-                    <span style={{ fontSize: 11, color: "#00a884", fontWeight: 700 }}>⚡ Apenas 50 créditos</span>
+                    <span style={{ fontSize: 11, color: "#00a884", fontWeight: 700 }}>✅ Gratuito</span>
                     <span style={{ fontSize: 11, color: "#00a884", fontWeight: 700 }}>⏱ ~2 minutos</span>
                     <span style={{ fontSize: 11, color: "#00a884", fontWeight: 700 }}>✅ Sem precisar de histórico</span>
                   </div>
@@ -1505,7 +1505,7 @@ function OnboardingView({ auth, aiCredits }) {
                 🧠 Gerar meu Co-pilot personalizado →
               </button>
             </div>
-            <div style={{ textAlign: "center", fontSize: 11, color: "#54656f", marginTop: 8 }}>⚡ Consome apenas 50 créditos • Pronto em ~15 segundos</div>
+            <div style={{ textAlign: "center", fontSize: 11, color: "#54656f", marginTop: 8 }}>✅ Gratuito • Pronto em ~15 segundos • Funciona desde o primeiro dia</div>
           </>
         )}
 
@@ -1620,7 +1620,7 @@ function OnboardingView({ auth, aiCredits }) {
 
 
 // ─── WhatsApp Connection Screen ───────────────────────────────────────────────
-function WhatsAppScreen({ auth, T, theme }) {
+function WhatsAppScreen({ auth, T, theme, onConnected }) {
   const [instances, setInstances] = useState([]);
   const [maxNumbers, setMaxNumbers] = useState(1);
   const [plan, setPlan] = useState("starter");
@@ -1779,6 +1779,8 @@ function WhatsAppScreen({ auth, T, theme }) {
               fetchInstances();
               setActiveInst(prev => prev ? { ...prev, connected: true, phone: pd.phone } : prev);
               triggerAutoSync(instName, pd.phone);
+              // Redireciona para onboarding — enquanto usuário responde, WAHA sincroniza
+              if (onConnected) setTimeout(onConnected, 1500);
             }
           } catch(e) {}
         }, 4000);
@@ -4471,12 +4473,19 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
 
   const [view, setView] = useState("inbox");
   const [trialInfo, setTrialInfo] = useState(null); // {status, days_left, is_blocked, plan}
+  const [showTour, setShowTour] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
 
   const fetchTrialStatus = async () => {
     try {
       const r = await fetch(`${API_URL}/tenant/trial-status?tenant_id=${TENANT_ID}`, { headers });
       const d = await r.json();
       setTrialInfo(d);
+      // Mostra tour guiado para novos usuários trial (apenas 1x)
+      if (d?.status === "trial" && d?.days_left >= 6) {
+        const toured = localStorage.getItem("7crm_tour_done");
+        if (!toured) setShowTour(true);
+      }
     } catch (e) {}
   };
 
@@ -5474,7 +5483,7 @@ A mensagem deve:
     { id: "tasks_global", label: "✅ Tarefas" },
     { id: "disparos", label: "📢 Disparos" },
     { id: "config", label: "⚙️ Config IA" },
-    ...(auth.user.role === "admin" && trialInfo?.plan !== "trial" ? [{ id: "onboarding", label: "🧠 Onboarding IA" }] : []),
+    ...(auth.user.role === "admin" ? [{ id: "onboarding", label: "🧠 Onboarding IA" }] : []),
     ...(auth.user.role === "admin" ? [{ id: "relatorios", label: "📈 Relatórios" }] : []),
     ...(trialInfo?.status === "trial" ? [{ id: "upgrade", label: "⭐ Assinar" }] : []),
   ];
@@ -5488,6 +5497,108 @@ A mensagem deve:
 
   return (
     <div style={{ display: "flex", height: "100dvh", width: "100vw", flexDirection: "column", background: T.app, color: T.text, fontFamily: "'DM Sans', 'Segoe UI', sans-serif", overflow: "hidden" }}>
+
+      {/* ── TOUR GUIADO ── */}
+      {showTour && (() => {
+        const steps = [
+          {
+            icon: "👋",
+            title: "Bem-vindo ao 7CRM!",
+            desc: "Você tem 7 dias de trial grátis para explorar tudo. Vamos te mostrar o que cada parte do sistema faz — leva menos de 2 minutos.",
+            tip: null,
+          },
+          {
+            icon: "📱",
+            title: "Primeiro: conecte seu WhatsApp",
+            desc: "Vá em WhatsApp (menu lateral) e escaneie o QR Code com seu celular. Em segundos, todas as conversas do seu número vão aparecer aqui.",
+            tip: "💡 Após conectar, você será direcionado para configurar o Co-pilot automaticamente.",
+            action: () => { setView("whatsapp"); setShowTour(false); localStorage.setItem("7crm_tour_done", "1"); },
+            actionLabel: "Ir conectar agora →",
+          },
+          {
+            icon: "📥",
+            title: "Inbox — central de atendimento",
+            desc: "Todas as conversas do WhatsApp ficam aqui. Você pode atribuir cada conversa para um atendente específico, filtrar por não lidas, marcar como resolvida e buscar por nome ou telefone.",
+            tip: "💡 Use os filtros no topo para focar nas conversas mais importantes.",
+          },
+          {
+            icon: "🧠",
+            title: "Co-pilot IA — seu assistente de respostas",
+            desc: "Abra uma conversa e clique em ✨ Co-pilot. A IA lê o histórico e sugere a resposta perfeita. Você aprova com 1 clique, edita ou ignora.",
+            tip: "💡 Configure o tom de voz e as regras do seu negócio em Onboarding IA para respostas ainda melhores.",
+          },
+          {
+            icon: "📊",
+            title: "Pipeline e Board (Kanban)",
+            desc: "Organize suas conversas por etapa: Nova → Em Atendimento → Aguardando → Resolvida. Arraste os cards entre colunas para gerenciar o fluxo de atendimento.",
+            tip: "💡 Ótimo para acompanhar leads e vendas em andamento.",
+          },
+          {
+            icon: "📣",
+            title: "Disparos — mensagens em massa",
+            desc: "Envie mensagens para vários contatos de uma vez. Filtre por inativos (ex: clientes que não respondem há 7 dias) e deixe a IA personalizar a mensagem para cada um.",
+            tip: "💡 Ideal para reativar clientes, fazer promoções ou avisos importantes.",
+          },
+          {
+            icon: "🚀",
+            title: "Pronto para começar!",
+            desc: "Seu trial inclui tudo que você precisa para avaliar o 7CRM. Comece conectando seu WhatsApp e configure o Co-pilot com as informações da sua empresa.",
+            tip: null,
+            action: () => { setView("whatsapp"); setShowTour(false); localStorage.setItem("7crm_tour_done", "1"); },
+            actionLabel: "Conectar WhatsApp agora →",
+          },
+        ];
+        const s = steps[tourStep];
+        const isLast = tourStep === steps.length - 1;
+        const isFirst = tourStep === 0;
+        return (
+          <div style={{ position: "fixed", inset: 0, background: "#00000088", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+            <div style={{ background: "#fff", borderRadius: 20, padding: 36, maxWidth: 480, width: "100%", boxShadow: "0 20px 60px #00000040", position: "relative" }}>
+              {/* Progress dots */}
+              <div style={{ display: "flex", gap: 6, justifyContent: "center", marginBottom: 28 }}>
+                {steps.map((_, i) => (
+                  <div key={i} style={{ width: i === tourStep ? 20 : 6, height: 6, borderRadius: 3, background: i === tourStep ? "#00a884" : "#e9edef", transition: "all 0.3s" }} />
+                ))}
+              </div>
+
+              <div style={{ textAlign: "center", marginBottom: 24 }}>
+                <div style={{ fontSize: 52, marginBottom: 16 }}>{s.icon}</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: "#111b21", marginBottom: 10 }}>{s.title}</div>
+                <div style={{ fontSize: 14, color: "#54656f", lineHeight: 1.7 }}>{s.desc}</div>
+              </div>
+
+              {s.tip && (
+                <div style={{ background: "#00a88412", border: "1px solid #00a88433", borderRadius: 10, padding: "10px 14px", fontSize: 12, color: "#017561", marginBottom: 20, lineHeight: 1.6 }}>
+                  {s.tip}
+                </div>
+              )}
+
+              <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+                {!isFirst && (
+                  <button onClick={() => setTourStep(t => t - 1)} style={{ padding: "11px 18px", borderRadius: 10, border: "1px solid #e9edef", background: "transparent", color: "#667781", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+                    ← Voltar
+                  </button>
+                )}
+                <button
+                  onClick={() => { localStorage.setItem("7crm_tour_done", "1"); setShowTour(false); }}
+                  style={{ padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#aaa", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                  Pular
+                </button>
+                {s.action ? (
+                  <button onClick={s.action} style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#000", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
+                    {s.actionLabel}
+                  </button>
+                ) : (
+                  <button onClick={() => setTourStep(t => t + 1)} style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#000", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
+                    {isLast ? "Começar! 🚀" : "Próximo →"}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* TopBar */}
       <div style={{ height: isMobile ? 52 : 48, flexShrink: 0, borderBottom: `1px solid ${T.border}`, background: T.topbar, display: "flex", alignItems: "center", padding: isMobile ? "0 8px" : "0 12px", gap: isMobile ? 6 : 8, overflow: "hidden" }}>
         {/* Logo */}
@@ -5610,7 +5721,7 @@ A mensagem deve:
 
         {/* WhatsApp Connection */}
         {view === "whatsapp" && auth.user.role === "admin" && (
-          <WhatsAppScreen auth={auth} T={T} theme={theme} />
+          <WhatsAppScreen auth={auth} T={T} theme={theme} onConnected={() => setView("onboarding")} />
         )}
 
         {/* Upgrade */}
