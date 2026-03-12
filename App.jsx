@@ -5110,6 +5110,26 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   }, [messages]);
   useEffect(() => { fetchAgents(); fetchTenant(); fetchCredits(); fetchPendingTasks(); fetchLabels(); loadUserPreferences(); const t = setInterval(fetchPendingTasks, 30000); const t2 = setInterval(fetchCredits, 60000); return () => { clearInterval(t); clearInterval(t2); }; }, [fetchAgents, fetchTenant, fetchCredits, fetchPendingTasks, fetchLabels, loadUserPreferences]);
 
+  // Auto-seleciona instância ao entrar em Config IA
+  useEffect(() => {
+    if (view === "config") {
+      const connected = waInstances.filter(i => i.status === "connected" || i.connected);
+      if (connected.length > 0) {
+        const target = configIaInstance || connected[0].instance_name;
+        setConfigIaInstance(target);
+        if (!instanceConfigs[target]) {
+          fetchInstanceConfig(target);
+        } else {
+          const cfg = instanceConfigs[target];
+          setCopilotPrompt(cfg.copilot_prompt || "");
+          setCopilotAutoMode(cfg.copilot_auto_mode || "off");
+          setCopilotScheduleStart(cfg.copilot_schedule_start || "18:00");
+          setCopilotScheduleEnd(cfg.copilot_schedule_end || "09:00");
+        }
+      }
+    }
+  }, [view, waInstances]);
+
   const resumeConversation = async (conv) => {
     if (resumingConv) return;
     setResumingConv(conv.id);
@@ -5828,7 +5848,7 @@ A mensagem deve:
             <div style={{ background: T.card, border: `2px solid #7c4dff44`, borderRadius: 14, padding: "18px 24px", marginBottom: 24 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: T.text2, marginBottom: 12 }}>📱 CONFIGURANDO A IA PARA O NÚMERO:</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                {instances.filter(i => i.status === "connected").map(inst => {
+                {waInstances.filter(i => i.status === "connected" || i.connected).map(inst => {
                   const isSelected = configIaInstance === inst.instance_name;
                   return (
                     <button key={inst.instance_name}
@@ -5842,12 +5862,12 @@ A mensagem deve:
                         display: "flex", alignItems: "center", gap: 8, transition: "all 0.15s" }}>
                       <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#25d366", display: "inline-block" }}></span>
                       <span>{inst.label || inst.instance_name}</span>
-                      <span style={{ fontSize: 11, color: T.text2 }}>{inst.phone ? `+${inst.phone}` : ""}</span>
+                      <span style={{ fontSize: 11, color: T.text2 }}>{(inst.phone || inst.instance_name) ? `+${inst.phone || ''}` : ""}</span>
                       {isSelected && <span style={{ fontSize: 11, background: "#7c4dff", color: "#fff", padding: "1px 8px", borderRadius: 20 }}>✓ Editando</span>}
                     </button>
                   );
                 })}
-                {instances.filter(i => i.status === "connected").length === 0 && (
+                {waInstances.filter(i => i.status === "connected" || i.connected).length === 0 && (
                   <div style={{ fontSize: 13, color: T.text2 }}>Nenhuma instância conectada. Conecte um número em Configurações → WhatsApp.</div>
                 )}
               </div>
@@ -5860,7 +5880,7 @@ A mensagem deve:
             <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 24, alignItems: "start" }}>
             <div style={{ background: T.card, border: "1px solid #e9edef", borderRadius: 14, padding: 28, marginBottom: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><span style={{ fontSize: 18 }}>✨</span><span style={{ fontSize: 16, fontWeight: 700 }}>Co-pilot IA</span><span style={{ background: "#7c4dff22", color: "#a78bfa", fontSize: 11, fontWeight: 700, padding: "2px 10px", borderRadius: 20 }}>Co-pilot IA</span></div>
-              <div style={{ fontSize: 13, color: T.text2, marginBottom: 20 }}>Prompt + modo automático do Co-pilot para <strong>{instances.find(i=>i.instance_name===configIaInstance)?.label || configIaInstance}</strong>.</div>
+              <div style={{ fontSize: 13, color: T.text2, marginBottom: 20 }}>Prompt + modo automático do Co-pilot para <strong>{waInstances.find(i=>i.instance_name===configIaInstance)?.label || configIaInstance}</strong>.</div>
 
               {/* Auto mode */}
               <div style={{ background: T.bg, border: "1px solid #e9edef", borderRadius: 12, padding: 20, marginBottom: 20 }}>
@@ -6080,7 +6100,7 @@ A mensagem deve:
             </div>{/* end grid */}
             ) : (
               /* Nenhuma instância selecionada */
-              instances.filter(i => i.status === "connected").length > 0 && (
+              waInstances.filter(i => i.status === "connected" || i.connected).length > 0 && (
                 <div style={{ background: T.card, border: "1px dashed #7c4dff55", borderRadius: 14, padding: "48px 24px", textAlign: "center" }}>
                   <div style={{ fontSize: 40, marginBottom: 12 }}>📱</div>
                   <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>Selecione um número para configurar</div>
@@ -6780,7 +6800,7 @@ A mensagem deve:
                   setView(tab.id);
                   setShowMobileMenu(false);
                   if (tab.id === "config") {
-                    const connectedInsts = instances.filter(i => i.status === "connected");
+                    const connectedInsts = waInstances.filter(i => i.status === "connected" || i.connected);
                     if (connectedInsts.length > 0 && !configIaInstance) {
                       const first = connectedInsts[0].instance_name;
                       setConfigIaInstance(first);
