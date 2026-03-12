@@ -6099,20 +6099,17 @@ A mensagem deve:
                   </button>
                 </div>
               </div>
-            </div>{/* end right column */}
+            </div>
 
-            </div>{/* end grid */}
+            </div>
             ) : (
-              /* Nenhuma instância selecionada */
-              waInstances.filter(i => i.status === "connected" || i.connected).length > 0 && (
-                <div style={{ background: T.card, border: "1px dashed #7c4dff55", borderRadius: 14, padding: "48px 24px", textAlign: "center" }}>
-                  <div style={{ fontSize: 40, marginBottom: 12 }}>📱</div>
-                  <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>Selecione um número para configurar</div>
-                  <div style={{ fontSize: 13, color: T.text2 }}>Cada número WhatsApp tem seu próprio prompt e modo de IA.<br/>Clique em um dos números acima para começar.</div>
-                </div>
-              )
+              <div style={{ background: T.card, border: "1px dashed #7c4dff55", borderRadius: 14, padding: "48px 24px", textAlign: "center" }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>📱</div>
+                <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>Selecione um número para configurar</div>
+                <div style={{ fontSize: 13, color: T.text2 }}>Cada número WhatsApp tem seu próprio prompt e modo de IA. Clique em um dos números acima para começar.</div>
+              </div>
             )}
-            </div>{/* end maxWidth wrapper */}
+            </div>
           </div>
         )}
 
