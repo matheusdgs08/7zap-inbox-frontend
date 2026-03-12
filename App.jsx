@@ -5889,7 +5889,7 @@ A mensagem deve:
                   <div style={{ fontSize: 13, color: T.text2 }}>Nenhuma instância conectada. Conecte um número em Configurações → WhatsApp.</div>
                 )}
               </div>
-              {!configIaInstance && instances.filter(i => i.status === "connected").length > 0 && (
+              {!configIaInstance && waInstances.filter(i => i.status === "connected" || i.connected).length > 0 && (
                 <div style={{ marginTop: 10, fontSize: 12, color: "#f59e0b", fontWeight: 600 }}>👆 Selecione um número acima para configurar sua IA</div>
               )}
             </div>
