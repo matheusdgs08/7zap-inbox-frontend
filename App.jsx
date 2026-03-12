@@ -6469,7 +6469,7 @@ A mensagem deve:
                   </div>
 
                   {/* Messages */}
-                  <div ref={chatScrollRef} onScroll={() => setHoverMsgId(null)} onMouseLeave={() => setHoverMsgId(null)} onMouseEnter={() => { if (selected?.unread_count > 0) { setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, unread_count: 0 } : c)); setSelected(prev => prev ? { ...prev, unread_count: 0 } : prev); } }} style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 2, background: T.chatBg }}>
+                  <div ref={chatScrollRef} onMouseEnter={() => { if (selected?.unread_count > 0) { setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, unread_count: 0 } : c)); setSelected(prev => prev ? { ...prev, unread_count: 0 } : prev); } }} style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 2, background: T.chatBg }}>
                     {/* Load More button */}
                     {hasMoreMessages && (
                       <div style={{ textAlign: "center", marginBottom: 12 }}>
@@ -6541,23 +6541,38 @@ A mensagem deve:
                         const isInternal = msg.is_internal_note || msg.direction === "note";
                         return (
                           <div key={msg.id || i}
-                            onMouseEnter={() => setHoverMsgId(msg.id)}
-                            onMouseLeave={() => setHoverMsgId(null)}
                             style={{ display: "flex", justifyContent: isOut ? "flex-end" : "flex-start", marginBottom: 6, position: "relative", alignItems: "flex-end", gap: 4 }}>
-                            {/* Emoji picker — aparece no hover, sempre à direita */}
-                            {hoverMsgId === msg.id && !isInternal && msg.id && (
-                              <div onMouseEnter={() => setHoverMsgId(msg.id)} onMouseLeave={() => setHoverMsgId(null)} style={{ display: "flex", gap: 2, background: T.topbar, border: `1px solid ${T.border}`, borderRadius: 20, padding: "3px 6px", boxShadow: "0 2px 8px #0002", position: "absolute", right: 0, top: -36, zIndex: 10, whiteSpace: "nowrap" }}>
-                                {["👍","❤️","😂","😮","😢","🙏"].map(emoji => (
-                                  <button key={emoji} onClick={async () => {
-                                    setHoverMsgId(null);
-                                    const res = await fetch(`${API_URL}/messages/${msg.id}/react`, {
-                                      method: "POST",
-                                      headers: { "Content-Type": "application/json", "x-api-key": "7zap_inbox_secret" },
-                                      body: JSON.stringify({ reaction: emoji, conversation_id: selected.id })
-                                    });
-                                    if (res.ok) setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, reaction: emoji, reaction_by: "me" } : m));
-                                  }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, padding: "0 1px", lineHeight: 1 }}>{emoji}</button>
-                                ))}
+                            {/* Botão 😊 fixo ao lado da mensagem */}
+                            {!isInternal && msg.id && (
+                              <div style={{ order: isOut ? -1 : 1, display: "flex", alignItems: "flex-end", paddingBottom: 4 }}>
+                                <div style={{ position: "relative" }}>
+                                  <button
+                                    onClick={() => setHoverMsgId(hoverMsgId === msg.id ? null : msg.id)}
+                                    style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, padding: "2px 3px", lineHeight: 1, opacity: 0.4, borderRadius: 8, transition: "opacity 0.15s" }}
+                                    onMouseEnter={e => e.currentTarget.style.opacity = "1"}
+                                    onMouseLeave={e => e.currentTarget.style.opacity = "0.4"}
+                                    title="Reagir"
+                                  >😊</button>
+                                  {hoverMsgId === msg.id && (
+                                    <div style={{ position: "absolute", bottom: 28, [isOut ? "right" : "left"]: 0, display: "flex", gap: 2, background: T.topbar, border: `1px solid ${T.border}`, borderRadius: 20, padding: "4px 8px", boxShadow: "0 4px 16px #0003", zIndex: 100, whiteSpace: "nowrap" }}>
+                                      {["👍","❤️","😂","😮","😢","🙏"].map(emoji => (
+                                        <button key={emoji} onClick={async (e) => {
+                                          e.stopPropagation();
+                                          setHoverMsgId(null);
+                                          const res = await fetch(`${API_URL}/messages/${msg.id}/react`, {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json", "x-api-key": "7zap_inbox_secret" },
+                                            body: JSON.stringify({ reaction: emoji, conversation_id: selected.id })
+                                          });
+                                          if (res.ok) setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, reaction: emoji, reaction_by: "me" } : m));
+                                        }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, padding: "2px 3px", lineHeight: 1, transition: "transform 0.1s" }}
+                                        onMouseEnter={e => e.currentTarget.style.transform = "scale(1.3)"}
+                                        onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+                                        >{emoji}</button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             )}
                             <div style={{ maxWidth: "65%", padding: "7px 12px 8px 12px", borderRadius: isOut ? "8px 0px 8px 8px" : "0px 8px 8px 8px", background: isInternal ? "#fff8dc" : isOut ? T.msgOut : T.msgIn, boxShadow: `0 1px 2px ${T.shadow}`, fontSize: 14, lineHeight: 1.5, color: T.text, position: "relative", marginBottom: msg.reaction ? 10 : 0 }}>
