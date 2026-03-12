@@ -4566,6 +4566,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const [showUpgrade, setShowUpgrade] = useState(null); // feature name string
   const [showBuyCredits, setShowBuyCredits] = useState(false);
   const [showSaveSuccessModal, setShowSaveSuccessModal] = useState(false);
+  const [convQuality, setConvQuality] = useState(null); // { total, quality_pct, quality_label, target }
   const [waInstances, setWaInstances] = useState([]); // for disconnect banner
   const selectInstance = (name) => {
     setInstanceFilter(name);
@@ -5151,6 +5152,14 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   useEffect(() => { fetchAgents(); fetchTenant(); fetchCredits(); fetchPendingTasks(); fetchLabels(); loadUserPreferences(); const t = setInterval(fetchPendingTasks, 30000); const t2 = setInterval(fetchCredits, 60000); return () => { clearInterval(t); clearInterval(t2); }; }, [fetchAgents, fetchTenant, fetchCredits, fetchPendingTasks, fetchLabels, loadUserPreferences]);
 
   // Ao entrar em Config IA, sincroniza com a instância ativa do Inbox (instanceFilter)
+  const fetchConvQuality = async (instanceName) => {
+    if (!instanceName) return;
+    try {
+      const r = await fetch(`${API_URL}/onboarding/conv-count?tenant_id=${TENANT_ID}&instance_name=${encodeURIComponent(instanceName)}`, { headers });
+      if (r.ok) { const d = await r.json(); setConvQuality(d); }
+    } catch {}
+  };
+
   useEffect(() => {
     if (view === "config") {
       // Usa sempre a instância selecionada no Inbox
@@ -5158,14 +5167,17 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       if (target && target !== configIaInstance) {
         setConfigIaInstance(target);
         fetchInstanceConfig(target);
+        fetchConvQuality(target);
       } else if (target && !instanceConfigs[target]) {
         fetchInstanceConfig(target);
+        fetchConvQuality(target);
       } else if (target && instanceConfigs[target]) {
         const cfg = instanceConfigs[target];
         setCopilotPrompt(cfg.copilot_prompt || "");
         setCopilotAutoMode(cfg.copilot_auto_mode || "off");
         setCopilotScheduleStart(cfg.copilot_schedule_start || "18:00");
         setCopilotScheduleEnd(cfg.copilot_schedule_end || "09:00");
+        fetchConvQuality(target);
       }
     }
   }, [view, instanceFilter, waInstances]);
@@ -6004,10 +6016,29 @@ A mensagem deve:
                     style={{ padding: "5px 12px", borderRadius: 7, border: "1px solid #7c4dff55", background: "#7c4dff12", color: "#a78bfa", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
                     📋 Importar
                   </button>
-                  <button onClick={() => setView("onboarding")}
-                    style={{ padding: "5px 12px", borderRadius: 7, border: "1px solid #00a88455", background: "#00a88412", color: "#00a884", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
-                    🧠 Gerar com IA
-                  </button>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    {convQuality && (() => {
+                      const pct = convQuality.quality_pct;
+                      const color = pct < 20 ? "#f44336" : pct < 50 ? "#ff9800" : pct < 80 ? "#2196f3" : "#00a884";
+                      const remaining = Math.max(0, convQuality.target - convQuality.total);
+                      return (
+                        <div title={remaining > 0 ? `Faltam ${remaining} conversas para qualidade máxima (${convQuality.target} necessárias)` : "Qualidade máxima atingida!"} style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2, minWidth: 80 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            <span style={{ fontSize: 10, fontWeight: 700, color }}>{pct}%</span>
+                            <span style={{ fontSize: 10, color: "#667781" }}>{convQuality.quality_label}</span>
+                          </div>
+                          <div style={{ width: 80, height: 5, background: "#e0e0e0", borderRadius: 4, overflow: "hidden" }}>
+                            <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 4, transition: "width 0.6s" }} />
+                          </div>
+                          {remaining > 0 && <span style={{ fontSize: 9, color: "#999" }}>faltam {remaining} convs</span>}
+                        </div>
+                      );
+                    })()}
+                    <button onClick={() => setView("onboarding")}
+                      style={{ padding: "5px 12px", borderRadius: 7, border: "1px solid #00a88455", background: "#00a88412", color: "#00a884", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                      🧠 Gerar com IA
+                    </button>
+                  </div>
                 </div>
               </div>
               <textarea
