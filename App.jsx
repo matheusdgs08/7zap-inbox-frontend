@@ -1318,7 +1318,7 @@ function AdminPanel({ auth, onLogout }) {
 
 
 // ─── Onboarding Inteligente ───────────────────────────────────────────────────
-function OnboardingView({ auth, aiCredits, instanceName }) {
+function OnboardingView({ auth, aiCredits, instanceName, waInstances }) {
   const [mode, setMode] = useState("choose"); // choose | questionnaire | analyzing_q | analyzing_h | result | done
   const [answers, setAnswers] = useState({ empresa: "", segmento: "", tom: "", produtos: "", duvidas_comuns: "", regras: "", objetivo: "" });
   const [days, setDays] = useState(90);
@@ -1386,7 +1386,13 @@ function OnboardingView({ auth, aiCredits, instanceName }) {
               <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: "linear-gradient(135deg,#7c4dff14,#7c4dff06)", border: "2px solid #7c4dff44", borderRadius: 12, marginBottom: 24 }}>
                 <span style={{ fontSize: 24 }}>📱</span>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: "#a78bfa" }}>Configurando: {instanceName}</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: "#a78bfa" }}>
+                    Configurando: {(() => {
+                      const inst = waInstances?.find(i => i.instance_name === instanceName);
+                      if (!inst) return instanceName;
+                      return inst.label || inst.phone ? `${inst.label || ""}${inst.phone ? " +"+inst.phone : ""}`.trim() : instanceName;
+                    })()}
+                  </div>
                   <div style={{ fontSize: 12, color: "#667781", marginTop: 2 }}>
                     ⚠️ O prompt gerado aqui será salvo <strong>somente para este número</strong>. Os outros números não serão alterados.
                   </div>
@@ -5836,7 +5842,7 @@ A mensagem deve:
 
         {/* Onboarding IA */}
         {view === "onboarding" && auth.user.role === "admin" && (
-          <OnboardingView auth={auth} aiCredits={aiCredits} instanceName={configIaInstance} />
+          <OnboardingView auth={auth} aiCredits={aiCredits} instanceName={configIaInstance} waInstances={waInstances} />
         )}
 
         {/* WhatsApp Connection */}
