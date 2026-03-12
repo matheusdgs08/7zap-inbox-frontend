@@ -1381,6 +1381,24 @@ function OnboardingView({ auth, aiCredits, instanceName }) {
               <div style={{ fontSize: 13, color: "#667781" }}>Configure o Co-pilot para responder como sua empresa</div>
             </div>
 
+            {/* Banner de instância */}
+            {instanceName ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: "linear-gradient(135deg,#7c4dff14,#7c4dff06)", border: "2px solid #7c4dff44", borderRadius: 12, marginBottom: 24 }}>
+                <span style={{ fontSize: 24 }}>📱</span>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: "#a78bfa" }}>Configurando: {instanceName}</div>
+                  <div style={{ fontSize: 12, color: "#667781", marginTop: 2 }}>
+                    ⚠️ O prompt gerado aqui será salvo <strong>somente para este número</strong>. Os outros números não serão alterados.
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "#f59e0b14", border: "1px solid #f59e0b44", borderRadius: 10, marginBottom: 20 }}>
+                <span>⚠️</span>
+                <div style={{ fontSize: 12, color: "#92400e" }}>Nenhum número selecionado. Volte para <strong>Config IA</strong> e selecione um número antes de fazer o onboarding.</div>
+              </div>
+            )}
+
             {error && <div style={{ background: "#f4433315", border: "1px solid #f4433333", borderRadius: 10, padding: "12px 16px", fontSize: 13, color: "#f44336", marginBottom: 16 }}>❌ {error}</div>}
 
             {/* OPÇÃO 1 — Questionário (recomendado) */}
@@ -2509,21 +2527,15 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
                 <input value={bName} onChange={e => setBName(e.target.value)} placeholder="Ex: Promoção de Janeiro" style={inputStyle} />
               </div>
 
-              {/* AI message helper */}
-              <div style={{ background: "#130f1f", border: "1px solid #7c4dff33", borderRadius: 12, padding: 16 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                  <span>✨</span><span style={{ fontSize: 13, fontWeight: 700, color: "#a78bfa" }}>Sugestão de mensagem com IA</span>
-                </div>
-                <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                  <input value={aiObjective} onChange={e => setAiObjective(e.target.value)} onKeyDown={e => e.key === "Enter" && suggestWithAI()} placeholder="Ex: Relembrar alunos inativos, promoção de plano anual..." style={{ ...inputStyle, flex: 1 }} />
-                  <button onClick={suggestWithAI} disabled={loadingAI || !aiObjective.trim()} style={{ padding: "9px 16px", borderRadius: 8, border: "none", background: aiObjective.trim() ? "linear-gradient(135deg,#7c4dff,#5b21b6)" : "#e9edef", color: aiObjective.trim() ? "#fff" : "#667781", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>{loadingAI ? "⏳" : "✨ Gerar"}</button>
-                </div>
-                <div style={{ fontSize: 11, color: "#667781" }}>Use {"{nome}"} para personalizar com o nome do contato</div>
-              </div>
-
-              {/* Message */}
+              {/* Message + AI inline */}
               <div>
-                <label style={labelStyle}>MENSAGEM <span style={{ color: "#667781", fontWeight: 400 }}>— use {"{nome}"} para personalizar</span></label>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                  <label style={{ ...labelStyle, margin: 0 }}>MENSAGEM <span style={{ color: "#667781", fontWeight: 400 }}>— use {"{nome}"} para personalizar</span></label>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <input value={aiObjective} onChange={e => setAiObjective(e.target.value)} onKeyDown={e => e.key === "Enter" && suggestWithAI()} placeholder="Descreva o objetivo da mensagem..." style={{ ...inputStyle, width: 240, padding: "6px 10px", fontSize: 12 }} />
+                    <button onClick={suggestWithAI} disabled={loadingAI || !aiObjective.trim()} style={{ padding: "6px 12px", borderRadius: 7, border: "none", background: aiObjective.trim() ? "linear-gradient(135deg,#7c4dff,#5b21b6)" : "#e9edef", color: aiObjective.trim() ? "#fff" : "#8696a0", fontSize: 11, fontWeight: 700, cursor: aiObjective.trim() ? "pointer" : "not-allowed", fontFamily: "inherit", flexShrink: 0, whiteSpace: "nowrap" }}>{loadingAI ? "⏳" : "✨ Gerar"}</button>
+                  </div>
+                </div>
                 <textarea value={bMessage} onChange={e => setBMessage(e.target.value)} placeholder="Olá {nome}, temos uma novidade especial para você..." rows={5} style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }} />
                 <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
                   {["{nome}", "{telefone}"].map(v => (
@@ -5845,8 +5857,14 @@ A mensagem deve:
             <div style={{ marginBottom: 28 }}><div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>⚙️ Configurações</div><div style={{ fontSize: 13, color: T.text2 }}>Personalize o comportamento do 7zap para sua empresa</div></div>
 
             {/* ── Seletor de Instância ── */}
-            <div style={{ background: T.card, border: `2px solid #7c4dff44`, borderRadius: 14, padding: "18px 24px", marginBottom: 24 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: T.text2, marginBottom: 12 }}>📱 CONFIGURANDO A IA PARA O NÚMERO:</div>
+            <div style={{ background: "linear-gradient(135deg,#7c4dff12,#7c4dff06)", border: `2px solid #7c4dff55`, borderRadius: 14, padding: "20px 24px", marginBottom: 24 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                <span style={{ fontSize: 20 }}>📱</span>
+                <div style={{ fontSize: 15, fontWeight: 800, color: "#a78bfa" }}>Selecione o número para configurar</div>
+              </div>
+              <div style={{ fontSize: 12, color: T.text2, marginBottom: 14, paddingLeft: 30 }}>
+                ⚠️ <strong>Cada número tem seu próprio prompt e modo de IA.</strong> A configuração abaixo afeta <strong>somente</strong> o número selecionado — os outros não são alterados.
+              </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
                 {waInstances.filter(i => i.status === "connected" || i.connected).map(inst => {
                   const isSelected = configIaInstance === inst.instance_name;
@@ -5863,7 +5881,7 @@ A mensagem deve:
                       <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#25d366", display: "inline-block" }}></span>
                       <span>{inst.label || inst.instance_name}</span>
                       <span style={{ fontSize: 11, color: T.text2 }}>{(inst.phone || inst.instance_name) ? `+${inst.phone || ''}` : ""}</span>
-                      {isSelected && <span style={{ fontSize: 11, background: "#7c4dff", color: "#fff", padding: "1px 8px", borderRadius: 20 }}>✓ Editando</span>}
+                      {isSelected && <span style={{ fontSize: 11, background: "#7c4dff", color: "#fff", padding: "2px 10px", borderRadius: 20, fontWeight: 800 }}>✏️ Editando</span>}
                     </button>
                   );
                 })}
@@ -5880,7 +5898,18 @@ A mensagem deve:
             <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 24, alignItems: "start" }}>
             <div style={{ background: T.card, border: "1px solid #e9edef", borderRadius: 14, padding: 28, marginBottom: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><span style={{ fontSize: 18 }}>✨</span><span style={{ fontSize: 16, fontWeight: 700 }}>Co-pilot IA</span><span style={{ background: "#7c4dff22", color: "#a78bfa", fontSize: 11, fontWeight: 700, padding: "2px 10px", borderRadius: 20 }}>Co-pilot IA</span></div>
-              <div style={{ fontSize: 13, color: T.text2, marginBottom: 20 }}>Prompt + modo automático do Co-pilot para <strong>{waInstances.find(i=>i.instance_name===configIaInstance)?.label || configIaInstance}</strong>.</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18, padding: "10px 14px", background: "#7c4dff14", border: "1px solid #7c4dff33", borderRadius: 10 }}>
+                <span style={{ fontSize: 18 }}>📱</span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: "#a78bfa" }}>
+                    Configurando: {waInstances.find(i=>i.instance_name===configIaInstance)?.label || configIaInstance}
+                    {waInstances.find(i=>i.instance_name===configIaInstance)?.phone && (
+                      <span style={{ fontSize: 12, fontWeight: 400, color: T.text2, marginLeft: 8 }}>+{waInstances.find(i=>i.instance_name===configIaInstance)?.phone}</span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 11, color: T.text2, marginTop: 2 }}>✅ Somente este número será afetado pelas alterações abaixo</div>
+                </div>
+              </div>
 
               {/* Auto mode */}
               <div style={{ background: T.bg, border: "1px solid #e9edef", borderRadius: 12, padding: 20, marginBottom: 20 }}>
@@ -5955,55 +5984,30 @@ A mensagem deve:
                 )}
               </div>
 
-              {/* Prompt — read-only display */}
+              {/* Prompt — editável diretamente */}
               <div style={{ fontSize: 12, fontWeight: 700, color: T.text2, marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span>🧠 O QUE A IA SABE SOBRE SEU NEGÓCIO</span>
-                <button onClick={() => setShowImportPrompt(true)}
-                  style={{ padding: "5px 14px", borderRadius: 8, border: "1px solid #7c4dff55", background: "#7c4dff12", color: "#a78bfa", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
-                  📋 Importar prompt
-                </button>
-              </div>
-              {copilotPrompt ? (
-                <div style={{ background: "linear-gradient(135deg, #f5f0ff, #faf5ff)", border: "1px solid #a78bfa55", borderRadius: 12, padding: "18px 20px", marginBottom: 16, maxHeight: 340, overflowY: "auto" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, paddingBottom: 12, borderBottom: "1px solid #a78bfa22" }}>
-                    <span style={{ fontSize: 18 }}>✨</span>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#5e35b1" }}>Personalidade da IA configurada</div>
-                      <div style={{ fontSize: 11, color: "#9e7cc9" }}>Gerado pelo Onboarding Inteligente com base no seu histórico real</div>
-                    </div>
-                  </div>
-                  {copilotPrompt.split("\n").filter(l => l.trim()).map((line, i) => {
-                    const isHeader = line.startsWith("#");
-                    const isBullet = line.startsWith("•") || line.startsWith("-") || line.startsWith("*");
-                    const isNumbered = /^\d+\./.test(line.trim());
-                    const clean = line.replace(/^#+\s*/, "").replace(/\*\*/g, "");
-                    if (isHeader) return (
-                      <div key={i} style={{ fontSize: 13, fontWeight: 800, color: "#5e35b1", margin: "14px 0 8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>{clean}</div>
-                    );
-                    if (isBullet || isNumbered) return (
-                      <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6, alignItems: "flex-start" }}>
-                        <span style={{ color: "#a78bfa", fontWeight: 700, flexShrink: 0, marginTop: 1 }}>▸</span>
-                        <span style={{ fontSize: 13, color: "#3d1a78", lineHeight: 1.55 }}>{clean.replace(/^[•\-*]\s*/, "").replace(/^\d+\.\s*/, "")}</span>
-                      </div>
-                    );
-                    return (
-                      <div key={i} style={{ fontSize: 13, color: "#4a2080", lineHeight: 1.6, marginBottom: 5 }}>{clean}</div>
-                    );
-                  })}
-                  <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid #a78bfa22", fontSize: 11, color: "#9e7cc9", display: "flex", alignItems: "center", gap: 6 }}>
-                    <span>🔄</span> Para atualizar: use <strong style={{ color: "#a78bfa", cursor: "pointer" }} onClick={() => setView("onboarding")}>Onboarding Inteligente</strong> e refaça a análise.
-                  </div>
-                </div>
-              ) : (
-                <div style={{ background: "#f5f0ff", border: "1px dashed #a78bfa55", borderRadius: 12, padding: "28px 20px", textAlign: "center", marginBottom: 16 }}>
-                  <div style={{ fontSize: 32, marginBottom: 10 }}>🧠</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "#5e35b1", marginBottom: 6 }}>A IA ainda não conhece seu negócio</div>
-                  <div style={{ fontSize: 12, color: "#9e7cc9", marginBottom: 14 }}>Use o Onboarding Inteligente para a IA aprender como sua empresa funciona, seu tom de voz, produtos e regras.</div>
-                  <button onClick={() => setView("onboarding")} style={{ padding: "9px 22px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #a78bfa, #7c4dff)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
-                    🧠 Fazer Onboarding agora →
+                <span>🧠 PROMPT DA IA</span>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => setShowImportPrompt(true)}
+                    style={{ padding: "5px 12px", borderRadius: 7, border: "1px solid #7c4dff55", background: "#7c4dff12", color: "#a78bfa", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                    📋 Importar
+                  </button>
+                  <button onClick={() => setView("onboarding")}
+                    style={{ padding: "5px 12px", borderRadius: 7, border: "1px solid #00a88455", background: "#00a88412", color: "#00a884", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                    🧠 Gerar com IA
                   </button>
                 </div>
-              )}
+              </div>
+              <textarea
+                value={copilotPrompt}
+                onChange={e => setCopilotPrompt(e.target.value)}
+                placeholder={"Descreva como a IA deve se comportar, o tom de voz, produtos/serviços, regras de atendimento...\n\nEx:\n- Você é atendente da Academia 7 Fit\n- Tom: amigável e objetivo\n- Não ofereça descontos sem aprovação do gerente"}
+                rows={10}
+                style={{ width: "100%", padding: "12px 14px", background: T.bg, border: "1px solid #a78bfa55", borderRadius: 10, color: T.text, fontSize: 13, fontFamily: "inherit", lineHeight: 1.6, resize: "vertical", outline: "none", marginBottom: 8, boxSizing: "border-box" }}
+              />
+              <div style={{ fontSize: 11, color: T.text2, marginBottom: 16 }}>
+                💡 Escreva instruções claras sobre o tom de voz, produtos, o que pode e não pode responder. Quanto mais detalhado, melhor a IA responde.
+              </div>
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 <button onClick={savePrompt} disabled={savingPrompt} style={{ padding: "10px 28px", borderRadius: 9, border: "none", background: savingPrompt ? T.border : "linear-gradient(135deg, #7c4dff, #5b21b6)", color: savingPrompt ? T.text2 : "#fff", fontSize: 14, fontWeight: 700, cursor: savingPrompt ? "not-allowed" : "pointer", fontFamily: "inherit" }}>{savingPrompt ? "Salvando..." : "💾 Salvar configurações"}</button>
                 {promptSaved && <span style={{ fontSize: 13, color: "#00a884", fontWeight: 600 }}>✓ Salvo!</span>}
