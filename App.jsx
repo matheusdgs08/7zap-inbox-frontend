@@ -4565,6 +4565,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const [aiCredits, setAiCredits] = useState(null); // { credits, limit, plan, pct, warning }
   const [showUpgrade, setShowUpgrade] = useState(null); // feature name string
   const [showBuyCredits, setShowBuyCredits] = useState(false);
+  const [showSaveSuccessModal, setShowSaveSuccessModal] = useState(false);
   const [waInstances, setWaInstances] = useState([]); // for disconnect banner
   const selectInstance = (name) => {
     setInstanceFilter(name);
@@ -5051,7 +5052,9 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       const d = await r.json();
       if (!r.ok) { showToast("❌ Erro ao salvar: " + (d.detail || "tente novamente")); setSavingPrompt(false); return; }
       setInstanceConfigs(prev => ({ ...prev, [configIaInstance]: { ...prev[configIaInstance], copilot_prompt: copilotPrompt, copilot_auto_mode: copilotAutoMode, copilot_schedule_start: copilotScheduleStart, copilot_schedule_end: copilotScheduleEnd } }));
-      setPromptSaved(true); setTimeout(() => setPromptSaved(false), 3000);
+      setPromptSaved(true);
+      setShowSaveSuccessModal(true); // abre modal de sucesso
+      setTimeout(() => setPromptSaved(false), 3000);
     } catch (e) { showToast("❌ Erro ao salvar configurações."); }
     setSavingPrompt(false);
   };
@@ -6809,6 +6812,33 @@ A mensagem deve:
           onClose={() => setShowLabelPicker(false)}
           onManage={() => { setShowLabelPicker(false); setShowLabelManager(true); }}
         />
+      )}
+      {/* ✅ Modal de configurações salvas */}
+      {showSaveSuccessModal && (
+        <div style={{ position: "fixed", inset: 0, background: "#00000066", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }}
+          onClick={() => { setShowSaveSuccessModal(false); setView("inbox"); }}>
+          <div style={{ background: "#fff", borderRadius: 20, padding: "40px 48px", maxWidth: 420, width: "90%", textAlign: "center", boxShadow: "0 20px 60px #0003" }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 56, marginBottom: 16 }}>✅</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: "#111b21", marginBottom: 8 }}>Configurações salvas!</div>
+            <div style={{ fontSize: 14, color: "#667781", marginBottom: 8, lineHeight: 1.6 }}>
+              As configurações do Co-pilot IA foram aplicadas com sucesso para o número <strong>{configIaInstance && (waInstances.find(i => i.instance_name === configIaInstance)?.label || configIaInstance)}</strong>.
+            </div>
+            {copilotAutoMode !== "off" && (
+              <div style={{ background: "#7c3aed18", border: "1px solid #7c3aed33", borderRadius: 10, padding: "10px 16px", marginBottom: 16, fontSize: 13, color: "#5b21b6", fontWeight: 600 }}>
+                🤖 Modo automático: {copilotAutoMode === "always" ? "Sempre ativo" : copilotAutoMode === "schedule" ? "Por horário" : "Por conversa"}
+              </div>
+            )}
+            <button onClick={() => { setShowSaveSuccessModal(false); setView("inbox"); }}
+              style={{ width: "100%", padding: "13px 0", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #00a884, #017561)", color: "#fff", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", marginTop: 8 }}>
+              Ir para o Inbox →
+            </button>
+            <button onClick={() => setShowSaveSuccessModal(false)}
+              style={{ width: "100%", padding: "10px 0", borderRadius: 12, border: "none", background: "none", color: "#667781", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", marginTop: 6 }}>
+              Continuar editando
+            </button>
+          </div>
+        </div>
       )}
       {showUpgrade && <UpgradeModal feature={showUpgrade} currentPlan={aiCredits?.plan} onClose={() => setShowUpgrade(null)} />}
       {showBuyCredits && <BuyCreditsModal tenantId={TENANT_ID} authHeaders={headers} plan={aiCredits?.plan} onClose={() => setShowBuyCredits(false)} onSuccess={(n) => { setAiCredits(p => p ? { ...p, credits: p.credits + n } : p); showToast(`✅ +${n} créditos adicionados!`); }} />}
