@@ -6469,7 +6469,7 @@ A mensagem deve:
                   </div>
 
                   {/* Messages */}
-                  <div ref={chatScrollRef} onMouseEnter={() => { if (selected?.unread_count > 0) { setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, unread_count: 0 } : c)); setSelected(prev => prev ? { ...prev, unread_count: 0 } : prev); } }} style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 2, background: T.chatBg }}>
+                  <div ref={chatScrollRef} onScroll={() => setHoverMsgId(null)} onMouseLeave={() => setHoverMsgId(null)} onMouseEnter={() => { if (selected?.unread_count > 0) { setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, unread_count: 0 } : c)); setSelected(prev => prev ? { ...prev, unread_count: 0 } : prev); } }} style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 2, background: T.chatBg }}>
                     {/* Load More button */}
                     {hasMoreMessages && (
                       <div style={{ textAlign: "center", marginBottom: 12 }}>
@@ -6546,7 +6546,7 @@ A mensagem deve:
                             style={{ display: "flex", justifyContent: isOut ? "flex-end" : "flex-start", marginBottom: 6, position: "relative", alignItems: "flex-end", gap: 4 }}>
                             {/* Emoji picker — aparece no hover, sempre à direita */}
                             {hoverMsgId === msg.id && !isInternal && msg.id && (
-                              <div style={{ display: "flex", gap: 2, background: T.topbar, border: `1px solid ${T.border}`, borderRadius: 20, padding: "3px 6px", boxShadow: "0 2px 8px #0002", position: "absolute", right: 0, top: -36, zIndex: 10, whiteSpace: "nowrap" }}>
+                              <div onMouseEnter={() => setHoverMsgId(msg.id)} onMouseLeave={() => setHoverMsgId(null)} style={{ display: "flex", gap: 2, background: T.topbar, border: `1px solid ${T.border}`, borderRadius: 20, padding: "3px 6px", boxShadow: "0 2px 8px #0002", position: "absolute", right: 0, top: -36, zIndex: 10, whiteSpace: "nowrap" }}>
                                 {["👍","❤️","😂","😮","😢","🙏"].map(emoji => (
                                   <button key={emoji} onClick={async () => {
                                     setHoverMsgId(null);
