@@ -4497,6 +4497,19 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const convInstanceRef = useRef(null); // tracks which instanceFilter the current conversations were fetched for
   const [selected, setSelected] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [hoverMsgId, setHoverMsgId] = useState(null);
+
+  // Renderiza texto com links clicáveis
+  const renderContent = (text) => {
+    if (!text) return null;
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+    return parts.map((part, i) =>
+      /^https?:\/\//.test(part)
+        ? <a key={i} href={part} target="_blank" rel="noreferrer" style={{ color: "#0d6efd", textDecoration: "underline", wordBreak: "break-all" }}>{part}</a>
+        : <span key={i}>{part}</span>
+    );
+  };
   const [messagesOffset, setMessagesOffset] = useState(0);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [loadingMoreMsgs, setLoadingMoreMsgs] = useState(false);
@@ -6378,8 +6391,27 @@ A mensagem deve:
                         const isOut = msg.direction === "outbound" || msg.direction === "note";
                         const isInternal = msg.is_internal_note || msg.direction === "note";
                         return (
-                          <div key={msg.id || i} style={{ display: "flex", justifyContent: isOut ? "flex-end" : "flex-start", marginBottom: 2 }}>
-                            <div style={{ maxWidth: "65%", padding: "7px 12px 8px 12px", borderRadius: isOut ? "8px 0px 8px 8px" : "0px 8px 8px 8px", background: isInternal ? "#fff8dc" : isOut ? T.msgOut : T.msgIn, boxShadow: `0 1px 2px ${T.shadow}`, fontSize: 14, lineHeight: 1.5, color: T.text }}>
+                          <div key={msg.id || i}
+                            onMouseEnter={() => setHoverMsgId(msg.id)}
+                            onMouseLeave={() => setHoverMsgId(null)}
+                            style={{ display: "flex", justifyContent: isOut ? "flex-end" : "flex-start", marginBottom: 6, position: "relative", alignItems: "flex-end", gap: 4 }}>
+                            {/* Emoji picker — aparece no hover */}
+                            {hoverMsgId === msg.id && !isInternal && msg.id && (
+                              <div style={{ display: "flex", gap: 2, background: T.topbar, border: `1px solid ${T.border}`, borderRadius: 20, padding: "3px 6px", boxShadow: "0 2px 8px #0002", position: "absolute", [isOut ? "left" : "right"]: "calc(100% + 6px)", bottom: 0, zIndex: 10, whiteSpace: "nowrap" }}>
+                                {["👍","❤️","😂","😮","😢","🙏"].map(emoji => (
+                                  <button key={emoji} onClick={async () => {
+                                    setHoverMsgId(null);
+                                    const res = await fetch(`${API_URL}/messages/${msg.id}/react`, {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json", "x-api-key": "7zap_inbox_secret" },
+                                      body: JSON.stringify({ reaction: emoji, conversation_id: selected.id })
+                                    });
+                                    if (res.ok) setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, reaction: emoji, reaction_by: "me" } : m));
+                                  }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, padding: "0 1px", lineHeight: 1 }}>{emoji}</button>
+                                ))}
+                              </div>
+                            )}
+                            <div style={{ maxWidth: "65%", padding: "7px 12px 8px 12px", borderRadius: isOut ? "8px 0px 8px 8px" : "0px 8px 8px 8px", background: isInternal ? "#fff8dc" : isOut ? T.msgOut : T.msgIn, boxShadow: `0 1px 2px ${T.shadow}`, fontSize: 14, lineHeight: 1.5, color: T.text, position: "relative", marginBottom: msg.reaction ? 10 : 0 }}>
                               {isInternal && <div style={{ fontSize: 10, fontWeight: 700, color: "#8a6914", marginBottom: 4 }}>📝 NOTA INTERNA</div>}
                               {!isOut && msg.participant_name && selected?.is_group && (
                                 <div style={{ fontSize: 11, fontWeight: 700, color: "#00a884", marginBottom: 3 }}>{msg.participant_name}</div>
@@ -6408,9 +6440,15 @@ A mensagem deve:
                                 </a>
                               ) : null}
                               {(msg.type === "text" || !msg.type || (msg.content && msg.content !== "[Imagem]" && msg.content !== "[Áudio]" && msg.content !== "[Vídeo]" && msg.content !== "[Documento]") || (msg.type === "image" && !msg.media_url)) && (
-                                <div style={{ wordBreak: "break-word" }}>{msg.content}</div>
+                                <div style={{ wordBreak: "break-word" }}>{renderContent(msg.content)}</div>
                               )}
                               <div style={{ fontSize: 10, color: "#667781", marginTop: 2, textAlign: isOut ? "right" : "left" }}>{new Date(msg.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}{isOut && <span style={{ marginLeft: 4, color: "#53bdeb" }}>✓✓</span>}</div>
+                              {/* Reaction badge */}
+                              {msg.reaction && (
+                                <div style={{ position: "absolute", bottom: -10, [isOut ? "right" : "left"]: 8, background: T.topbar, border: `1px solid ${T.border}`, borderRadius: 12, padding: "1px 5px", fontSize: 14, boxShadow: "0 1px 4px #0002", lineHeight: 1.4 }}>
+                                  {msg.reaction}
+                                </div>
+                              )}
                             </div>
                           </div>
                         );
