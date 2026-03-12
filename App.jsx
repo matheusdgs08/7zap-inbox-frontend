@@ -4600,6 +4600,14 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
           ? insts
           : insts.filter(i => userAllowed.includes(i.instance_name) || userAllowed.includes(i.id));
         setWaInstances(visibleInsts);
+        // Eagerly load instance configs so IA badge shows without opening Config IA
+        visibleInsts.forEach(inst => {
+          if (!inst.instance_name) return;
+          fetch(`${API_URL}/whatsapp/instance-config?tenant_id=${TENANT_ID}&instance_name=${inst.instance_name}`, { headers })
+            .then(r => r.ok ? r.json() : null)
+            .then(d => { if (d) setInstanceConfigs(prev => ({ ...prev, [inst.instance_name]: d })); })
+            .catch(() => {});
+        });
         // Auto-correct instanceFilter if it points to a non-existent instance
         if (visibleInsts.length > 0) {
           setInstanceFilter(prev => {
@@ -6190,18 +6198,25 @@ A mensagem deve:
                 <div style={{ padding: "10px 12px", background: "linear-gradient(135deg, #00a88412, #00695c0a)", borderBottom: "2px solid #00a88430" }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: "#00a884", marginBottom: 7, letterSpacing: 0.3 }}>📱 SELECIONE O NÚMERO</div>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    {waInstances.map(inst => (
-                      <button key={inst.id} onClick={() => selectInstance(inst.instance_name)}
-                        style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 10, border: "1px solid #00a88433", background: "#fff", color: "#111b21", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 1px 4px #0001", transition: "all 0.15s" }}
-                        onMouseEnter={e => e.currentTarget.style.background = "#00a88412"}
-                        onMouseLeave={e => e.currentTarget.style.background = "#fff"}>
-                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: inst.connected ? "#00a884" : "#f44336", display: "inline-block", flexShrink: 0 }} />
-                        <div style={{ textAlign: "left" }}>
-                          <div>{inst.label || inst.instance_name}</div>
-                          {inst.phone && <div style={{ fontSize: 10, color: "#667781", fontWeight: 500 }}>{inst.phone}</div>}
-                        </div>
-                      </button>
-                    ))}
+                    {waInstances.map(inst => {
+                      const instCfg = instanceConfigs[inst.instance_name];
+                      const iaActive = instCfg && instCfg.copilot_auto_mode && instCfg.copilot_auto_mode !== "off";
+                      return (
+                        <button key={inst.id} onClick={() => selectInstance(inst.instance_name)}
+                          style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 10, border: `1px solid ${iaActive ? "#7c3aed33" : "#00a88433"}`, background: "#fff", color: "#111b21", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 1px 4px #0001", transition: "all 0.15s" }}
+                          onMouseEnter={e => e.currentTarget.style.background = "#00a88412"}
+                          onMouseLeave={e => e.currentTarget.style.background = "#fff"}>
+                          <span style={{ width: 8, height: 8, borderRadius: "50%", background: inst.connected ? "#00a884" : "#f44336", display: "inline-block", flexShrink: 0 }} />
+                          <div style={{ textAlign: "left" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                              {inst.label || inst.instance_name}
+                              {iaActive && <span title={`IA automática: ${instCfg.copilot_auto_mode}`} style={{ fontSize: 10, background: "#7c3aed", color: "#fff", borderRadius: 8, padding: "1px 5px", fontWeight: 700, letterSpacing: 0.2 }}>🤖 IA</span>}
+                            </div>
+                            {inst.phone && <div style={{ fontSize: 10, color: "#667781", fontWeight: 500 }}>{inst.phone}</div>}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -6211,11 +6226,14 @@ A mensagem deve:
                 <div style={{ padding: "5px 10px", borderBottom: `1px solid ${T.border}`, background: T.topbar, display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
                   {waInstances.map(inst => {
                     const isActive = instanceFilter === inst.instance_name;
+                    const instCfg = instanceConfigs[inst.instance_name];
+                    const iaActive = instCfg && instCfg.copilot_auto_mode && instCfg.copilot_auto_mode !== "off";
                     return (
                       <button key={inst.id} onClick={() => selectInstance(isActive ? null : inst.instance_name)}
                         style={{ padding: "3px 10px", borderRadius: 20, border: `1px solid ${isActive ? "#00a88466" : T.border}`, background: isActive ? "#00a88418" : "transparent", color: isActive ? "#00a884" : T.text2, fontSize: 11, fontWeight: isActive ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0, display: "flex", alignItems: "center", gap: 5, transition: "all 0.15s", lineHeight: 1.6 }}>
                         <span style={{ width: 6, height: 6, borderRadius: "50%", background: inst.connected ? "#00a884" : "#f44336", display: "inline-block", flexShrink: 0 }} />
                         <span>{inst.label || inst.instance_name}</span>
+                        {iaActive && <span title="IA automática ativa" style={{ fontSize: 9, background: "#7c3aed", color: "#fff", borderRadius: 6, padding: "0px 4px", fontWeight: 700, lineHeight: 1.6 }}>🤖</span>}
                       </button>
                     );
                   })}
