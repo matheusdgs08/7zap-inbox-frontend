@@ -4509,6 +4509,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [unreadFilter, setUnreadFilter] = useState("all"); // all | unread
+  const [groupTab, setGroupTab] = useState("contacts"); // contacts | groups
   // ── Toast notification system ──
   const [toast, setToast] = useState(null); // { msg, color, loading }
   const toastTimerRef = useRef(null);
@@ -5469,7 +5470,8 @@ A mensagem deve:
     const matchInstance = !instanceFilter
       || c.instance_name === instanceFilter
       || !c.instance_name;  // null = legacy, always visible
-    return matchSearch && matchUnread && matchInactive && matchInstance;
+    const matchGroupTab = groupTab === "groups" ? c.is_group === true : !c.is_group;
+    return matchSearch && matchUnread && matchInactive && matchInstance && matchGroupTab;
   });
 
   // unreadCount uses filtered so it respects instanceFilter
@@ -6051,13 +6053,18 @@ A mensagem deve:
                 </div>
               </div>
 
-              {/* Tudo / Não lidas */}
+              {/* Contatos / Grupos / Não lidas */}
               <div style={{ display: "flex", borderBottom: `1px solid ${T.border}` }}>
-                {[["all", "Tudo"], ["unread", "Não lidas"]].map(([id, label]) => (
-                  <button key={id} onClick={() => setUnreadFilter(id)} style={{ flex: 1, padding: "8px 0", border: "none", background: "transparent", color: unreadFilter === id ? "#00a884" : "#667781", fontSize: 12, fontWeight: unreadFilter === id ? 700 : 500, cursor: "pointer", fontFamily: "inherit", borderBottom: `2px solid ${unreadFilter === id ? "#00a884" : "transparent"}`, transition: "all 0.15s" }}>
-                    {label}{id === "unread" && unreadCount > 0 ? ` (${unreadCount})` : ""}
+                {[["contacts", "💬 Contatos"], ["groups", "👥 Grupos"]].map(([id, label]) => (
+                  <button key={id} onClick={() => { setGroupTab(id); setUnreadFilter("all"); }} style={{ flex: 1, padding: "8px 0", border: "none", background: "transparent", color: groupTab === id ? "#00a884" : "#667781", fontSize: 12, fontWeight: groupTab === id ? 700 : 500, cursor: "pointer", fontFamily: "inherit", borderBottom: `2px solid ${groupTab === id ? "#00a884" : "transparent"}`, transition: "all 0.15s" }}>
+                    {label}
                   </button>
                 ))}
+                {groupTab === "contacts" && (
+                  <button onClick={() => setUnreadFilter(f => f === "unread" ? "all" : "unread")} style={{ flex: 1, padding: "8px 0", border: "none", background: "transparent", color: unreadFilter === "unread" ? "#00a884" : "#667781", fontSize: 12, fontWeight: unreadFilter === "unread" ? 700 : 500, cursor: "pointer", fontFamily: "inherit", borderBottom: `2px solid ${unreadFilter === "unread" ? "#00a884" : "transparent"}`, transition: "all 0.15s" }}>
+                    🔴 Não lidas{unreadCount > 0 ? ` (${unreadCount})` : ""}
+                  </button>
+                )}
               </div>
 
               {/* ─── SELETOR DE NÚMERO PRINCIPAL ─── */}
@@ -6145,7 +6152,7 @@ A mensagem deve:
                       <div style={{ flex: 1, minWidth: 0 }}>
                         {/* Row 1: Name + Time */}
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
-                          <span style={{ fontWeight: hasUnread ? 700 : 600, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: T.text, flex: 1, marginRight: 8 }}>{name}</span>
+                          <span style={{ fontWeight: hasUnread ? 700 : 600, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: T.text, flex: 1, marginRight: 8 }}>{conv.is_group ? "👥 " : ""}{name}</span>
                           <span style={{ fontSize: 11, color: inactiveDays ? "#ff6d00" : hasUnread ? "#00a884" : "#8696a0", flexShrink: 0, fontWeight: hasUnread ? 700 : 400 }}>{timeAgo(conv.last_message_at)}</span>
                         </div>
                         {/* Row 2: Preview + Badge */}
@@ -6374,6 +6381,9 @@ A mensagem deve:
                           <div key={msg.id || i} style={{ display: "flex", justifyContent: isOut ? "flex-end" : "flex-start", marginBottom: 2 }}>
                             <div style={{ maxWidth: "65%", padding: "7px 12px 8px 12px", borderRadius: isOut ? "8px 0px 8px 8px" : "0px 8px 8px 8px", background: isInternal ? "#fff8dc" : isOut ? T.msgOut : T.msgIn, boxShadow: `0 1px 2px ${T.shadow}`, fontSize: 14, lineHeight: 1.5, color: T.text }}>
                               {isInternal && <div style={{ fontSize: 10, fontWeight: 700, color: "#8a6914", marginBottom: 4 }}>📝 NOTA INTERNA</div>}
+                              {!isOut && msg.participant_name && selected?.is_group && (
+                                <div style={{ fontSize: 11, fontWeight: 700, color: "#00a884", marginBottom: 3 }}>{msg.participant_name}</div>
+                              )}
                               {msg.type === "image" && msg.media_url ? (
                                 <div style={{ marginBottom: msg.content && msg.content !== "[Imagem]" ? 6 : 0 }}>
                                   <img
