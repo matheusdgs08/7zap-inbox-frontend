@@ -5453,12 +5453,10 @@ A mensagem deve:
   // Retorna config de IA da instância de uma conversa (fallback: estado global)
   const getConvInstanceConfig = useCallback((conv) => {
     const instName = conv?.instance_name;
-    return instName && instanceConfigs[instName] ? instanceConfigs[instName] : {
-      copilot_auto_mode: copilotAutoMode,
-      copilot_schedule_start: copilotScheduleStart,
-      copilot_schedule_end: copilotScheduleEnd,
-    };
-  }, [instanceConfigs, copilotAutoMode, copilotScheduleStart, copilotScheduleEnd]);
+    if (instName && instanceConfigs[instName]) return instanceConfigs[instName];
+    // Fallback seguro: "off" — nunca herda o estado da tela do Config IA
+    return { copilot_auto_mode: "off", copilot_schedule_start: "18:00", copilot_schedule_end: "09:00" };
+  }, [instanceConfigs]);
 
   const isAutoActive = useCallback((conv) => {
     // Se pausado manualmente nesta conversa, nunca está ativo
