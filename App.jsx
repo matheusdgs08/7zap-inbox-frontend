@@ -5449,6 +5449,8 @@ A mensagem deve:
   }, [instanceConfigs, copilotAutoMode, copilotScheduleStart, copilotScheduleEnd]);
 
   const isAutoActive = useCallback((conv) => {
+    // Se pausado manualmente nesta conversa, nunca está ativo
+    if (conv?.copilot_auto_mode === false || conv?.copilot_auto_mode === "false") return false;
     const cfg = getConvInstanceConfig(conv);
     const mode = cfg.copilot_auto_mode || "off";
     const schedStart = cfg.copilot_schedule_start || "18:00";
@@ -6370,15 +6372,36 @@ A mensagem deve:
                         <span style={{ animation: "pulse 2s infinite", display: "inline-block" }}>🤖</span>
                         <span style={{ color: "#a78bfa", fontWeight: 700 }}>Co-pilot automático ativo</span>
                         <span style={{ color: "#667781" }}>— respondendo automaticamente mensagens recebidas</span>
-                        {copilotAutoMode === "per_conv" && <button onClick={async () => {
-                          const newVal = false;
-                          autoModeRef.current[selected.id] = newVal;
-                          await fetch(`${API_URL}/conversations/${selected.id}/auto-mode`, { method: "PUT", headers, body: JSON.stringify({ enabled: newVal }) }).catch(() => {});
-                          setSelected(prev => ({ ...prev, auto_mode: newVal }));
-                          setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, auto_mode: newVal } : c));
-                        }} style={{ marginLeft: "auto", padding: "2px 10px", borderRadius: 5, border: "1px solid #f4433333", background: "transparent", color: "#f44336", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Pausar</button>}
+                        <button onClick={async () => {
+                          autoModeRef.current[selected.id] = false;
+                          await fetch(`${API_URL}/conversations/${selected.id}/auto-mode`, { method: "PUT", headers, body: JSON.stringify({ enabled: false }) }).catch(() => {});
+                          setSelected(prev => ({ ...prev, copilot_auto_mode: false }));
+                          setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, copilot_auto_mode: false } : c));
+                          showToast("\u23f8 Auto-pilot pausado nesta conversa");
+                        }} style={{ marginLeft: "auto", padding: "3px 12px", borderRadius: 5, border: "1px solid #f4433355", background: "#f4433312", color: "#f44336", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>\u23f8 Pausar aqui</button>
                       </div>
                     )}
+                    {/* Banner: auto pausado nesta conversa */}
+                    {(() => {
+                      const cfg = getConvInstanceConfig(selected);
+                      const globalMode = cfg?.copilot_auto_mode || "off";
+                      const isPaused = selected?.copilot_auto_mode === false || selected?.copilot_auto_mode === "false";
+                      if (globalMode === "off" || !isPaused) return null;
+                      return (
+                        <div style={{ width: "100%", padding: "6px 14px", background: "#ff6d0010", borderTop: "1px solid #ff6d0033", display: "flex", alignItems: "center", gap: 8, fontSize: 11 }}>
+                          <span>⏸</span>
+                          <span style={{ color: "#ff6d00", fontWeight: 700 }}>Auto-pilot pausado nesta conversa</span>
+                          <span style={{ color: "#667781" }}>— você está no controle</span>
+                          <button onClick={async () => {
+                            autoModeRef.current[selected.id] = true;
+                            await fetch(`${API_URL}/conversations/${selected.id}/auto-mode`, { method: "PUT", headers, body: JSON.stringify({ enabled: true }) }).catch(() => {});
+                            setSelected(prev => ({ ...prev, copilot_auto_mode: true }));
+                            setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, copilot_auto_mode: true } : c));
+                            showToast("🤖 Auto-pilot reativado");
+                          }} style={{ marginLeft: "auto", padding: "3px 12px", borderRadius: 5, border: "1px solid #00a88455", background: "#00a88412", color: "#00a884", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>▶ Reativar</button>
+                        </div>
+                      );
+                    })()}
                     <div style={{ display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center" }}>
                       <StatusDropdown status={selected.status} onChange={(s) => changeStatus(selected.id, s)} isChanging={changingStatus} />
                       <button
