@@ -4445,7 +4445,73 @@ function TopLoadingBar() {
   );
 }
 
-export default function App() {
+export default // PWA Install Banner
+function PwaInstallBanner() {
+  const [prompt, setPrompt] = React.useState(null);
+  const [show, setShow] = React.useState(false);
+  const [dismissed, setDismissed] = React.useState(() => !!localStorage.getItem("pwa_dismissed"));
+
+  React.useEffect(() => {
+    if (dismissed) return;
+    const handler = (e) => {
+      e.preventDefault();
+      setPrompt(e);
+      setTimeout(() => setShow(true), 3000);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, [dismissed]);
+
+  const handleInstall = async () => {
+    if (!prompt) return;
+    prompt.prompt();
+    const { outcome } = await prompt.userChoice;
+    setShow(false);
+    if (outcome === "accepted") localStorage.setItem("pwa_dismissed", "1");
+  };
+
+  const handleDismiss = () => {
+    setShow(false);
+    setDismissed(true);
+    localStorage.setItem("pwa_dismissed", "1");
+  };
+
+  if (!show || !prompt) return null;
+
+  return (
+    <div style={{
+      position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)",
+      background: "#1a1a2e", border: "1px solid #252540", borderRadius: 16,
+      padding: "16px 20px", display: "flex", alignItems: "center", gap: 14,
+      boxShadow: "0 8px 32px rgba(0,0,0,0.5)", zIndex: 99999,
+      maxWidth: 340, width: "calc(100% - 32px)", animation: "slideUp 0.3s ease"
+    }}>
+      <style>{`@keyframes slideUp { from { opacity:0; transform: translateX(-50%) translateY(20px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }`}</style>
+      <div style={{
+        width: 44, height: 44, borderRadius: 10, overflow: "hidden", flexShrink: 0,
+        background: "#075e54", display: "flex", alignItems: "center", justifyContent: "center"
+      }}>
+        <img src="/icon-192.png" alt="7CRM" style={{ width: 44, height: 44 }} onError={e => e.target.style.display="none"} />
+      </div>
+      <div style={{ flex: 1 }}>
+        <div style={{ color: "#fff", fontWeight: 600, fontSize: 14, marginBottom: 2 }}>Instalar 7CRM</div>
+        <div style={{ color: "#888", fontSize: 12 }}>Acesse rápido pela tela inicial</div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
+        <button onClick={handleInstall} style={{
+          background: "#25d366", color: "#fff", border: "none", borderRadius: 8,
+          padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer"
+        }}>Instalar</button>
+        <button onClick={handleDismiss} style={{
+          background: "transparent", color: "#666", border: "none",
+          fontSize: 12, cursor: "pointer", padding: "2px 0"
+        }}>Agora não</button>
+      </div>
+    </div>
+  );
+}
+
+function App() {
   const [auth, setAuth] = useState(getStoredAuth);
   const theme = "light";
   const toggleTheme = () => {};
@@ -4463,6 +4529,7 @@ export default function App() {
     <>
       <TopLoadingBar />
       <AppInner auth={auth} onLogout={handleLogout} theme={theme} toggleTheme={toggleTheme} />
+      <PwaInstallBanner />
     </>
   );
 }
