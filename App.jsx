@@ -7392,10 +7392,14 @@ A mensagem deve:
                                 </div>
                               ) : msg.type === "audio" || msg.type === "ptt" ? (
                                 msg.media_url ? (
-                                  <audio controls style={{ maxWidth: "100%", marginBottom: 4 }}>
-                                    <source src={`${API_URL}/media/proxy?url=${encodeURIComponent(msg.media_url)}`} />
-                                  </audio>
-                                ) : <div style={{ fontSize: 13, color: "#667781" }}>🎵 Áudio</div>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
+                                    <span style={{ fontSize: 18 }}>🎤</span>
+                                    <audio controls style={{ height: 36, maxWidth: 220, flex: 1 }}>
+                                      <source src={`${API_URL}/media/proxy?url=${encodeURIComponent(msg.media_url)}`} type="audio/ogg" />
+                                      <source src={`${API_URL}/media/proxy?url=${encodeURIComponent(msg.media_url)}`} />
+                                    </audio>
+                                  </div>
+                                ) : <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#667781" }}>🎤 <span>Áudio</span></div>
                               ) : msg.type === "document" && msg.media_url ? (
                                 <a href={`${API_URL}/media/proxy?url=${encodeURIComponent(msg.media_url)}`} target="_blank" rel="noreferrer"
                                    style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: isOut ? "#075e54" : "#128C7E", textDecoration: "none", padding: "6px 0" }}>
