@@ -5878,6 +5878,7 @@ A mensagem deve:
   const ADMIN_TABS = [
     ...(auth.user.role === "admin" ? [{ id: "whatsapp", label: "📱 WhatsApp" }] : []),
     ...(auth.user.role === "admin" ? [{ id: "admin", label: "🔐 Admin" }] : []),
+    ...(auth.user.role === "admin" ? [{ id: "buy_credits", label: "⚡ Créditos IA" }] : []),
     ...(IS_SOCIO ? [{ id: "socios", label: "📊 Sócios" }] : []),
   ];
 
@@ -6418,7 +6419,13 @@ A mensagem deve:
         {/* Admin tabs */}
         {!isMobile && <div style={{ display: "flex", alignItems: "center", gap: 1, paddingLeft: 8, borderLeft: "1px solid #e9edef", flexShrink: 0 }}>
           {ADMIN_TABS.map(tab => (
-            <button key={tab.id} onClick={() => setView(tab.id)} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "5px 9px", borderRadius: 6, border: tab.id === "upgrade" ? "1px solid #ff6d0044" : "none", background: view === tab.id ? "#00a88420" : tab.id === "upgrade" ? "#ff6d0012" : "transparent", color: view === tab.id ? "#00a884" : tab.id === "upgrade" ? "#ff6d00" : T.text2, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+            <button key={tab.id}
+              onClick={() => { if (tab.id === "buy_credits") { setShowBuyCredits(true); } else { setView(tab.id); } }}
+              style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "5px 9px", borderRadius: 6,
+                border: tab.id === "upgrade" ? "1px solid #ff6d0044" : tab.id === "buy_credits" ? "1px solid #00a88444" : "none",
+                background: view === tab.id ? "#00a88420" : tab.id === "upgrade" ? "#ff6d0012" : tab.id === "buy_credits" ? "#00a88410" : "transparent",
+                color: view === tab.id ? "#00a884" : tab.id === "upgrade" ? "#ff6d00" : tab.id === "buy_credits" ? "#00a884" : T.text2,
+                fontSize: 12, fontWeight: tab.id === "buy_credits" ? 700 : 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
               {tab.label}
             </button>
           ))}
@@ -6431,25 +6438,40 @@ A mensagem deve:
             </div>
           )}
 
-          {/* ⚡ Credits pill */}
+          {/* ⚡ Credits pill — always visible, always buyable */}
           {aiCredits && aiCredits.limit > 0 && (() => {
             const pct = aiCredits.limit > 0 ? Math.round(aiCredits.credits / aiCredits.limit * 100) : 100;
-            const color = aiCredits.credits <= 0 ? "#f44336" : pct <= 25 ? "#ff9800" : "#00a884";
+            const isEmpty = aiCredits.credits <= 0;
+            const isLow = !isEmpty && pct <= 25;
+            const color = isEmpty ? "#f44336" : isLow ? "#ff9800" : "#00a884";
+            const urgent = isEmpty || isLow;
             return (
-              <button onClick={() => setView("config")}
-                title={`${aiCredits.credits.toLocaleString("pt-BR")} / ${aiCredits.limit.toLocaleString("pt-BR")} créditos IA restantes`}
-                style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 20, border: `1px solid ${color}44`, background: `${color}12`, cursor: "pointer", fontFamily: "inherit" }}>
+              <button onClick={() => setShowBuyCredits(true)}
+                title={`${aiCredits.credits.toLocaleString("pt-BR")} / ${aiCredits.limit.toLocaleString("pt-BR")} créditos IA · Clique para comprar mais`}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: urgent ? "4px 12px" : "4px 10px", borderRadius: 20,
+                  border: `1px solid ${urgent ? color + "88" : color + "44"}`,
+                  background: urgent ? `${color}20` : `${color}10`,
+                  cursor: "pointer", fontFamily: "inherit",
+                  boxShadow: urgent ? `0 0 0 2px ${color}22` : "none",
+                  animation: isEmpty ? "pulse 1.5s infinite" : "none" }}>
                 <span style={{ fontSize: 12 }}>⚡</span>
-                <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 60 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color }}>{aiCredits.credits.toLocaleString("pt-BR")}</span>
-                    <span style={{ fontSize: 10, color: "#667781" }}>/{aiCredits.limit.toLocaleString("pt-BR")}</span>
+                {!isMobile && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 55 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color }}>{aiCredits.credits.toLocaleString("pt-BR")}</span>
+                      <span style={{ fontSize: 10, color: "#667781" }}>/{aiCredits.limit.toLocaleString("pt-BR")}</span>
+                    </div>
+                    <div style={{ height: 3, background: "#e9edef", borderRadius: 2, overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${Math.max(3, pct)}%`, background: color, borderRadius: 2, transition: "width 0.5s" }} />
+                    </div>
                   </div>
-                  <div style={{ height: 3, background: "#e9edef", borderRadius: 2, overflow: "hidden", width: "100%" }}>
-                    <div style={{ height: "100%", width: `${Math.max(3, pct)}%`, background: color, borderRadius: 2, transition: "width 0.5s" }} />
-                  </div>
-                </div>
-                {pct <= 25 && <span style={{ fontSize: 10, color }}>{aiCredits.credits <= 0 ? "Esgotado!" : "Baixo"}</span>}
+                )}
+                <span style={{ fontSize: 10, fontWeight: 800, color: urgent ? color : "#00a884",
+                  background: urgent ? `${color}15` : "#00a88420",
+                  border: `1px solid ${urgent ? color + "44" : "#00a88444"}`,
+                  padding: "2px 7px", borderRadius: 10, whiteSpace: "nowrap" }}>
+                  {isEmpty ? "🚨 Comprar" : isLow ? "⚠️ Comprar" : "+ Comprar"}
+                </span>
               </button>
             );
           })()}
@@ -6911,6 +6933,28 @@ A mensagem deve:
                 </button>
               </div>
             )}
+
+            {/* ⚡ Low / empty credits banner */}
+            {aiCredits && aiCredits.limit > 0 && aiCredits.limit < 99999 && (() => {
+              const pct = Math.round(aiCredits.credits / aiCredits.limit * 100);
+              const isEmpty = aiCredits.credits <= 0;
+              const isLow = !isEmpty && pct <= 20;
+              if (!isEmpty && !isLow) return null;
+              return (
+                <div style={{ background: isEmpty ? "linear-gradient(90deg,#b71c1c,#c62828)" : "linear-gradient(90deg,#e65100,#ff9800)", padding: "8px 20px", display: "flex", alignItems: "center", gap: 10, flexShrink: 0, zIndex: 10 }}>
+                  <span style={{ fontSize: 14 }}>{isEmpty ? "🚨" : "⚠️"}</span>
+                  <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: "#fff" }}>
+                    {isEmpty
+                      ? "Créditos de IA esgotados — Co-pilot e Auto-pilot pausados."
+                      : `Apenas ${aiCredits.credits} créditos de IA restantes (${pct}%) — recarregue para não perder o assistente.`}
+                  </span>
+                  <button onClick={() => setShowBuyCredits(true)}
+                    style={{ padding: "5px 16px", borderRadius: 7, border: "1px solid #ffffff66", background: "#ffffff25", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+                    ⚡ Comprar agora
+                  </button>
+                </div>
+              );
+            })()}
 
             {/* Inbox row: sidebar + chat — responsive */}
             <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
