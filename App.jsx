@@ -7391,15 +7391,25 @@ A mensagem deve:
                                   <span style={{ display: "none", fontSize: 12, color: "#667781" }}>📷 Imagem não disponível</span>
                                 </div>
                               ) : msg.type === "audio" || msg.type === "ptt" ? (
-                                msg.media_url ? (
-                                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
-                                    <span style={{ fontSize: 18 }}>🎤</span>
-                                    <audio controls style={{ height: 36, maxWidth: 220, flex: 1 }}>
-                                      <source src={`${API_URL}/media/proxy?url=${encodeURIComponent(msg.media_url)}`} type="audio/ogg" />
-                                      <source src={`${API_URL}/media/proxy?url=${encodeURIComponent(msg.media_url)}`} />
-                                    </audio>
-                                  </div>
-                                ) : <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#667781" }}>🎤 <span>Áudio</span></div>
+                                <div>
+                                  {msg.media_url ? (
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
+                                      <span style={{ fontSize: 18 }}>🎤</span>
+                                      <audio controls style={{ height: 36, maxWidth: 220, flex: 1 }}>
+                                        <source src={`${API_URL}/media/proxy?url=${encodeURIComponent(msg.media_url)}`} type="audio/ogg" />
+                                        <source src={`${API_URL}/media/proxy?url=${encodeURIComponent(msg.media_url)}`} />
+                                      </audio>
+                                    </div>
+                                  ) : <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#667781" }}>🎤 <span>Áudio</span></div>}
+                                  {msg.ai_suggestion && msg.ai_suggestion.startsWith("🎤") ? (
+                                    <div style={{ marginTop: 4, padding: "6px 10px", background: isOut ? "#d9f7be55" : "#f0f2f5", borderRadius: 8, borderLeft: "3px solid #00a88466" }}>
+                                      <div style={{ fontSize: 10, color: "#667781", marginBottom: 2, fontWeight: 700, letterSpacing: "0.5px" }}>TRANSCRIÇÃO</div>
+                                      <div style={{ fontSize: 12, color: isOut ? "#075e54" : "#111b21", lineHeight: 1.5 }}>{msg.ai_suggestion.slice(2)}</div>
+                                    </div>
+                                  ) : msg.media_url && (
+                                    <div style={{ fontSize: 10, color: "#aaa", marginTop: 3, fontStyle: "italic" }}>⏳ transcrevendo...</div>
+                                  )}
+                                </div>
                               ) : msg.type === "document" && msg.media_url ? (
                                 <a href={`${API_URL}/media/proxy?url=${encodeURIComponent(msg.media_url)}`} target="_blank" rel="noreferrer"
                                    style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: isOut ? "#075e54" : "#128C7E", textDecoration: "none", padding: "6px 0" }}>
