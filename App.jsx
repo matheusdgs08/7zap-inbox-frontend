@@ -2355,6 +2355,9 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
   const [bInactiveDays, setBInactiveDays] = useState(7); // 3 | 7 | 15
   const [bAiPersonalize, setBAiPersonalize] = useState(false); // gerar msg IA por contato
   const [bResumeConv, setBResumeConv] = useState(false); // 🔄 retomar conversa com histórico completo (3 créditos/contato)
+  const [resumePreview, setResumePreview] = useState(null); // { contact, message } — preview antes de disparar
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [tooltipVisible, setTooltipVisible] = useState(null); // "personalize" | "resume"
   const [bFilterValue, setBFilterValue] = useState("");
   const [bRecipients, setBRecipients] = useState([]); // [{phone,name}]
   const [csvText, setCsvText] = useState("");
@@ -2436,6 +2439,23 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
       setBMessage(d.suggestion || "");
     } catch (e) {}
     setLoadingAI(false);
+  };
+
+  const generateResumePreview = async () => {
+    const recs = buildRecipients();
+    if (recs.length === 0) return;
+    setLoadingPreview(true);
+    setResumePreview(null);
+    try {
+      const first = recs[0];
+      const r = await fetch(`${API_URL}/broadcasts/preview-resume`, {
+        method: "POST", headers,
+        body: JSON.stringify({ tenant_id: TENANT_ID, conversation_id: first.conversation_id, contact_name: first.name, contact_phone: first.phone, objective: bMessage })
+      });
+      const d = await r.json();
+      setResumePreview({ contact: first, message: d.preview, total: recs.length });
+    } catch (e) { showToast("Erro ao gerar preview", "#f44336"); }
+    setLoadingPreview(false);
   };
 
   const createBroadcast = async () => {
@@ -2668,46 +2688,103 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
                 {(bFilter === "inativos" || bFilter === "manual") && (
                   <div style={{ marginBottom: 10 }}>
                     {/* ✨ IA personaliza */}
-                    <div onClick={() => { setBAiPersonalize(p => !p); if (bResumeConv) setBResumeConv(false); }}
-                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px",
-                        background: bAiPersonalize ? "#7c4dff15" : "#f0f2f5",
-                        border: `1px solid ${bAiPersonalize ? "#7c4dff44" : "transparent"}`,
-                        borderRadius: 10, cursor: "pointer", marginBottom: 4 }}>
-                      <div style={{ width: 36, height: 20, borderRadius: 10, background: bAiPersonalize ? "#7c4dff" : "#d1d7db", position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
-                        <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#fff", position: "absolute", top: 2, left: bAiPersonalize ? 18 : 2, transition: "left 0.2s" }} />
+                    <div style={{ position: "relative" }}>
+                      <div onClick={() => { setBAiPersonalize(p => !p); if (bResumeConv) setBResumeConv(false); setResumePreview(null); }}
+                        style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px",
+                          background: bAiPersonalize ? "#7c4dff15" : "#f0f2f5",
+                          border: `1px solid ${bAiPersonalize ? "#7c4dff44" : "transparent"}`,
+                          borderRadius: 10, cursor: "pointer", marginBottom: 4 }}>
+                        <div style={{ width: 36, height: 20, borderRadius: 10, background: bAiPersonalize ? "#7c4dff" : "#d1d7db", position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
+                          <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#fff", position: "absolute", top: 2, left: bAiPersonalize ? 18 : 2, transition: "left 0.2s" }} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: bAiPersonalize ? "#7c4dff" : "#111b21", display: "flex", alignItems: "center", gap: 6 }}>
+                            ✨ IA personaliza mensagem por contato
+                            <span onClick={e => { e.stopPropagation(); setTooltipVisible(v => v === "personalize" ? null : "personalize"); }}
+                              style={{ width: 16, height: 16, borderRadius: "50%", background: "#d1d7db", color: "#54656f", fontSize: 10, fontWeight: 900, display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>i</span>
+                          </div>
+                          <div style={{ fontSize: 11, color: "#667781" }}>Você escreve a base · IA adapta para cada pessoa · 1 crédito</div>
+                        </div>
                       </div>
-                      <div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: bAiPersonalize ? "#7c4dff" : "#111b21" }}>✨ IA personaliza mensagem por contato</div>
-                        <div style={{ fontSize: 11, color: "#667781" }}>A IA vai ler o histórico de cada conversa e gerar uma mensagem única usando o prompt da sua empresa</div>
-                      </div>
+                      {tooltipVisible === "personalize" && (
+                        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 50, background: "#fff", border: "1px solid #7c4dff44", borderRadius: 10, padding: "12px 14px", boxShadow: "0 4px 20px #0002", marginBottom: 4 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: "#7c4dff", marginBottom: 6 }}>✨ IA personaliza mensagem</div>
+                          <div style={{ fontSize: 11, color: "#54656f", lineHeight: 1.6 }}>
+                            Você escreve uma mensagem base (ex: <em>"Oi {"{nome}"}, temos uma novidade!"</em>) e a IA adapta o tom e o texto para cada contato usando o histórico recente da conversa.<br/><br/>
+                            <strong>Ideal para:</strong> promoções, novidades, comunicados personalizados.<br/>
+                            <strong>Custo:</strong> 1 crédito por contato.
+                          </div>
+                          <button onClick={() => setTooltipVisible(null)} style={{ marginTop: 8, fontSize: 11, color: "#7c4dff", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0 }}>Fechar</button>
+                        </div>
+                      )}
                     </div>
                     {bAiPersonalize && (
                       <div style={{ background: "#7c4dff10", border: "1px solid #7c4dff22", borderRadius: 8, padding: "8px 12px", fontSize: 11, color: "#7c4dff", marginBottom: 4 }}>
-                        🤖 O campo "Mensagem" será ignorado. A IA vai gerar uma mensagem personalizada para cada contato antes de enviar.
+                        🤖 O campo "Mensagem" abaixo será a base. A IA vai personalizar para cada contato.
                       </div>
                     )}
+
                     {/* 🔄 Retomar conversa */}
-                    <div onClick={() => { setBResumeConv(p => !p); if (bAiPersonalize) setBAiPersonalize(false); }}
-                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px",
-                        background: bResumeConv ? "#e6510015" : "#f0f2f5",
-                        border: `1px solid ${bResumeConv ? "#e6510044" : "transparent"}`,
-                        borderRadius: 10, cursor: "pointer", marginBottom: 4 }}>
-                      <div style={{ width: 36, height: 20, borderRadius: 10, background: bResumeConv ? "#e65100" : "#d1d7db", position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
-                        <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#fff", position: "absolute", top: 2, left: bResumeConv ? 18 : 2, transition: "left 0.2s" }} />
+                    <div style={{ position: "relative" }}>
+                      <div onClick={() => { setBResumeConv(p => !p); if (bAiPersonalize) setBAiPersonalize(false); setResumePreview(null); }}
+                        style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px",
+                          background: bResumeConv ? "#e6510015" : "#f0f2f5",
+                          border: `1px solid ${bResumeConv ? "#e6510044" : "transparent"}`,
+                          borderRadius: 10, cursor: "pointer", marginBottom: 4 }}>
+                        <div style={{ width: 36, height: 20, borderRadius: 10, background: bResumeConv ? "#e65100" : "#d1d7db", position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
+                          <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#fff", position: "absolute", top: 2, left: bResumeConv ? 18 : 2, transition: "left 0.2s" }} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: bResumeConv ? "#e65100" : "#111b21", display: "flex", alignItems: "center", gap: 6 }}>
+                            🔄 Retomar conversa com IA
+                            <span onClick={e => { e.stopPropagation(); setTooltipVisible(v => v === "resume" ? null : "resume"); }}
+                              style={{ width: 16, height: 16, borderRadius: "50%", background: "#d1d7db", color: "#54656f", fontSize: 10, fontWeight: 900, display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>i</span>
+                          </div>
+                          <div style={{ fontSize: 11, color: "#667781" }}>IA lê o histórico completo e cria mensagem do zero · <strong style={{ color: "#e65100" }}>3 créditos</strong></div>
+                        </div>
                       </div>
-                      <div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: bResumeConv ? "#e65100" : "#111b21" }}>🔄 Retomar conversa com IA</div>
-                        <div style={{ fontSize: 11, color: "#667781" }}>A IA lê o histórico completo e gera uma mensagem para reengajar o cliente · <strong style={{ color: "#e65100" }}>3 créditos por contato</strong></div>
-                      </div>
+                      {tooltipVisible === "resume" && (
+                        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 50, background: "#fff", border: "1px solid #e6510044", borderRadius: 10, padding: "12px 14px", boxShadow: "0 4px 20px #0002", marginBottom: 4 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: "#e65100", marginBottom: 6 }}>🔄 Retomar conversa</div>
+                          <div style={{ fontSize: 11, color: "#54656f", lineHeight: 1.6 }}>
+                            A IA lê todo o histórico real da conversa (até 80 mensagens) e cria uma mensagem do zero para reengajar o cliente — referenciando o que foi conversado antes.<br/><br/>
+                            Ex: <em>"Oi João! Na semana passada você perguntou sobre o plano semestral. Ainda tem interesse? Temos uma condição especial!"</em><br/><br/>
+                            <strong>Ideal para:</strong> reativar contatos inativos de forma natural e humana.<br/>
+                            <strong>Custo:</strong> 3 créditos por contato.
+                          </div>
+                          <button onClick={() => setTooltipVisible(null)} style={{ marginTop: 8, fontSize: 11, color: "#e65100", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0 }}>Fechar</button>
+                        </div>
+                      )}
                     </div>
                     {bResumeConv && (
                       <div>
                         <div style={{ background: "#e6510010", border: "1px solid #e6510033", borderRadius: 8, padding: "8px 12px", fontSize: 11, color: "#e65100", marginBottom: 6 }}>
-                          🔄 A IA vai ler todo o histórico real de cada conversa e criar uma mensagem personalizada para retomar o contato de onde parou. O campo "Mensagem" abaixo será usado como objetivo/instrução extra para a IA.
+                          🔄 O campo "Mensagem/Objetivo" abaixo é opcional — use para dar uma instrução extra à IA (ex: "mencionar promoção de verão").
                         </div>
                         {previewRecipients.length > 0 && (
-                          <div style={{ background: "#fff3e0", border: "1px solid #ffcc8088", borderRadius: 8, padding: "8px 12px", fontSize: 11, color: "#bf360c", fontWeight: 600, marginBottom: 4 }}>
-                            💳 Custo estimado: {previewRecipients.length * 3} créditos ({previewRecipients.length} contato{previewRecipients.length !== 1 ? "s" : ""} × 3)
+                          <div style={{ background: "#fff3e0", border: "1px solid #ffcc8088", borderRadius: 8, padding: "8px 12px", marginBottom: 6 }}>
+                            <div style={{ fontSize: 11, color: "#bf360c", fontWeight: 600, marginBottom: 6 }}>
+                              💳 Custo estimado: {previewRecipients.length * 3} créditos ({previewRecipients.length} contato{previewRecipients.length !== 1 ? "s" : ""} × 3)
+                            </div>
+                            <button onClick={generateResumePreview} disabled={loadingPreview}
+                              style={{ padding: "6px 14px", borderRadius: 7, border: "none", background: loadingPreview ? "#e9edef" : "#e65100", color: loadingPreview ? "#667781" : "#fff", fontSize: 11, fontWeight: 700, cursor: loadingPreview ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+                              {loadingPreview ? "⏳ Gerando..." : "👁 Ver preview da mensagem"}
+                            </button>
+                          </div>
+                        )}
+                        {resumePreview && (
+                          <div style={{ background: "#fff", border: "1px solid #e6510033", borderRadius: 10, padding: "12px 14px", marginBottom: 6 }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: "#e65100", marginBottom: 6 }}>
+                              👁 Preview — {resumePreview.contact.name || resumePreview.contact.phone}
+                              {resumePreview.total > 1 && <span style={{ color: "#667781", fontWeight: 400 }}> (exemplo do 1º contato)</span>}
+                            </div>
+                            <div style={{ fontSize: 12, color: "#111b21", background: "#f0f2f5", borderRadius: 8, padding: "10px 12px", lineHeight: 1.6, whiteSpace: "pre-wrap", marginBottom: 8 }}>
+                              {resumePreview.message}
+                            </div>
+                            <button onClick={generateResumePreview} disabled={loadingPreview}
+                              style={{ fontSize: 11, color: "#667781", background: "none", border: "1px solid #d1d7db", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}>
+                              🔁 Gerar outra versão
+                            </button>
                           </div>
                         )}
                       </div>
