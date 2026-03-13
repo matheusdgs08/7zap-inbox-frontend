@@ -4715,7 +4715,8 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const [mobileFilter, setMobileFilter] = useState("todas"); // todas | nao_lidas | pendentes
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   useEffect(() => {
-    const already = (() => { try { return localStorage.getItem("add_to_home_shown"); } catch(e) { return true; } })();
+    let already = false;
+    try { already = !!localStorage.getItem("add_to_home_shown"); } catch(e) { already = false; }
     if (!already) {
       const t = setTimeout(() => setShowAddToHome(true), 3000);
       return () => clearTimeout(t);
