@@ -4715,6 +4715,9 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const [mobileFilter, setMobileFilter] = useState("todas"); // todas | nao_lidas | pendentes
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   useEffect(() => {
+    const isMobileDevice = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+    const alreadyShown = localStorage.getItem("add_to_home_shown");
+    if (!isMobileDevice || alreadyShown) return;
     const t = setTimeout(() => setShowAddToHome(true), 3000);
     return () => clearTimeout(t);
   }, []);
@@ -7698,7 +7701,7 @@ A mensagem deve:
         </div>
       )}
 
-      {showAddToHome && <AddToHomeModal onClose={() => setShowAddToHome(false)} />}
+      {showAddToHome && <AddToHomeModal onClose={() => { localStorage.setItem("add_to_home_shown", "1"); setShowAddToHome(false); }} />}
     </div>
   );
 }
