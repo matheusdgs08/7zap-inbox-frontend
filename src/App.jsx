@@ -4736,6 +4736,9 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   // ── TENANT_ID dinâmico — sempre do usuário logado, NUNCA hardcoded ──
   const TENANT_ID = auth?.user?.tenant_id || "";
+  // Headers com JWT — sobrescreve o global para garantir autenticação em todos os fetches
+  // eslint-disable-next-line no-shadow
+  const headers = { "x-api-key": API_KEY, "Content-Type": "application/json", "Authorization": `Bearer ${auth?.token || ""}` };
   const [mobileView, setMobileView] = useState("inbox"); // inbox | chat | profile
   const [mobileFilter, setMobileFilter] = useState("todas"); // todas | nao_lidas | pendentes
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -5586,10 +5589,10 @@ A mensagem deve:
       const form = new FormData();
       form.append("file", file);
       if (caption) form.append("caption", caption);
-      const tok = localStorage.getItem("7crm_token");
+      if (auth?.user?.id) form.append("sent_by", auth.user.id);
       const r = await fetch(`${API_URL}/conversations/${selected.id}/media`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${tok}` },
+        headers: { Authorization: `Bearer ${auth?.token || ""}`, "x-api-key": API_KEY },
         body: form
       });
       const d = await r.json();
