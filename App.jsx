@@ -857,7 +857,7 @@ function LicensesPanel({ aHeaders, showToast }) {
   const [cName, setCName] = useState(""); const [cEmail, setCEmail] = useState("");
   const [cPhone, setCPhone] = useState(""); const [cPlan, setCPlan] = useState("starter");
   const [creating, setCreating] = useState(false); const [createResult, setCreateResult] = useState(null);
-  const [resendPhone, setResendPhone] = useState({}); const [sendingInvite, setSendingInvite] = useState({});
+  const [resendPhone, setResendPhone] = useState({}); const [sendingInvite, setSendingInvite] = useState({}); const [showResendMap, setShowResendMap] = useState({});
 
   const PLANS = [
     { id: "trial",    label: "Trial",    color: "#ff9800", price: "Grátis 7d",  features: ["3 atendentes","1 número","Sem IA"] },
@@ -1021,7 +1021,7 @@ function LicensesPanel({ aHeaders, showToast }) {
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {tenants.map(t => {
               const pi = planInfo(t.plan);
-              const [showResend, setShowResend] = useState(false);
+              const showResend = showResendMap[t.id] || false;
               return (
                 <div key={t.id} style={{ background: "#ffffff", border: `1px solid ${t.is_blocked ? "#f4433322" : "#e9edef"}`, borderRadius: 12, padding: "14px 18px", opacity: t.is_blocked ? 0.7 : 1 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1041,7 +1041,7 @@ function LicensesPanel({ aHeaders, showToast }) {
                         style={{ padding: "5px 8px", background: "#f0f2f5", border: "1px solid #e9edef", borderRadius: 7, color: "#111b21", fontSize: 12, outline: "none", fontFamily: "inherit", cursor: "pointer" }}>
                         {PLANS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
                       </select>
-                      <button onClick={() => setShowResend(s => !s)}
+                      <button onClick={() => setShowResendMap(m => ({ ...m, [t.id]: !m[t.id] }))}
                         style={{ padding: "5px 10px", borderRadius: 7, border: "1px solid #7c4dff44", background: "transparent", color: "#a78bfa", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
                         📱 Convite
                       </button>
@@ -1094,7 +1094,12 @@ function AdminPanel({ auth, onLogout }) {
 
   const fetchUsers = async () => {
     setLoading(true);
-    try { const r = await fetch(`${API_URL}/admin/users`, { headers: aHeaders }); const d = await r.json(); setUsers(d.users || []); } catch (e) {}
+    try {
+      const r = await fetch(`${API_URL}/admin/users`, { headers: aHeaders });
+      const d = await r.json();
+      if (!r.ok) { showToast(`Erro ao carregar usuários: ${d.detail || r.status}`, "#f44336"); }
+      else { setUsers(d.users || []); }
+    } catch (e) { showToast("Erro de conexão ao carregar usuários", "#f44336"); }
     setLoading(false);
   };
   useEffect(() => { fetchUsers(); }, []);
@@ -1167,7 +1172,9 @@ function AdminPanel({ auth, onLogout }) {
                 <button onClick={openCreate} style={{ padding: "9px 20px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>+ Novo usuário</button>
               </div>
             </div>
-            {loading ? <div style={{ color: "#667781", padding: 40, textAlign: "center" }}>Carregando...</div> : (
+            {loading ? <div style={{ color: "#667781", padding: 40, textAlign: "center" }}>Carregando...</div> : users.length === 0 ? (
+              <div style={{ textAlign: "center", padding: 60, color: "#667781" }}>Nenhum usuário encontrado.</div>
+            ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {users.map(u => (
                   <div key={u.id} style={{ background: "#ffffff", border: "1px solid #e9edef", borderRadius: 12, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, opacity: u.is_active ? 1 : 0.5 }}>
