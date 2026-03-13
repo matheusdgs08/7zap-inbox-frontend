@@ -4606,6 +4606,70 @@ function BuyCreditsModal({ tenantId, authHeaders, onClose, onSuccess, plan }) {
   );
 }
 
+
+// AddToHome Modal
+function AddToHomeModal({ onClose }) {
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isAndroid = /android/i.test(navigator.userAgent);
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      zIndex: 99999, padding: 16
+    }} onClick={onClose}>
+      <div style={{
+        background: "#1a1a2e", border: "1px solid #252540", borderRadius: 20,
+        padding: 28, maxWidth: 320, width: "100%", animation: "fadeInUp 0.3s ease"
+      }} onClick={e => e.stopPropagation()}>
+        <style>{`@keyframes fadeInUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }`}</style>
+        <div style={{ textAlign: "center", marginBottom: 20 }}>
+          <div style={{
+            width: 64, height: 64, borderRadius: 16, background: "#075e54",
+            margin: "0 auto 12px", display: "flex", alignItems: "center",
+            justifyContent: "center", fontSize: 32
+          }}>⚡</div>
+          <div style={{ color: "#fff", fontWeight: 700, fontSize: 18, marginBottom: 6 }}>
+            Adicionar à tela inicial
+          </div>
+          <div style={{ color: "#888", fontSize: 14, lineHeight: 1.5 }}>
+            Acesse o 7CRM como um app, direto da tela inicial do seu celular
+          </div>
+        </div>
+
+        {isIOS ? (
+          <div style={{ background: "#13131f", borderRadius: 12, padding: 16, marginBottom: 16 }}>
+            <div style={{ color: "#aaa", fontSize: 13, lineHeight: 1.8 }}>
+              <div style={{ marginBottom: 6 }}>1️⃣ Toque no botão <strong style={{color:"#fff"}}>Compartilhar</strong> <span style={{color:"#007aff"}}>⬆️</span></div>
+              <div style={{ marginBottom: 6 }}>2️⃣ Role e toque em <strong style={{color:"#fff"}}>"Adicionar à Tela de Início"</strong></div>
+              <div>3️⃣ Toque em <strong style={{color:"#fff"}}>Adicionar</strong></div>
+            </div>
+          </div>
+        ) : isAndroid ? (
+          <div style={{ background: "#13131f", borderRadius: 12, padding: 16, marginBottom: 16 }}>
+            <div style={{ color: "#aaa", fontSize: 13, lineHeight: 1.8 }}>
+              <div style={{ marginBottom: 6 }}>1️⃣ Toque nos <strong style={{color:"#fff"}}>3 pontinhos</strong> ⋮ do Chrome</div>
+              <div style={{ marginBottom: 6 }}>2️⃣ Toque em <strong style={{color:"#fff"}}>"Adicionar à tela inicial"</strong></div>
+              <div>3️⃣ Confirme tocando em <strong style={{color:"#fff"}}>Adicionar</strong></div>
+            </div>
+          </div>
+        ) : (
+          <div style={{ background: "#13131f", borderRadius: 12, padding: 16, marginBottom: 16 }}>
+            <div style={{ color: "#aaa", fontSize: 13 }}>
+              No menu do navegador, procure a opção <strong style={{color:"#fff"}}>"Adicionar à tela inicial"</strong>
+            </div>
+          </div>
+        )}
+
+        <button onClick={onClose} style={{
+          width: "100%", background: "#25d366", color: "#fff", border: "none",
+          borderRadius: 12, padding: "13px 0", fontSize: 15, fontWeight: 600, cursor: "pointer"
+        }}>Entendido ✓</button>
+      </div>
+    </div>
+  );
+}
+
 function AppInner({ auth, onLogout, theme, toggleTheme }) {
   // ── Theme tokens ──
   const T = theme === "dark" ? {
@@ -4651,12 +4715,21 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const [mobileFilter, setMobileFilter] = useState("todas"); // todas | nao_lidas | pendentes
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   useEffect(() => {
+    const already = (() => { try { return localStorage.getItem("add_to_home_shown"); } catch(e) { return true; } })();
+    if (!already) {
+      const t = setTimeout(() => setShowAddToHome(true), 3000);
+      return () => clearTimeout(t);
+    }
+  }, []);
+
+  useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", handler);
     return () => window.removeEventListener("resize", handler);
   }, []);
 
   const [view, setView] = useState("inbox");
+  const [showAddToHome, setShowAddToHome] = useState(false);
   const [trialInfo, setTrialInfo] = useState(null); // {status, days_left, is_blocked, plan}
   const [showTour, setShowTour] = useState(false);
   const [tourStep, setTourStep] = useState(0);
@@ -7627,6 +7700,8 @@ A mensagem deve:
           </div>
         </div>
       )}
+
+      {showAddToHome && <AddToHomeModal onClose={() => setShowAddToHome(false)} />}
     </div>
   );
 }
