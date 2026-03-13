@@ -2555,8 +2555,11 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               {/* Name */}
               <div>
-                <label style={labelStyle}>NOME DO DISPARO</label>
-                <input value={bName} onChange={e => setBName(e.target.value)} placeholder="Ex: Promoção de Janeiro" style={inputStyle} />
+                <label style={{ ...labelStyle, color: bResumeConv && !bName.trim() ? "#e65100" : undefined }}>
+                  NOME DO DISPARO {bResumeConv && !bName.trim() && <span style={{ fontWeight: 400, fontSize: 10 }}>← preencha para habilitar o disparo</span>}
+                </label>
+                <input value={bName} onChange={e => setBName(e.target.value)} placeholder="Ex: Promoção de Janeiro"
+                  style={{ ...inputStyle, borderColor: bResumeConv && !bName.trim() ? "#e65100" : undefined, boxShadow: bResumeConv && !bName.trim() ? "0 0 0 2px #e6510022" : undefined }} />
               </div>
 
               {/* Message + AI inline */}
@@ -2726,7 +2729,16 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
 
                     {/* 🔄 Retomar conversa */}
                     <div style={{ position: "relative" }}>
-                      <div onClick={() => { setBResumeConv(p => !p); if (bAiPersonalize) setBAiPersonalize(false); setResumePreview(null); }}
+                      <div onClick={() => { 
+                        const newVal = !bResumeConv;
+                        setBResumeConv(newVal); 
+                        if (bAiPersonalize) setBAiPersonalize(false); 
+                        setResumePreview(null);
+                        if (newVal && !bName.trim()) {
+                          const today = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+                          setBName(`Retomar conversa — ${today}`);
+                        }
+                      }}
                         style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px",
                           background: bResumeConv ? "#e6510015" : "#f0f2f5",
                           border: `1px solid ${bResumeConv ? "#e6510044" : "transparent"}`,
