@@ -4478,13 +4478,13 @@ function PwaInstallBanner() {
 
   return (
     <div style={{
-      position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)",
+      position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)",
       background: "#1a1a2e", border: "1px solid #252540", borderRadius: 16,
       padding: "16px 20px", display: "flex", alignItems: "center", gap: 14,
       boxShadow: "0 8px 32px rgba(0,0,0,0.5)", zIndex: 99999,
       maxWidth: 340, width: "calc(100% - 32px)", animation: "slideUp 0.3s ease"
     }}>
-      <style>{`@keyframes slideUp { from { opacity:0; transform: translateX(-50%) translateY(20px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }`}</style>
+      <style>{`@keyframes slideUp { from { opacity:0; transform: translateX(-50%) translateY(-20px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }`}</style>
       <div style={{ width: 44, height: 44, borderRadius: 10, overflow: "hidden", flexShrink: 0, background: "#075e54", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <img src="/icon-192.png" alt="7CRM" style={{ width: 44, height: 44 }} onError={e => { e.target.style.display="none"; }} />
       </div>
