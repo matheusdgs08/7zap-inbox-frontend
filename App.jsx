@@ -5791,7 +5791,7 @@ A mensagem deve:
               onManageCols={()=>{}} instanceFilter={instanceFilter} />
           </div>
           <div style={{ background:"#fff",borderTop:"1px solid #e5e7eb",display:"flex",flexShrink:0,paddingBottom:"env(safe-area-inset-bottom,0px)" }}>
-            {[{id:"inbox",icon:"💬",label:"Inbox",badge:totalUnreadMobile},{id:"kanban",icon:"🗂",label:"Kanban",badge:0},{id:"tasks_global",icon:"✅",label:"Tarefas",badge:totalPendingTasks},{id:"profile",icon:"👤",label:"Perfil",badge:0}].map(tab=>(
+            {[{id:"inbox",icon:"💬",label:"Inbox",badge:totalUnreadMobile},{id:"kanban",icon:"🗂",label:"Kanban",badge:0},{id:"leads",icon:"🏷",label:"Funil",badge:0},{id:"tasks_global",icon:"✅",label:"Tarefas",badge:totalPendingTasks},{id:"profile",icon:"👤",label:"Perfil",badge:0}].map(tab=>(
               <button key={tab.id} onClick={()=>{setSelected(null);setMobileView(tab.id);}}
                 style={{ flex:1,background:"none",border:"none",cursor:"pointer",padding:"10px 0 6px",display:"flex",flexDirection:"column",alignItems:"center",gap:3,fontFamily:"inherit",position:"relative" }}>
                 <span style={{ fontSize:22,lineHeight:1 }}>{tab.icon}</span>
@@ -5819,7 +5819,7 @@ A mensagem deve:
               onRefresh={()=>{}} />
           </div>
           <div style={{ background:"#fff",borderTop:"1px solid #e5e7eb",display:"flex",flexShrink:0,paddingBottom:"env(safe-area-inset-bottom,0px)" }}>
-            {[{id:"inbox",icon:"💬",label:"Inbox",badge:totalUnreadMobile},{id:"kanban",icon:"🗂",label:"Kanban",badge:0},{id:"tasks_global",icon:"✅",label:"Tarefas",badge:totalPendingTasks},{id:"profile",icon:"👤",label:"Perfil",badge:0}].map(tab=>(
+            {[{id:"inbox",icon:"💬",label:"Inbox",badge:totalUnreadMobile},{id:"kanban",icon:"🗂",label:"Kanban",badge:0},{id:"leads",icon:"🏷",label:"Funil",badge:0},{id:"tasks_global",icon:"✅",label:"Tarefas",badge:totalPendingTasks},{id:"profile",icon:"👤",label:"Perfil",badge:0}].map(tab=>(
               <button key={tab.id} onClick={()=>{setSelected(null);setMobileView(tab.id);}}
                 style={{ flex:1,background:"none",border:"none",cursor:"pointer",padding:"10px 0 6px",display:"flex",flexDirection:"column",alignItems:"center",gap:3,fontFamily:"inherit",position:"relative" }}>
                 <span style={{ fontSize:22,lineHeight:1 }}>{tab.icon}</span>
@@ -5875,7 +5875,36 @@ A mensagem deve:
             ))}
           </div>
           <div style={{ background:"#fff",borderTop:"1px solid #e5e7eb",display:"flex",flexShrink:0,paddingBottom:"env(safe-area-inset-bottom,0px)" }}>
-            {[{id:"inbox",icon:"💬",label:"Inbox",badge:totalUnreadMobile},{id:"kanban",icon:"🗂",label:"Kanban",badge:0},{id:"tasks_global",icon:"✅",label:"Tarefas",badge:totalPendingTasks},{id:"profile",icon:"👤",label:"Perfil",badge:0}].map(tab=>(
+            {[{id:"inbox",icon:"💬",label:"Inbox",badge:totalUnreadMobile},{id:"kanban",icon:"🗂",label:"Kanban",badge:0},{id:"leads",icon:"🏷",label:"Funil",badge:0},{id:"tasks_global",icon:"✅",label:"Tarefas",badge:totalPendingTasks},{id:"profile",icon:"👤",label:"Perfil",badge:0}].map(tab=>(
+              <button key={tab.id} onClick={()=>{setSelected(null);setMobileView(tab.id);}}
+                style={{ flex:1,background:"none",border:"none",cursor:"pointer",padding:"10px 0 6px",display:"flex",flexDirection:"column",alignItems:"center",gap:3,fontFamily:"inherit",position:"relative" }}>
+                <span style={{ fontSize:22,lineHeight:1 }}>{tab.icon}</span>
+                <span style={{ fontSize:10,color:mobileView===tab.id?"#075e54":"#9ca3af",fontWeight:mobileView===tab.id?700:400 }}>{tab.label}</span>
+                {mobileView===tab.id&&<div style={{ position:"absolute",bottom:0,left:"50%",transform:"translateX(-50%)",width:28,height:3,background:"#075e54",borderRadius:"3px 3px 0 0" }} />}
+                {(tab.badge||0)>0&&<span style={{ position:"absolute",top:8,right:"25%",background:"#ff3b30",color:"#fff",fontSize:9,fontWeight:800,padding:"1px 5px",borderRadius:10,lineHeight:1.4 }}>{tab.badge}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // ── Tela de Funil Mobile ─────────────────────────────────
+    if (mobileView === "leads") {
+      return (
+        <div style={{ display:"flex",flexDirection:"column",height:"100dvh",background:T.app,fontFamily:"'DM Sans','Segoe UI',sans-serif",overflow:"hidden" }}>
+          <div style={{ height:"env(safe-area-inset-top,0px)",background:"#075e54",flexShrink:0 }} />
+          <div style={{ background:"#075e54",padding:"12px 16px",flexShrink:0,display:"flex",alignItems:"center",gap:12 }}>
+            <span style={{ color:"#fff",fontSize:20,fontWeight:800 }}>🏷 Funil</span>
+          </div>
+          <div style={{ flex:1,overflow:"hidden" }}>
+            <LeadsBoard instanceFilter={instanceFilter} instances={waInstances} conversations={filtered}
+              kanbanCols={kanbanCols} labels={labels}
+              onSelectConv={(conv)=>{setSelected(conv);setMobileView("chat");fetchMessages(conv.id);}}
+              onManageLabels={()=>{}} onMoveLabel={moveLabelCard} />
+          </div>
+          <div style={{ background:"#fff",borderTop:"1px solid #e5e7eb",display:"flex",flexShrink:0,paddingBottom:"env(safe-area-inset-bottom,0px)" }}>
+            {[{id:"inbox",icon:"💬",label:"Inbox",badge:totalUnreadMobile},{id:"kanban",icon:"🗂",label:"Kanban",badge:0},{id:"leads",icon:"🏷",label:"Funil",badge:0},{id:"tasks_global",icon:"✅",label:"Tarefas",badge:totalPendingTasks},{id:"profile",icon:"👤",label:"Perfil",badge:0}].map(tab=>(
               <button key={tab.id} onClick={()=>{setSelected(null);setMobileView(tab.id);}}
                 style={{ flex:1,background:"none",border:"none",cursor:"pointer",padding:"10px 0 6px",display:"flex",flexDirection:"column",alignItems:"center",gap:3,fontFamily:"inherit",position:"relative" }}>
                 <span style={{ fontSize:22,lineHeight:1 }}>{tab.icon}</span>
@@ -5992,6 +6021,7 @@ A mensagem deve:
           {[
             {id:"inbox",icon:"💬",label:"Inbox",badge:totalUnreadMobile},
             {id:"kanban",icon:"🗂",label:"Kanban",badge:0},
+            {id:"leads",icon:"🏷",label:"Funil",badge:0},
             {id:"tasks_global",icon:"✅",label:"Tarefas",badge:totalPendingTasks},
             {id:"profile",icon:"👤",label:"Perfil",badge:0},
           ].map(tab=>{
