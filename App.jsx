@@ -4718,6 +4718,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const [copilotAutoMode, setCopilotAutoMode] = useState("off"); // off | schedule | always | per_conv
   const [copilotScheduleStart, setCopilotScheduleStart] = useState("18:00");
   const [copilotScheduleEnd, setCopilotScheduleEnd] = useState("09:00");
+  const [copilotWatchguard, setCopilotWatchguard] = useState(false); // 🛡 Watch Guard
   const [savingPrompt, setSavingPrompt] = useState(false);
   const [promptSaved, setPromptSaved] = useState(false);
   const [syncingPhotos, setSyncingPhotos] = useState(false);
@@ -5043,9 +5044,10 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       setInstanceConfigs(prev => ({ ...prev, [instanceName]: d }));
       setCopilotPrompt(d.copilot_prompt || "");
       setCopilotAutoMode(d.copilot_auto_mode || "off");
+      setCopilotWatchguard(!!d.copilot_watchguard);
       setCopilotScheduleStart(d.copilot_schedule_start || "18:00");
       setCopilotScheduleEnd(d.copilot_schedule_end || "09:00");
-    } catch (e) {}
+      setCopilotWatchguard(!!d.copilot_watchguard);
   }, []);
 
   const fetchCredits = useCallback(async () => {
@@ -5079,12 +5081,13 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
         copilot_prompt: copilotPrompt,
         copilot_auto_mode: copilotAutoMode,
         copilot_schedule_start: copilotScheduleStart,
-        copilot_schedule_end: copilotScheduleEnd
+        copilot_schedule_end: copilotScheduleEnd,
+        copilot_watchguard: copilotWatchguard
       };
       const r = await fetch(`${API_URL}/tenant/copilot-prompt`, { method: "PUT", headers, body: JSON.stringify(body) });
       const d = await r.json();
       if (!r.ok) { showToast("❌ Erro ao salvar: " + (d.detail || "tente novamente")); setSavingPrompt(false); return; }
-      setInstanceConfigs(prev => ({ ...prev, [configIaInstance]: { ...prev[configIaInstance], copilot_prompt: copilotPrompt, copilot_auto_mode: copilotAutoMode, copilot_schedule_start: copilotScheduleStart, copilot_schedule_end: copilotScheduleEnd } }));
+      setInstanceConfigs(prev => ({ ...prev, [configIaInstance]: { ...prev[configIaInstance], copilot_prompt: copilotPrompt, copilot_auto_mode: copilotAutoMode, copilot_schedule_start: copilotScheduleStart, copilot_schedule_end: copilotScheduleEnd, copilot_watchguard: copilotWatchguard } }));
       setPromptSaved(true);
       setShowSaveSuccessModal(true); // abre modal de sucesso
       setTimeout(() => setPromptSaved(false), 3000);
@@ -5209,6 +5212,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
         setCopilotAutoMode(cfg.copilot_auto_mode || "off");
         setCopilotScheduleStart(cfg.copilot_schedule_start || "18:00");
         setCopilotScheduleEnd(cfg.copilot_schedule_end || "09:00");
+        setCopilotWatchguard(!!cfg.copilot_watchguard);
         fetchConvQuality(target);
       }
     }
@@ -5669,7 +5673,7 @@ A mensagem deve:
       if (mobileFilter === "nao_lidas") return c.unread_count > 0;
       if (mobileFilter === "pendentes") return c.status === "pending";
       return true;
-    });
+    }).sort((a,b) => new Date(b.last_message_at||0) - new Date(a.last_message_at||0));
     const totalUnreadMobile = conversations.reduce((s,c) => s + (c.unread_count||0), 0);
 
     // ── Tela de Chat Mobile ──────────────────────────────────
@@ -5863,7 +5867,6 @@ A mensagem deve:
                 {icon:"📊",label:"Relatórios",action:()=>{setView("reports");setMobileView("inbox");}},
                 {icon:"🔐",label:"Admin",action:()=>{setView("admin");setMobileView("inbox");}},
               ]:[]),
-              {icon:"🌙",label:theme==="dark"?"Modo claro":"Modo escuro",action:()=>setTheme(t=>t==="dark"?"light":"dark")},
               {icon:"🚪",label:"Sair",danger:true,action:()=>{ localStorage.clear(); window.location.reload(); }},
             ].map((item,i)=>(
               <button key={i} onClick={item.action}
@@ -6449,6 +6452,27 @@ A mensagem deve:
                 {copilotAutoMode === "per_conv" && (
                   <div style={{ background: "#00a88415", border: "1px solid #00a88433", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#00a884" }}>
                     ✓ Um botão <strong>🤖 Auto</strong> vai aparecer em cada conversa para o atendente ativar o modo automático individualmente.
+                  </div>
+                )}
+
+                {/* ── 🛡 Watch Guard ── */}
+                <div
+                  onClick={() => setCopilotWatchguard(v => !v)}
+                  style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", borderRadius: 12, border: `2px solid ${copilotWatchguard ? "#00a884" : T.border}`, background: copilotWatchguard ? "#00a88410" : T.card, cursor: "pointer", transition: "all 0.2s", userSelect: "none" }}>
+                  <div style={{ fontSize: 24, flexShrink: 0 }}>🛡</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: copilotWatchguard ? "#00a884" : T.text, marginBottom: 2 }}>Watch Guard — Garantir última resposta</div>
+                    <div style={{ fontSize: 11, color: T.text2, lineHeight: 1.4 }}>
+                      Verifica a cada 5 min se algum cliente ficou sem resposta. Se a última mensagem for do cliente, a IA responde automaticamente — independente do modo acima.
+                    </div>
+                  </div>
+                  <div style={{ width: 44, height: 24, borderRadius: 12, background: copilotWatchguard ? "#00a884" : "#ccc", position: "relative", flexShrink: 0, transition: "background 0.2s" }}>
+                    <div style={{ position: "absolute", top: 2, left: copilotWatchguard ? 22 : 2, width: 20, height: 20, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.25)", transition: "left 0.2s" }} />
+                  </div>
+                </div>
+                {copilotWatchguard && (
+                  <div style={{ marginTop: 6, padding: "8px 14px", background: "#00a88412", border: "1px solid #00a88433", borderRadius: 8, fontSize: 11, color: "#00a884", lineHeight: 1.5 }}>
+                    ✓ Watch Guard ativo — passando a cada 5 min. Se a última mensagem de uma conversa for do cliente há mais de 6 min, a IA responde automaticamente.
                   </div>
                 )}
               </div>
