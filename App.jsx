@@ -5867,10 +5867,10 @@ A mensagem deve:
               </div>
             );
           })}
-          {hasMoreConversations&&(
+          {hasMoreConvs&&(
             <div style={{ textAlign:"center",padding:"16px" }}>
-              <button onClick={loadMoreConversations} style={{ background:"#00a88415",border:"1px solid #00a88444",borderRadius:20,padding:"8px 20px",color:"#00a884",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit" }}>
-                {loadingMore?"⏳ Carregando...":"Carregar mais"}
+              <button onClick={fetchMoreConversations} style={{ background:"#00a88415",border:"1px solid #00a88444",borderRadius:20,padding:"8px 20px",color:"#00a884",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit" }}>
+                {loadingMoreConvs?"⏳ Carregando...":"Carregar mais"}
               </button>
             </div>
           )}
