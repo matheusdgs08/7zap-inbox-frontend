@@ -5777,6 +5777,118 @@ A mensagem deve:
       );
     }
 
+    // ── Tela de Kanban Mobile ────────────────────────────────
+    if (mobileView === "kanban") {
+      return (
+        <div style={{ display:"flex",flexDirection:"column",height:"100dvh",background:T.app,fontFamily:"'DM Sans','Segoe UI',sans-serif",overflow:"hidden" }}>
+          <div style={{ height:"env(safe-area-inset-top,0px)",background:"#075e54",flexShrink:0 }} />
+          <div style={{ background:"#075e54",padding:"12px 16px",flexShrink:0,display:"flex",alignItems:"center",gap:12 }}>
+            <span style={{ color:"#fff",fontSize:20,fontWeight:800 }}>🗂 Kanban</span>
+          </div>
+          <div style={{ flex:1,overflow:"hidden" }}>
+            <KanbanBoard conversations={conversations} columns={kanbanCols} onMoveCard={moveKanbanCard}
+              onSelectConv={(conv)=>{setSelected(conv);setMobileView("chat");fetchMessages(conv.id);}}
+              onManageCols={()=>{}} instanceFilter={instanceFilter} />
+          </div>
+          <div style={{ background:"#fff",borderTop:"1px solid #e5e7eb",display:"flex",flexShrink:0,paddingBottom:"env(safe-area-inset-bottom,0px)" }}>
+            {[{id:"inbox",icon:"💬",label:"Inbox",badge:totalUnreadMobile},{id:"kanban",icon:"🗂",label:"Kanban",badge:0},{id:"tasks_global",icon:"✅",label:"Tarefas",badge:totalPendingTasks},{id:"profile",icon:"👤",label:"Perfil",badge:0}].map(tab=>(
+              <button key={tab.id} onClick={()=>{setSelected(null);setMobileView(tab.id);}}
+                style={{ flex:1,background:"none",border:"none",cursor:"pointer",padding:"10px 0 6px",display:"flex",flexDirection:"column",alignItems:"center",gap:3,fontFamily:"inherit",position:"relative" }}>
+                <span style={{ fontSize:22,lineHeight:1 }}>{tab.icon}</span>
+                <span style={{ fontSize:10,color:mobileView===tab.id?"#075e54":"#9ca3af",fontWeight:mobileView===tab.id?700:400 }}>{tab.label}</span>
+                {mobileView===tab.id&&<div style={{ position:"absolute",bottom:0,left:"50%",transform:"translateX(-50%)",width:28,height:3,background:"#075e54",borderRadius:"3px 3px 0 0" }} />}
+                {(tab.badge||0)>0&&<span style={{ position:"absolute",top:8,right:"25%",background:"#ff3b30",color:"#fff",fontSize:9,fontWeight:800,padding:"1px 5px",borderRadius:10,lineHeight:1.4 }}>{tab.badge}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // ── Tela de Tarefas Mobile ───────────────────────────────
+    if (mobileView === "tasks_global") {
+      return (
+        <div style={{ display:"flex",flexDirection:"column",height:"100dvh",background:T.app,fontFamily:"'DM Sans','Segoe UI',sans-serif",overflow:"hidden" }}>
+          <div style={{ height:"env(safe-area-inset-top,0px)",background:"#075e54",flexShrink:0 }} />
+          <div style={{ background:"#075e54",padding:"12px 16px",flexShrink:0,display:"flex",alignItems:"center",gap:12 }}>
+            <span style={{ color:"#fff",fontSize:20,fontWeight:800 }}>✅ Tarefas</span>
+          </div>
+          <div style={{ flex:1,overflow:"auto" }}>
+            <GlobalTasksView pendingTasksMap={pendingTasksMap} conversations={conversations} agents={agents}
+              onSelectConv={(conv)=>{setSelected(conv);setMobileView("chat");fetchMessages(conv.id);}}
+              onRefresh={()=>{}} />
+          </div>
+          <div style={{ background:"#fff",borderTop:"1px solid #e5e7eb",display:"flex",flexShrink:0,paddingBottom:"env(safe-area-inset-bottom,0px)" }}>
+            {[{id:"inbox",icon:"💬",label:"Inbox",badge:totalUnreadMobile},{id:"kanban",icon:"🗂",label:"Kanban",badge:0},{id:"tasks_global",icon:"✅",label:"Tarefas",badge:totalPendingTasks},{id:"profile",icon:"👤",label:"Perfil",badge:0}].map(tab=>(
+              <button key={tab.id} onClick={()=>{setSelected(null);setMobileView(tab.id);}}
+                style={{ flex:1,background:"none",border:"none",cursor:"pointer",padding:"10px 0 6px",display:"flex",flexDirection:"column",alignItems:"center",gap:3,fontFamily:"inherit",position:"relative" }}>
+                <span style={{ fontSize:22,lineHeight:1 }}>{tab.icon}</span>
+                <span style={{ fontSize:10,color:mobileView===tab.id?"#075e54":"#9ca3af",fontWeight:mobileView===tab.id?700:400 }}>{tab.label}</span>
+                {mobileView===tab.id&&<div style={{ position:"absolute",bottom:0,left:"50%",transform:"translateX(-50%)",width:28,height:3,background:"#075e54",borderRadius:"3px 3px 0 0" }} />}
+                {(tab.badge||0)>0&&<span style={{ position:"absolute",top:8,right:"25%",background:"#ff3b30",color:"#fff",fontSize:9,fontWeight:800,padding:"1px 5px",borderRadius:10,lineHeight:1.4 }}>{tab.badge}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // ── Tela de Perfil Mobile ────────────────────────────────
+    if (mobileView === "profile") {
+      return (
+        <div style={{ display:"flex",flexDirection:"column",height:"100dvh",background:T.app,fontFamily:"'DM Sans','Segoe UI',sans-serif",overflow:"hidden" }}>
+          <div style={{ height:"env(safe-area-inset-top,0px)",background:"#075e54",flexShrink:0 }} />
+          <div style={{ background:"#075e54",padding:"12px 16px",flexShrink:0,display:"flex",alignItems:"center",gap:12 }}>
+            <span style={{ color:"#fff",fontSize:20,fontWeight:800 }}>👤 Perfil</span>
+          </div>
+          <div style={{ flex:1,overflowY:"auto",padding:"24px 16px",display:"flex",flexDirection:"column",gap:16 }}>
+            {/* Avatar */}
+            <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:12,paddingBottom:24,borderBottom:`1px solid ${T.border}` }}>
+              <div style={{ width:72,height:72,borderRadius:"50%",background:"linear-gradient(135deg,#00a884,#00c99e)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:28,boxShadow:"0 4px 16px #00a88444" }}>
+                {auth?.user?.name?.[0]?.toUpperCase()||"?"}
+              </div>
+              <div style={{ textAlign:"center" }}>
+                <div style={{ fontSize:18,fontWeight:700,color:T.text }}>{auth?.user?.name}</div>
+                <div style={{ fontSize:13,color:T.text2,marginTop:2 }}>{auth?.user?.email}</div>
+                <div style={{ display:"inline-block",marginTop:8,background:auth?.user?.role==="admin"?"#dcfce7":"#f0f9ff",color:auth?.user?.role==="admin"?"#166534":"#0369a1",fontSize:11,fontWeight:700,padding:"3px 12px",borderRadius:20 }}>
+                  {auth?.user?.role==="admin"?"👑 Admin":"🎧 Atendente"}
+                </div>
+              </div>
+            </div>
+            {/* Menu items */}
+            {[
+              ...(auth?.user?.role==="admin"?[
+                {icon:"⚙️",label:"Config IA",action:()=>{setView("config_ia");setMobileView("inbox");}},
+                {icon:"📢",label:"Disparos",action:()=>{setView("disparos");setMobileView("inbox");}},
+                {icon:"📊",label:"Relatórios",action:()=>{setView("reports");setMobileView("inbox");}},
+                {icon:"🔐",label:"Admin",action:()=>{setView("admin");setMobileView("inbox");}},
+              ]:[]),
+              {icon:"🌙",label:theme==="dark"?"Modo claro":"Modo escuro",action:()=>setTheme(t=>t==="dark"?"light":"dark")},
+              {icon:"🚪",label:"Sair",danger:true,action:()=>{ localStorage.clear(); window.location.reload(); }},
+            ].map((item,i)=>(
+              <button key={i} onClick={item.action}
+                style={{ display:"flex",alignItems:"center",gap:14,padding:"15px 18px",background:T.card,border:"none",borderRadius:14,cursor:"pointer",fontFamily:"inherit",width:"100%",boxShadow:"0 1px 4px rgba(0,0,0,0.06)",transition:"opacity 0.15s" }}>
+                <span style={{ fontSize:22,flexShrink:0 }}>{item.icon}</span>
+                <span style={{ fontSize:15,fontWeight:600,color:item.danger?"#ef4444":T.text,flex:1,textAlign:"left" }}>{item.label}</span>
+                <span style={{ color:T.text2,fontSize:16 }}>›</span>
+              </button>
+            ))}
+          </div>
+          <div style={{ background:"#fff",borderTop:"1px solid #e5e7eb",display:"flex",flexShrink:0,paddingBottom:"env(safe-area-inset-bottom,0px)" }}>
+            {[{id:"inbox",icon:"💬",label:"Inbox",badge:totalUnreadMobile},{id:"kanban",icon:"🗂",label:"Kanban",badge:0},{id:"tasks_global",icon:"✅",label:"Tarefas",badge:totalPendingTasks},{id:"profile",icon:"👤",label:"Perfil",badge:0}].map(tab=>(
+              <button key={tab.id} onClick={()=>{setSelected(null);setMobileView(tab.id);}}
+                style={{ flex:1,background:"none",border:"none",cursor:"pointer",padding:"10px 0 6px",display:"flex",flexDirection:"column",alignItems:"center",gap:3,fontFamily:"inherit",position:"relative" }}>
+                <span style={{ fontSize:22,lineHeight:1 }}>{tab.icon}</span>
+                <span style={{ fontSize:10,color:mobileView===tab.id?"#075e54":"#9ca3af",fontWeight:mobileView===tab.id?700:400 }}>{tab.label}</span>
+                {mobileView===tab.id&&<div style={{ position:"absolute",bottom:0,left:"50%",transform:"translateX(-50%)",width:28,height:3,background:"#075e54",borderRadius:"3px 3px 0 0" }} />}
+                {(tab.badge||0)>0&&<span style={{ position:"absolute",top:8,right:"25%",background:"#ff3b30",color:"#fff",fontSize:9,fontWeight:800,padding:"1px 5px",borderRadius:10,lineHeight:1.4 }}>{tab.badge}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
     // ── Tela de Inbox Mobile ─────────────────────────────────
     return (
       <div style={{ display:"flex",flexDirection:"column",height:"100dvh",background:"#f0f2f5",fontFamily:"'DM Sans','Segoe UI',sans-serif",overflow:"hidden" }}>
