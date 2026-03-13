@@ -1827,11 +1827,16 @@ function WhatsAppScreen({ auth, T, theme, onConnected }) {
   // Cleanup QR poll on unmount
   useEffect(() => () => { if (qrPollRef.current) clearInterval(qrPollRef.current); }, []);
 
-  // Called when user clicks "Gerar QR Code" — soft-locks if inst already has a phone
+  // Called when user clicks "Gerar QR Code"
+  // - Instância conectada (ativa) com número: mostra aviso de troca de número
+  // - Instância desconectada com número: é reconexão → vai direto pro QR (sem warning)
+  // - Sem número ainda: vai direto pro QR
   const handleGenerateQr = (inst) => {
-    if (inst.phone) {
+    if (inst.phone && inst.connected) {
+      // Número ativo → avisa que irá substituir
       setConfirmPhone({ inst, value: "" });
     } else {
+      // Desconectado ou sem número → reconectar direto, sem aviso
       fetchQr(inst.instance_name);
     }
   };
@@ -2181,6 +2186,10 @@ function WhatsAppScreen({ auth, T, theme, onConnected }) {
                               style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#fff", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
                               → Ir para o Inbox
                             </button>
+                            <button onClick={() => setConfirmPhone({ inst, value: "" })}
+                              style={{ padding: "10px 24px", borderRadius: 10, border: "1px solid #f4433344", background: "#f4433308", color: "#f44336", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                              🔄 Trocar número
+                            </button>
                           </div>
                         </>
                       )}
@@ -2210,6 +2219,12 @@ function WhatsAppScreen({ auth, T, theme, onConnected }) {
                             </button>
                             {qrCode && <span style={{ fontSize: 11, color: "#ff6d00", fontWeight: 600 }}>⏱ Expira em ~60 segundos</span>}
                           </div>
+                          {inst.phone && (
+                            <div style={{ background: "#e8f5e9", border: "1px solid #00a88433", borderRadius: 10, padding: "10px 14px", fontSize: 12, color: "#2e7d32", textAlign: "center", maxWidth: 320 }}>
+                              📱 Reconectando <strong>+{inst.phone}</strong> — escaneie com o mesmo número.<br/>
+                              <span style={{ color: "#667781", fontSize: 11 }}>O histórico não será apagado.</span>
+                            </div>
+                          )}
                           <div style={{ width: "100%" }}>
                             <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: "#54656f" }}>Como conectar:</div>
                             {["Abra o WhatsApp no celular", "Menu (⋮) → Dispositivos conectados", "Toque em Adicionar dispositivo", "Aponte a câmera para o QR Code ✅"].map((step, i) => (
@@ -5765,7 +5780,8 @@ A mensagem deve:
   const getConvInstanceConfig = useCallback((conv) => {
     const instName = conv?.instance_name;
     if (instName && instanceConfigs[instName]) return instanceConfigs[instName];
-    // Fallback seguro: "off" — nunca herda o estado da tela do Config IA
+    // Se instanceConfigs ainda está carregando (vazio), retorna null para não mostrar "off" prematuramente
+    if (instName && Object.keys(instanceConfigs).length === 0) return null;
     return { copilot_auto_mode: "off", copilot_schedule_start: "18:00", copilot_schedule_end: "09:00" };
   }, [instanceConfigs]);
 
@@ -5773,6 +5789,7 @@ A mensagem deve:
     // Se pausado manualmente nesta conversa, nunca está ativo
     if (conv?.copilot_auto_mode === false || conv?.copilot_auto_mode === "false") return false;
     const cfg = getConvInstanceConfig(conv);
+    if (!cfg) return null; // ainda carregando — não esconde o banner
     const mode = cfg.copilot_auto_mode || "off";
     const schedStart = cfg.copilot_schedule_start || "18:00";
     const schedEnd = cfg.copilot_schedule_end || "09:00";
@@ -7189,7 +7206,7 @@ A mensagem deve:
                         </div>
                       </div>
                     </div>
-                    {isAutoActive(selected) && (
+                    {isAutoActive(selected) === true && (
                       <div style={{ width: "100%", padding: "5px 14px", background: "#7c4dff18", borderTop: "1px solid #7c4dff33", display: "flex", alignItems: "center", gap: 8, fontSize: 11 }}>
                         <span style={{ animation: "pulse 2s infinite", display: "inline-block" }}>🤖</span>
                         <span style={{ color: "#a78bfa", fontWeight: 700 }}>Co-pilot automático ativo</span>
