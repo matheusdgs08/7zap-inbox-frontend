@@ -2444,6 +2444,7 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
   const generateResumePreview = async () => {
     const recs = buildRecipients();
     if (recs.length === 0) return;
+    if (!window.confirm(`👁 Gerar preview consome 3 créditos.\n\nDeseja continuar?`)) return;
     setLoadingPreview(true);
     setResumePreview(null);
     try {
@@ -2452,8 +2453,10 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
         method: "POST", headers,
         body: JSON.stringify({ tenant_id: TENANT_ID, conversation_id: first.conversation_id, contact_name: first.name, contact_phone: first.phone, objective: bMessage })
       });
+      if (r.status === 402) { showToast("❌ Créditos insuficientes para gerar preview", "#f44336"); setLoadingPreview(false); return; }
       const d = await r.json();
-      setResumePreview({ contact: first, message: d.preview, total: recs.length });
+      setResumePreview({ contact: first, message: d.preview, total: recs.length, creditsLeft: d.credits_left });
+      if (d.credits_left !== undefined) showToast(`✓ Preview gerado · ${d.credits_left} créditos restantes`, "#e65100");
     } catch (e) { showToast("Erro ao gerar preview", "#f44336"); }
     setLoadingPreview(false);
   };
@@ -2471,7 +2474,7 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
     }
     setCreating(true);
     try {
-      await fetch(`${API_URL}/broadcasts`, { method: "POST", headers, body: JSON.stringify({
+      const resp = await fetch(`${API_URL}/broadcasts`, { method: "POST", headers, body: JSON.stringify({
         tenant_id: TENANT_ID, name: bName, message: bMessage || (bResumeConv ? "(retomar conversa)" : "(IA personaliza)"),
         interval_min: bIntervalMin, interval_max: bIntervalMax,
         scheduled_at: bScheduledAt || null, recipients: recs,
@@ -2479,10 +2482,22 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
         resume_conversation: bResumeConv,
         instance_name: instanceFilter || null
       })});
-      setBName(""); setBMessage(""); setBIntervalMin(60); setBIntervalMax(120); setBScheduledAt(""); setBRecipients([]); setCsvText(""); setAiObjective(""); setBAiPersonalize(false); setBResumeConv(false); setBInactiveDays(7);
+      const wasResume = bResumeConv;
+      const wasAi = bAiPersonalize;
+      const wasScheduled = !!bScheduledAt;
+      const nRecs = recs.length;
+      setBName(""); setBMessage(""); setBIntervalMin(60); setBIntervalMax(120); setBScheduledAt(""); setBRecipients([]); setCsvText(""); setAiObjective(""); setBAiPersonalize(false); setBResumeConv(false); setBInactiveDays(7); setResumePreview(null);
       setTab("queue"); fetchBroadcasts();
-      showToast(bResumeConv ? "🔄 Retomar conversa iniciado! A IA vai personalizar cada mensagem com o histórico real ✓" : bAiPersonalize ? "🤖 Disparo com IA iniciado! A IA vai personalizar cada mensagem ✓" : bScheduledAt ? "📅 Disparo agendado! Veja na aba Fila ✓" : "🚀 Disparo iniciado! Acompanhe na Fila ✓");
-    } catch (e) {}
+      if (wasResume) {
+        showToast(`🔄 Disparo iniciado! A IA está gerando mensagens personalizadas para ${nRecs} contato${nRecs !== 1 ? "s" : ""}. Acompanhe na aba Fila ✓`, "#e65100");
+      } else if (wasAi) {
+        showToast("🤖 Disparo com IA iniciado! Acompanhe o progresso na aba Fila ✓", "#7c4dff");
+      } else if (wasScheduled) {
+        showToast("📅 Disparo agendado com sucesso! Veja na aba Agendamentos ✓", "#00a884");
+      } else {
+        showToast(`🚀 Disparo iniciado para ${nRecs} contato${nRecs !== 1 ? "s" : ""}! Acompanhe na aba Fila ✓`, "#00a884");
+      }
+    } catch (e) { showToast("❌ Erro ao criar disparo. Tente novamente.", "#f44336"); }
     setCreating(false);
   };
 
@@ -2793,10 +2808,13 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
                             <div style={{ fontSize: 12, color: "#111b21", background: "#f0f2f5", borderRadius: 8, padding: "10px 12px", lineHeight: 1.6, whiteSpace: "pre-wrap", marginBottom: 8 }}>
                               {resumePreview.message}
                             </div>
-                            <button onClick={generateResumePreview} disabled={loadingPreview}
-                              style={{ fontSize: 11, color: "#667781", background: "none", border: "1px solid #d1d7db", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}>
-                              🔁 Gerar outra versão
-                            </button>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <button onClick={generateResumePreview} disabled={loadingPreview}
+                                style={{ fontSize: 11, color: "#667781", background: "none", border: "1px solid #d1d7db", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}>
+                                🔁 Gerar outra versão
+                              </button>
+                              <span style={{ fontSize: 10, color: "#e65100", fontWeight: 600 }}>(-3 créditos)</span>
+                            </div>
                           </div>
                         )}
                       </div>
