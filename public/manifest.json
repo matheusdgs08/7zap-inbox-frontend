@@ -1,26 +1,35 @@
 {
-  "name": "7CRM — Inbox WhatsApp",
+  "name": "7CRM \u2014 Inbox WhatsApp",
   "short_name": "7CRM",
   "description": "Multiatendimento WhatsApp com IA",
-  "start_url": "/",
+  "start_url": "https://www.7crm.com.br/",
+  "scope": "https://www.7crm.com.br/",
   "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui",
+    "browser"
+  ],
   "background_color": "#0a0a0f",
   "theme_color": "#075e54",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/icon-192.png",
+      "src": "https://www.7crm.com.br/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icon-512.png",
+      "src": "https://www.7crm.com.br/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     }
   ],
-  "categories": ["business", "productivity"],
+  "categories": [
+    "business",
+    "productivity"
+  ],
   "lang": "pt-BR"
 }
