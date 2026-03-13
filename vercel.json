@@ -5,8 +5,19 @@
       "destination": "/index.html"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!manifest\\.json|sw\\.js|icon-.*\\.png).*)",
       "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
+        }
+      ]
     }
   ]
 }
