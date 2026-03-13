@@ -2354,6 +2354,7 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
   const [bFilter, setBFilter] = useState("manual"); // manual | inativos | label | kanban | status | csv
   const [bInactiveDays, setBInactiveDays] = useState(7); // 3 | 7 | 15
   const [bAiPersonalize, setBAiPersonalize] = useState(false); // gerar msg IA por contato
+  const [bResumeConv, setBResumeConv] = useState(false); // 🔄 retomar conversa com histórico completo (3 créditos/contato)
   const [bFilterValue, setBFilterValue] = useState("");
   const [bRecipients, setBRecipients] = useState([]); // [{phone,name}]
   const [csvText, setCsvText] = useState("");
@@ -2440,22 +2441,27 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
   const createBroadcast = async () => {
     const recs = buildRecipients();
     if (!bName.trim() || recs.length === 0 || creating) return;
-    if (!bAiPersonalize && !bMessage.trim()) { alert("Digite a mensagem ou ative a personalização por IA."); return; }
+    if (!bAiPersonalize && !bResumeConv && !bMessage.trim()) { alert("Digite a mensagem ou ative a personalização por IA."); return; }
     if (bIntervalMin < 60) { alert("⚠️ Intervalo mínimo é 60 segundos para evitar ban!"); return; }
-    if (bAiPersonalize && recs.length > 20) {
+    if (bResumeConv) {
+      const cost = recs.length * 3;
+      if (!window.confirm(`🔄 Retomar conversa com IA\n\n${recs.length} contato${recs.length !== 1 ? "s" : ""} selecionado${recs.length !== 1 ? "s" : ""}.\nCusto: ${cost} créditos (3 por contato).\n\nA IA vai ler o histórico completo de cada conversa e gerar uma mensagem personalizada para retomar o contato.\n\nContinuar?`)) return;
+    } else if (bAiPersonalize && recs.length > 20) {
       if (!window.confirm(`A IA vai gerar ${recs.length} mensagens únicas. Isso pode levar alguns minutos. Continuar?`)) return;
     }
     setCreating(true);
     try {
       await fetch(`${API_URL}/broadcasts`, { method: "POST", headers, body: JSON.stringify({
-        tenant_id: TENANT_ID, name: bName, message: bMessage || "(IA personaliza)",
+        tenant_id: TENANT_ID, name: bName, message: bMessage || (bResumeConv ? "(retomar conversa)" : "(IA personaliza)"),
         interval_min: bIntervalMin, interval_max: bIntervalMax,
         scheduled_at: bScheduledAt || null, recipients: recs,
-        ai_personalize: bAiPersonalize
+        ai_personalize: bAiPersonalize,
+        resume_conversation: bResumeConv,
+        instance_name: instanceFilter || null
       })});
-      setBName(""); setBMessage(""); setBIntervalMin(60); setBIntervalMax(120); setBScheduledAt(""); setBRecipients([]); setCsvText(""); setAiObjective(""); setBAiPersonalize(false); setBInactiveDays(7);
+      setBName(""); setBMessage(""); setBIntervalMin(60); setBIntervalMax(120); setBScheduledAt(""); setBRecipients([]); setCsvText(""); setAiObjective(""); setBAiPersonalize(false); setBResumeConv(false); setBInactiveDays(7);
       setTab("queue"); fetchBroadcasts();
-      showToast(bAiPersonalize ? "🤖 Disparo com IA iniciado! A IA vai personalizar cada mensagem ✓" : bScheduledAt ? "📅 Disparo agendado! Veja na aba Fila ✓" : "🚀 Disparo iniciado! Acompanhe na Fila ✓");
+      showToast(bResumeConv ? "🔄 Retomar conversa iniciado! A IA vai personalizar cada mensagem com o histórico real ✓" : bAiPersonalize ? "🤖 Disparo com IA iniciado! A IA vai personalizar cada mensagem ✓" : bScheduledAt ? "📅 Disparo agendado! Veja na aba Fila ✓" : "🚀 Disparo iniciado! Acompanhe na Fila ✓");
     } catch (e) {}
     setCreating(false);
   };
@@ -2536,18 +2542,18 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
               {/* Message + AI inline */}
               <div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                  <label style={{ ...labelStyle, margin: 0 }}>MENSAGEM <span style={{ color: "#667781", fontWeight: 400 }}>— use {"{nome}"} para personalizar</span></label>
-                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <label style={{ ...labelStyle, margin: 0 }}>{bResumeConv ? "OBJETIVO / INSTRUÇÃO EXTRA PARA A IA" : "MENSAGEM"} {!bResumeConv && <span style={{ color: "#667781", fontWeight: 400 }}>— use {"{nome}"} para personalizar</span>}</label>
+                  {!bResumeConv && <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                     <input value={aiObjective} onChange={e => setAiObjective(e.target.value)} onKeyDown={e => e.key === "Enter" && suggestWithAI()} placeholder="Descreva o objetivo da mensagem..." style={{ ...inputStyle, width: 240, padding: "6px 10px", fontSize: 12 }} />
                     <button onClick={suggestWithAI} disabled={loadingAI || !aiObjective.trim()} style={{ padding: "6px 12px", borderRadius: 7, border: "none", background: aiObjective.trim() ? "linear-gradient(135deg,#7c4dff,#5b21b6)" : "#e9edef", color: aiObjective.trim() ? "#fff" : "#8696a0", fontSize: 11, fontWeight: 700, cursor: aiObjective.trim() ? "pointer" : "not-allowed", fontFamily: "inherit", flexShrink: 0, whiteSpace: "nowrap" }}>{loadingAI ? "⏳" : "✨ Gerar"}</button>
-                  </div>
+                  </div>}
                 </div>
-                <textarea value={bMessage} onChange={e => setBMessage(e.target.value)} placeholder="Olá {nome}, temos uma novidade especial para você..." rows={5} style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }} />
-                <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                <textarea value={bMessage} onChange={e => setBMessage(e.target.value)} placeholder={bResumeConv ? "Ex: Oferecer desconto especial, mencionar que temos vagas abertas, perguntar se ainda tem interesse..." : "Olá {nome}, temos uma novidade especial para você..."} rows={bResumeConv ? 3 : 5} style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6, borderColor: bResumeConv ? "#e6510055" : undefined }} />
+                {!bResumeConv && <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
                   {["{nome}", "{telefone}"].map(v => (
                     <span key={v} onClick={() => setBMessage(m => m + v)} style={{ fontSize: 11, background: "#e9edef", color: "#8696a0", padding: "2px 8px", borderRadius: 6, cursor: "pointer", fontFamily: "monospace" }}>{v}</span>
                   ))}
-                </div>
+                </div>}
               </div>
 
               {/* Interval config */}
@@ -2623,7 +2629,7 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
                         </button>
                       ))}
                     </div>
-                    <div onClick={() => setBAiPersonalize(p => !p)}
+                    <div onClick={() => { setBAiPersonalize(p => !p); if (bResumeConv) setBResumeConv(false); }}
                       style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px",
                         background: bAiPersonalize ? "#7c4dff15" : "#f0f2f5",
                         border: `1px solid ${bAiPersonalize ? "#7c4dff44" : "transparent"}`,
@@ -2644,8 +2650,42 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
                       </div>
                     </div>
                     {bAiPersonalize && (
-                      <div style={{ background: "#7c4dff10", border: "1px solid #7c4dff22", borderRadius: 8, padding: "8px 12px", fontSize: 11, color: "#7c4dff" }}>
+                      <div style={{ background: "#7c4dff10", border: "1px solid #7c4dff22", borderRadius: 8, padding: "8px 12px", fontSize: 11, color: "#7c4dff", marginBottom: 4 }}>
                         🤖 O campo "Mensagem" será ignorado. A IA vai gerar uma mensagem personalizada para cada contato antes de enviar.
+                      </div>
+                    )}
+
+                    {/* 🔄 Retomar conversa */}
+                    <div onClick={() => { setBResumeConv(p => !p); if (bAiPersonalize) setBAiPersonalize(false); }}
+                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px",
+                        background: bResumeConv ? "#e65100" + "15" : "#f0f2f5",
+                        border: `1px solid ${bResumeConv ? "#e6510044" : "transparent"}`,
+                        borderRadius: 10, cursor: "pointer", marginBottom: 4 }}>
+                      <div style={{ width: 36, height: 20, borderRadius: 10,
+                        background: bResumeConv ? "#e65100" : "#d1d7db",
+                        position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
+                        <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#fff",
+                          position: "absolute", top: 2, left: bResumeConv ? 18 : 2, transition: "left 0.2s" }} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: bResumeConv ? "#e65100" : "#111b21" }}>
+                          🔄 Retomar conversa com IA
+                        </div>
+                        <div style={{ fontSize: 11, color: "#667781" }}>
+                          A IA lê o histórico completo e gera uma mensagem para reengajar o cliente · <strong style={{ color: "#e65100" }}>3 créditos por contato</strong>
+                        </div>
+                      </div>
+                    </div>
+                    {bResumeConv && (
+                      <div style={{ marginBottom: 4 }}>
+                        <div style={{ background: "#e6510010", border: "1px solid #e6510033", borderRadius: 8, padding: "8px 12px", fontSize: 11, color: "#e65100", marginBottom: 6 }}>
+                          🔄 A IA vai ler todo o histórico real de cada conversa e criar uma mensagem personalizada para retomar o contato de onde parou. O campo "Mensagem" será usado como objetivo/instrução extra para a IA.
+                        </div>
+                        {previewRecipients.length > 0 && (
+                          <div style={{ background: "#fff3e0", border: "1px solid #ffcc8088", borderRadius: 8, padding: "8px 12px", fontSize: 11, color: "#bf360c", fontWeight: 600 }}>
+                            💳 Custo estimado: {previewRecipients.length * 3} créditos ({previewRecipients.length} contato{previewRecipients.length !== 1 ? "s" : ""} × 3)
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -2694,9 +2734,9 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
 
                 <button
                   onClick={createBroadcast}
-                  disabled={creating || !bName.trim() || (!bAiPersonalize && !bMessage.trim()) || previewRecipients.length === 0}
-                  style={{ width: "100%", padding: "11px 0", borderRadius: 9, border: "none", background: (!creating && bName.trim() && (bAiPersonalize || bMessage.trim()) && previewRecipients.length > 0) ? (bAiPersonalize ? "linear-gradient(135deg,#7c4dff,#5e35b1)" : "linear-gradient(135deg,#00a884,#017561)") : "#e9edef", color: (!creating && bName.trim() && (bAiPersonalize || bMessage.trim()) && previewRecipients.length > 0) ? "#fff" : "#667781", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
-                >{creating ? (bAiPersonalize ? "🤖 Gerando mensagens..." : "Criando...") : bAiPersonalize ? `✨ Iniciar disparo com IA` : bScheduledAt ? `📅 Agendar disparo` : `🚀 Iniciar disparo agora`}</button>
+                  disabled={creating || !bName.trim() || (!bAiPersonalize && !bResumeConv && !bMessage.trim()) || previewRecipients.length === 0}
+                  style={{ width: "100%", padding: "11px 0", borderRadius: 9, border: "none", background: (!creating && bName.trim() && (bAiPersonalize || bResumeConv || bMessage.trim()) && previewRecipients.length > 0) ? (bResumeConv ? "linear-gradient(135deg,#e65100,#bf360c)" : bAiPersonalize ? "linear-gradient(135deg,#7c4dff,#5e35b1)" : "linear-gradient(135deg,#00a884,#017561)") : "#e9edef", color: (!creating && bName.trim() && (bAiPersonalize || bResumeConv || bMessage.trim()) && previewRecipients.length > 0) ? "#fff" : "#667781", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+                >{creating ? (bResumeConv ? "🔄 Retomando conversas..." : bAiPersonalize ? "🤖 Gerando mensagens..." : "Criando...") : bResumeConv ? `🔄 Retomar ${previewRecipients.length} conversa${previewRecipients.length !== 1 ? "s" : ""} com IA` : bAiPersonalize ? `✨ Iniciar disparo com IA` : bScheduledAt ? `📅 Agendar disparo` : `🚀 Iniciar disparo agora`}</button>
               </div>
             </div>
           </div>
@@ -5047,7 +5087,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       setCopilotWatchguard(!!d.copilot_watchguard);
       setCopilotScheduleStart(d.copilot_schedule_start || "18:00");
       setCopilotScheduleEnd(d.copilot_schedule_end || "09:00");
-      setCopilotWatchguard(!!d.copilot_watchguard);
+    } catch (e) {}
   }, []);
 
   const fetchCredits = useCallback(async () => {
