@@ -2615,11 +2615,13 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
                     <option value="resolved">Resolvidos</option>
                   </select>
                 )}
+
+                {/* Inativos — filtro de dias */}
                 {bFilter === "inativos" && (
                   <div style={{ marginBottom: 10 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: "#667781", marginBottom: 8 }}>SEM CONTATO HÁ:</div>
                     <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                      {[[3,"3 dias"],[7,"7 dias"],[15,"15+ dias"]].map(([d, label]) => (
+                      {[[7,"7 dias"],[15,"15 dias"],[30,"30+ dias"]].map(([d, label]) => (
                         <button key={d} onClick={() => setBInactiveDays(d)}
                           style={{ flex: 1, padding: "8px 0", borderRadius: 8, border: `1px solid ${bInactiveDays === d ? "#00a88444" : "#d1d7db"}`,
                             background: bInactiveDays === d ? "#00a88415" : "transparent",
@@ -2629,65 +2631,6 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
                         </button>
                       ))}
                     </div>
-                    <div onClick={() => { setBAiPersonalize(p => !p); if (bResumeConv) setBResumeConv(false); }}
-                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px",
-                        background: bAiPersonalize ? "#7c4dff15" : "#f0f2f5",
-                        border: `1px solid ${bAiPersonalize ? "#7c4dff44" : "transparent"}`,
-                        borderRadius: 10, cursor: "pointer", marginBottom: 4 }}>
-                      <div style={{ width: 36, height: 20, borderRadius: 10,
-                        background: bAiPersonalize ? "#7c4dff" : "#d1d7db",
-                        position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
-                        <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#fff",
-                          position: "absolute", top: 2, left: bAiPersonalize ? 18 : 2, transition: "left 0.2s" }} />
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: bAiPersonalize ? "#7c4dff" : "#111b21" }}>
-                          ✨ IA personaliza mensagem por contato
-                        </div>
-                        <div style={{ fontSize: 11, color: "#667781" }}>
-                          A IA vai ler o histórico de cada conversa e gerar uma mensagem única usando o prompt da sua empresa
-                        </div>
-                      </div>
-                    </div>
-                    {bAiPersonalize && (
-                      <div style={{ background: "#7c4dff10", border: "1px solid #7c4dff22", borderRadius: 8, padding: "8px 12px", fontSize: 11, color: "#7c4dff", marginBottom: 4 }}>
-                        🤖 O campo "Mensagem" será ignorado. A IA vai gerar uma mensagem personalizada para cada contato antes de enviar.
-                      </div>
-                    )}
-
-                    {/* 🔄 Retomar conversa */}
-                    <div onClick={() => { setBResumeConv(p => !p); if (bAiPersonalize) setBAiPersonalize(false); }}
-                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px",
-                        background: bResumeConv ? "#e65100" + "15" : "#f0f2f5",
-                        border: `1px solid ${bResumeConv ? "#e6510044" : "transparent"}`,
-                        borderRadius: 10, cursor: "pointer", marginBottom: 4 }}>
-                      <div style={{ width: 36, height: 20, borderRadius: 10,
-                        background: bResumeConv ? "#e65100" : "#d1d7db",
-                        position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
-                        <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#fff",
-                          position: "absolute", top: 2, left: bResumeConv ? 18 : 2, transition: "left 0.2s" }} />
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: bResumeConv ? "#e65100" : "#111b21" }}>
-                          🔄 Retomar conversa com IA
-                        </div>
-                        <div style={{ fontSize: 11, color: "#667781" }}>
-                          A IA lê o histórico completo e gera uma mensagem para reengajar o cliente · <strong style={{ color: "#e65100" }}>3 créditos por contato</strong>
-                        </div>
-                      </div>
-                    </div>
-                    {bResumeConv && (
-                      <div style={{ marginBottom: 4 }}>
-                        <div style={{ background: "#e6510010", border: "1px solid #e6510033", borderRadius: 8, padding: "8px 12px", fontSize: 11, color: "#e65100", marginBottom: 6 }}>
-                          🔄 A IA vai ler todo o histórico real de cada conversa e criar uma mensagem personalizada para retomar o contato de onde parou. O campo "Mensagem" será usado como objetivo/instrução extra para a IA.
-                        </div>
-                        {previewRecipients.length > 0 && (
-                          <div style={{ background: "#fff3e0", border: "1px solid #ffcc8088", borderRadius: 8, padding: "8px 12px", fontSize: 11, color: "#bf360c", fontWeight: 600 }}>
-                            💳 Custo estimado: {previewRecipients.length * 3} créditos ({previewRecipients.length} contato{previewRecipients.length !== 1 ? "s" : ""} × 3)
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </div>
                 )}
                 {bFilter === "csv" && (
@@ -2706,7 +2649,7 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
                           <div key={conv.id} onClick={() => {
                             const phone = conv.contacts.phone?.replace(/\D/g,"");
                             const name = conv.contacts.name || "";
-                            setBRecipients(prev => checked ? prev.filter(r => r.phone !== phone) : [...prev, { phone, name }]);
+                            setBRecipients(prev => checked ? prev.filter(r => r.phone !== phone) : [...prev, { phone, name, conversation_id: conv.id }]);
                           }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 8, cursor: "pointer", background: checked ? "#00a88410" : "transparent", border: `1px solid ${checked ? "#00a88433" : "transparent"}` }}>
                             <div style={{ width: 16, height: 16, borderRadius: 4, border: `2px solid ${checked ? "#00a884" : "#54656f"}`, background: checked ? "#00a884" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{checked && <span style={{ color: "#000", fontSize: 10, fontWeight: 900 }}>✓</span>}</div>
                             <Avatar name={displayName(conv.contacts.name, conv.contacts.phone)} size={20} phone={conv.contacts.phone} instanceFilter={instanceFilter} />
@@ -2718,6 +2661,57 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
                         );
                       })}
                     </div>
+                  </div>
+                )}
+
+                {/* IA Toggles — visíveis em inativos e manual */}
+                {(bFilter === "inativos" || bFilter === "manual") && (
+                  <div style={{ marginBottom: 10 }}>
+                    {/* ✨ IA personaliza */}
+                    <div onClick={() => { setBAiPersonalize(p => !p); if (bResumeConv) setBResumeConv(false); }}
+                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px",
+                        background: bAiPersonalize ? "#7c4dff15" : "#f0f2f5",
+                        border: `1px solid ${bAiPersonalize ? "#7c4dff44" : "transparent"}`,
+                        borderRadius: 10, cursor: "pointer", marginBottom: 4 }}>
+                      <div style={{ width: 36, height: 20, borderRadius: 10, background: bAiPersonalize ? "#7c4dff" : "#d1d7db", position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
+                        <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#fff", position: "absolute", top: 2, left: bAiPersonalize ? 18 : 2, transition: "left 0.2s" }} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: bAiPersonalize ? "#7c4dff" : "#111b21" }}>✨ IA personaliza mensagem por contato</div>
+                        <div style={{ fontSize: 11, color: "#667781" }}>A IA vai ler o histórico de cada conversa e gerar uma mensagem única usando o prompt da sua empresa</div>
+                      </div>
+                    </div>
+                    {bAiPersonalize && (
+                      <div style={{ background: "#7c4dff10", border: "1px solid #7c4dff22", borderRadius: 8, padding: "8px 12px", fontSize: 11, color: "#7c4dff", marginBottom: 4 }}>
+                        🤖 O campo "Mensagem" será ignorado. A IA vai gerar uma mensagem personalizada para cada contato antes de enviar.
+                      </div>
+                    )}
+                    {/* 🔄 Retomar conversa */}
+                    <div onClick={() => { setBResumeConv(p => !p); if (bAiPersonalize) setBAiPersonalize(false); }}
+                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px",
+                        background: bResumeConv ? "#e6510015" : "#f0f2f5",
+                        border: `1px solid ${bResumeConv ? "#e6510044" : "transparent"}`,
+                        borderRadius: 10, cursor: "pointer", marginBottom: 4 }}>
+                      <div style={{ width: 36, height: 20, borderRadius: 10, background: bResumeConv ? "#e65100" : "#d1d7db", position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
+                        <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#fff", position: "absolute", top: 2, left: bResumeConv ? 18 : 2, transition: "left 0.2s" }} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: bResumeConv ? "#e65100" : "#111b21" }}>🔄 Retomar conversa com IA</div>
+                        <div style={{ fontSize: 11, color: "#667781" }}>A IA lê o histórico completo e gera uma mensagem para reengajar o cliente · <strong style={{ color: "#e65100" }}>3 créditos por contato</strong></div>
+                      </div>
+                    </div>
+                    {bResumeConv && (
+                      <div>
+                        <div style={{ background: "#e6510010", border: "1px solid #e6510033", borderRadius: 8, padding: "8px 12px", fontSize: 11, color: "#e65100", marginBottom: 6 }}>
+                          🔄 A IA vai ler todo o histórico real de cada conversa e criar uma mensagem personalizada para retomar o contato de onde parou. O campo "Mensagem" abaixo será usado como objetivo/instrução extra para a IA.
+                        </div>
+                        {previewRecipients.length > 0 && (
+                          <div style={{ background: "#fff3e0", border: "1px solid #ffcc8088", borderRadius: 8, padding: "8px 12px", fontSize: 11, color: "#bf360c", fontWeight: 600, marginBottom: 4 }}>
+                            💳 Custo estimado: {previewRecipients.length * 3} créditos ({previewRecipients.length} contato{previewRecipients.length !== 1 ? "s" : ""} × 3)
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
