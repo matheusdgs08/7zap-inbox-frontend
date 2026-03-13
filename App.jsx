@@ -4504,6 +4504,8 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   };
 
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  const [mobileView, setMobileView] = useState("inbox"); // inbox | chat | profile
+  const [mobileFilter, setMobileFilter] = useState("todas"); // todas | nao_lidas | pendentes
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 768);
@@ -5651,6 +5653,255 @@ A mensagem deve:
     ...(auth.user.role === "admin" ? [{ id: "admin", label: "🔐 Admin" }] : []),
     ...(IS_SOCIO ? [{ id: "socios", label: "📊 Sócios" }] : []),
   ];
+
+  // ══════════════════════════════════════════════════════════
+  // MOBILE LAYOUT — renderiza no lugar do desktop quando celular
+  // ══════════════════════════════════════════════════════════
+  if (isMobile) {
+    const mobileInstColors = ["#00a884","#7c3aed","#0ea5e9","#f59e0b","#ef4444","#10b981"];
+    const getInstColor = (instanceName) => {
+      const idx = waInstances.findIndex(i => i.instance_name === instanceName);
+      return mobileInstColors[Math.max(0,idx) % mobileInstColors.length];
+    };
+
+    const mobileConvs = conversations.filter(c => {
+      if (instanceFilter && c.instance_name !== instanceFilter) return false;
+      if (mobileFilter === "nao_lidas") return c.unread_count > 0;
+      if (mobileFilter === "pendentes") return c.status === "pending";
+      return true;
+    });
+    const totalUnreadMobile = conversations.reduce((s,c) => s + (c.unread_count||0), 0);
+
+    // ── Tela de Chat Mobile ──────────────────────────────────
+    if (selected && mobileView === "chat") {
+      const instColor = getInstColor(selected.instance_name);
+      const contactName = selected.contacts?.name || selected.contacts?.phone || "?";
+      const instObj = waInstances.find(i => i.instance_name === selected.instance_name);
+      return (
+        <div style={{ display:"flex",flexDirection:"column",height:"100dvh",background:"#e5ddd5",fontFamily:"'DM Sans','Segoe UI',sans-serif",overflow:"hidden" }}>
+          <div style={{ height:"env(safe-area-inset-top,0px)",background:"#075e54",flexShrink:0 }} />
+          {/* Header */}
+          <div style={{ background:"#075e54",padding:"10px 14px",flexShrink:0,display:"flex",alignItems:"center",gap:10 }}>
+            <button onClick={()=>{setSelected(null);setMobileView("inbox");}} style={{ background:"none",border:"none",color:"#fff",fontSize:22,cursor:"pointer",padding:0,lineHeight:1,flexShrink:0 }}>←</button>
+            <div style={{ width:40,height:40,borderRadius:"50%",background:`linear-gradient(135deg,${instColor}cc,${instColor})`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:15,flexShrink:0,boxShadow:`0 2px 8px ${instColor}44` }}>
+              {contactName.split(" ").slice(0,2).map(n=>n[0]).join("").toUpperCase()}
+            </div>
+            <div style={{ flex:1,minWidth:0 }}>
+              <div style={{ color:"#fff",fontWeight:700,fontSize:15,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{contactName}</div>
+              <div style={{ color:"#b2dfdb",fontSize:11,display:"flex",alignItems:"center",gap:4 }}>
+                <span style={{ width:6,height:6,borderRadius:"50%",background:instColor,display:"inline-block" }} />
+                {instObj?.label||instObj?.instance_name||""}
+              </div>
+            </div>
+            <button onClick={fetchSuggestion} disabled={loadingSuggest} style={{ background:loadingSuggest?"#0d4f44":"rgba(255,255,255,0.15)",border:"none",borderRadius:20,padding:"6px 12px",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",flexShrink:0 }}>
+              {loadingSuggest?"⏳":"✨ IA"}
+            </button>
+          </div>
+          {/* Auto-pilot banner */}
+          {(()=>{
+            const cfg=getConvInstanceConfig(selected);
+            const mode=cfg?.copilot_auto_mode||"off";
+            if(mode==="off") return null;
+            const isPaused=!!(pausedByAgentConvs[selected?.id]||selected?.copilot_auto_mode===false||selected?.copilot_auto_mode==="false");
+            return (
+              <div style={{ background:isPaused?"#fff3e0":"#f3e8ff",borderBottom:"1px solid #e0e0e0",padding:"6px 14px",fontSize:11,color:isPaused?"#e65100":"#7c3aed",fontWeight:600,display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0 }}>
+                <span>{isPaused?"⏸ IA pausada 30min":"🤖 Co-pilot automático ativo"}</span>
+                {isPaused&&<button onClick={async()=>{await fetch(`${API_URL}/conversations/${selected.id}/auto-mode`,{method:"PUT",headers,body:JSON.stringify({enabled:true})});setPausedByAgentConvs(p=>{const n={...p};delete n[selected.id];return n;});}} style={{ background:"none",border:"1px solid #e65100",borderRadius:10,padding:"1px 8px",color:"#e65100",fontSize:10,cursor:"pointer",fontFamily:"inherit",fontWeight:700 }}>Reativar</button>}
+              </div>
+            );
+          })()}
+          {/* Co-pilot suggestion */}
+          {suggestion&&(
+            <div style={{ background:"#fff",borderBottom:"1px solid #ede9fe",padding:"10px 14px",flexShrink:0 }}>
+              <div style={{ fontSize:11,color:"#7c3aed",fontWeight:700,marginBottom:5 }}>✨ Sugestão do Co-pilot</div>
+              <div style={{ fontSize:13,color:"#374151",lineHeight:1.5,marginBottom:8 }}>{suggestion}</div>
+              <div style={{ display:"flex",gap:8 }}>
+                <button onClick={()=>{setInput(suggestion);setSuggestion("");}} style={{ flex:1,padding:"8px 0",background:"#7c3aed",border:"none",borderRadius:8,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit" }}>✓ Usar</button>
+                <button onClick={()=>setSuggestion("")} style={{ padding:"8px 14px",background:"#f3f4f6",border:"none",borderRadius:8,color:"#6b7280",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit" }}>Ignorar</button>
+              </div>
+            </div>
+          )}
+          {/* Messages */}
+          <div ref={chatScrollRef} style={{ flex:1,overflowY:"auto",padding:"12px 14px",display:"flex",flexDirection:"column",gap:3 }}
+            onScroll={async(e)=>{if(e.target.scrollTop<60&&hasMoreMessages&&!loadingMoreMsgs){await fetchMoreMessages(selected.id,messages);}}}>
+            {hasMoreMessages&&(
+              <div style={{ textAlign:"center",marginBottom:8 }}>
+                <button onClick={()=>fetchMoreMessages(selected.id,messages)} style={{ background:"rgba(0,0,0,0.15)",color:"#fff",border:"none",borderRadius:12,padding:"4px 14px",fontSize:11,cursor:"pointer",fontFamily:"inherit" }}>
+                  {loadingMoreMsgs?"⏳ Carregando...":"↑ Mais mensagens"}
+                </button>
+              </div>
+            )}
+            {messages.map((msg,i)=>{
+              const isOut=msg.direction==="outbound"||msg.direction==="note";
+              const isNote=msg.is_internal_note||msg.direction==="note";
+              return (
+                <div key={msg.id||i} style={{ display:"flex",justifyContent:isOut?"flex-end":"flex-start",marginBottom:4 }}>
+                  <div style={{ maxWidth:"80%",padding:"8px 12px 6px",borderRadius:isOut?"12px 2px 12px 12px":"2px 12px 12px 12px",background:isNote?"#fff8dc":isOut?"#d9fdd3":"#fff",boxShadow:"0 1px 2px rgba(0,0,0,0.1)",fontSize:14,lineHeight:1.5,color:"#111827" }}>
+                    {isNote&&<div style={{ fontSize:10,fontWeight:700,color:"#8a6914",marginBottom:3 }}>📝 NOTA</div>}
+                    {(msg.type==="audio"||msg.type==="ptt")&&(msg.media_url?<audio controls style={{ maxWidth:"100%",marginBottom:4 }}><source src={`${API_URL}/media/proxy?url=${encodeURIComponent(msg.media_url)}`}/></audio>:<div style={{ fontSize:13,color:"#667781" }}>🎵 Áudio</div>)}
+                    {msg.type==="image"&&msg.media_url&&<img src={`${API_URL}/media/proxy?url=${encodeURIComponent(msg.media_url)}`} alt="img" style={{ maxWidth:"100%",borderRadius:8,display:"block",marginBottom:4 }} />}
+                    {(msg.type==="text"||!msg.type||(msg.content&&!["[Imagem]","[Áudio]","[Vídeo]","[Documento]"].includes(msg.content)))&&(
+                      <div style={{ wordBreak:"break-word" }}>{renderContent(msg.content)}</div>
+                    )}
+                    <div style={{ fontSize:10,color:"#9ca3af",textAlign:"right",marginTop:2 }}>
+                      {new Date(msg.created_at).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}
+                      {isOut&&<span style={{ marginLeft:4,color:"#53bdeb" }}>✓✓</span>}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={bottomRef} />
+          </div>
+          {/* Input */}
+          <div style={{ background:"#f0f2f5",padding:"8px 10px",flexShrink:0,paddingBottom:"calc(8px + env(safe-area-inset-bottom,0px))" }}>
+            <div style={{ display:"flex",alignItems:"flex-end",gap:8 }}>
+              <div style={{ flex:1,background:"#fff",borderRadius:24,display:"flex",alignItems:"flex-end",padding:"0 14px",boxShadow:"0 1px 4px rgba(0,0,0,0.1)",minHeight:44 }}>
+                <textarea ref={textareaRef} value={input} onChange={e=>{setInput(e.target.value);resizeTextarea(e.target);}}
+                  onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();}}}
+                  placeholder={noteMode?"Nota interna...":"Mensagem"} rows={1}
+                  style={{ flex:1,border:"none",outline:"none",fontSize:15,fontFamily:"inherit",color:"#111827",background:"none",resize:"none",padding:"12px 0",maxHeight:120,lineHeight:1.4 }} />
+              </div>
+              {input.trim()?(
+                <button onClick={sendMessage} disabled={sending} style={{ width:44,height:44,borderRadius:"50%",background:"#00a884",border:"none",cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 8px #00a88466",flexShrink:0 }}>
+                  {sending?"⏳":"➤"}
+                </button>
+              ):(
+                <label style={{ width:44,height:44,borderRadius:"50%",background:"#00a884",border:"none",cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 8px #00a88466",flexShrink:0 }}>
+                  📎<input type="file" style={{ display:"none" }} onChange={e=>{if(e.target.files[0])sendFile(e.target.files[0]);}} />
+                </label>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ── Tela de Inbox Mobile ─────────────────────────────────
+    return (
+      <div style={{ display:"flex",flexDirection:"column",height:"100dvh",background:"#f0f2f5",fontFamily:"'DM Sans','Segoe UI',sans-serif",overflow:"hidden" }}>
+        <div style={{ height:"env(safe-area-inset-top,0px)",background:"#075e54",flexShrink:0 }} />
+        {/* Header */}
+        <div style={{ background:"#075e54",flexShrink:0 }}>
+          <div style={{ padding:"12px 16px 0",display:"flex",alignItems:"center",justifyContent:"space-between" }}>
+            <div style={{ display:"flex",alignItems:"center",gap:10 }}>
+              <div style={{ width:38,height:38,borderRadius:"50%",background:"linear-gradient(135deg,#00a884,#00c99e)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:15,flexShrink:0 }}>
+                {auth?.user?.name?.[0]?.toUpperCase()||"?"}
+              </div>
+              <div>
+                <div style={{ color:"#fff",fontSize:15,fontWeight:700 }}>7CRM</div>
+                <div style={{ color:"#b2dfdb",fontSize:11 }}>{auth?.user?.name} · {auth?.user?.role==="admin"?"Admin":"Atendente"}</div>
+              </div>
+            </div>
+            <div style={{ display:"flex",gap:14,alignItems:"center" }}>
+              {totalUnreadMobile>0&&<div style={{ background:"#ff3b30",color:"#fff",borderRadius:10,fontSize:11,fontWeight:700,padding:"2px 7px" }}>{totalUnreadMobile}</div>}
+              <button onClick={fetchConversations} style={{ background:"none",border:"none",color:"#fff",fontSize:18,cursor:"pointer",padding:0 }}>🔄</button>
+            </div>
+          </div>
+          {/* Instance pills */}
+          <div style={{ display:"flex",gap:8,overflowX:"auto",padding:"12px 16px 14px",scrollbarWidth:"none" }}>
+            <button onClick={()=>setInstanceFilter(null)} style={{ flexShrink:0,padding:"6px 14px",borderRadius:20,border:"none",cursor:"pointer",background:!instanceFilter?"#fff":"rgba(255,255,255,0.18)",color:!instanceFilter?"#075e54":"#fff",fontSize:12,fontWeight:700,fontFamily:"inherit" }}>
+              Todos ({conversations.length})
+            </button>
+            {waInstances.filter(i=>i.status!=="deleted").map((inst,idx)=>{
+              const color=mobileInstColors[idx%mobileInstColors.length];
+              const unread=conversations.filter(c=>c.instance_name===inst.instance_name).reduce((s,c)=>s+(c.unread_count||0),0);
+              const isActive=instanceFilter===inst.instance_name;
+              const iaActive=instanceConfigs[inst.instance_name]?.copilot_auto_mode&&instanceConfigs[inst.instance_name]?.copilot_auto_mode!=="off";
+              return (
+                <button key={inst.instance_name} onClick={()=>setInstanceFilter(isActive?null:inst.instance_name)} style={{ flexShrink:0,padding:"6px 12px",borderRadius:20,border:"none",cursor:"pointer",background:isActive?"#fff":"rgba(255,255,255,0.18)",color:isActive?"#075e54":"#fff",fontSize:12,fontWeight:700,fontFamily:"inherit",display:"flex",alignItems:"center",gap:5 }}>
+                  <span style={{ width:7,height:7,borderRadius:"50%",background:isActive?color:"#fff",display:"inline-block" }} />
+                  {inst.label||inst.instance_name}
+                  {iaActive&&<span style={{ fontSize:9,background:"#7c3aed",color:"#fff",borderRadius:8,padding:"1px 4px",fontWeight:700 }}>IA</span>}
+                  {unread>0&&<span style={{ background:"#ff3b30",color:"#fff",borderRadius:8,fontSize:10,fontWeight:700,padding:"1px 5px" }}>{unread}</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        {/* Filter tabs */}
+        <div style={{ background:"#fff",display:"flex",borderBottom:"1px solid #e5e7eb",flexShrink:0 }}>
+          {[{id:"todas",label:"Todas"},{id:"nao_lidas",label:"Não lidas"},{id:"pendentes",label:"Pendentes"}].map(f=>(
+            <button key={f.id} onClick={()=>setMobileFilter(f.id)} style={{ flex:1,padding:"11px 0",border:"none",background:"none",cursor:"pointer",color:mobileFilter===f.id?"#075e54":"#9ca3af",fontSize:13,fontWeight:mobileFilter===f.id?700:500,fontFamily:"inherit",borderBottom:mobileFilter===f.id?"2.5px solid #075e54":"2.5px solid transparent" }}>{f.label}</button>
+          ))}
+        </div>
+        {/* Conversation list */}
+        <div style={{ flex:1,overflowY:"auto" }}>
+          {mobileConvs.length===0&&(
+            <div style={{ textAlign:"center",padding:"48px 24px",color:"#9ca3af" }}>
+              <div style={{ fontSize:40,marginBottom:12 }}>💬</div>
+              <div style={{ fontSize:15,fontWeight:600 }}>Nenhuma conversa</div>
+              <div style={{ fontSize:13,marginTop:4 }}>Aguardando mensagens...</div>
+            </div>
+          )}
+          {mobileConvs.map((conv,i)=>{
+            const instColor=getInstColor(conv.instance_name);
+            const instObj=waInstances.find(w=>w.instance_name===conv.instance_name);
+            const name=conv.contacts?.name||conv.contacts?.phone||"?";
+            return (
+              <div key={conv.id} onClick={()=>{setSelected(conv);setMobileView("chat");fetchMessages(conv.id);}}
+                style={{ display:"flex",alignItems:"center",gap:12,padding:"13px 16px",background:"#fff",borderBottom:"1px solid #f0f2f5",cursor:"pointer",animation:`fadeInRow 0.25s ease ${i*0.03}s both` }}>
+                <div style={{ position:"relative",flexShrink:0 }}>
+                  <div style={{ width:48,height:48,borderRadius:"50%",background:`linear-gradient(135deg,${instColor}cc,${instColor})`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:17,boxShadow:`0 2px 8px ${instColor}33` }}>
+                    {name.split(" ").slice(0,2).map(n=>n[0]).join("").toUpperCase()}
+                  </div>
+                  {conv.status==="pending"&&<div style={{ position:"absolute",bottom:0,right:0,width:14,height:14,borderRadius:"50%",background:"#f59e0b",border:"2px solid #fff" }} />}
+                </div>
+                <div style={{ flex:1,minWidth:0 }}>
+                  <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:2 }}>
+                    <div style={{ fontWeight:conv.unread_count>0?700:500,color:"#111827",fontSize:15,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:185 }}>{name}</div>
+                    <div style={{ fontSize:11,color:conv.unread_count>0?"#075e54":"#9ca3af",fontWeight:conv.unread_count>0?600:400,flexShrink:0 }}>
+                      {conv.last_message_at?new Date(conv.last_message_at).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):""}
+                    </div>
+                  </div>
+                  <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center" }}>
+                    <div style={{ fontSize:13,color:conv.unread_count>0?"#374151":"#9ca3af",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:200,fontWeight:conv.unread_count>0?500:400 }}>
+                      {conv.last_message_preview||""}
+                    </div>
+                    <div style={{ display:"flex",alignItems:"center",gap:4,flexShrink:0 }}>
+                      {instObj&&<div style={{ fontSize:10,color:instColor,border:`1px solid ${instColor}44`,borderRadius:6,padding:"1px 5px",fontWeight:700,background:`${instColor}11` }}>{instObj.label||instObj.instance_name}</div>}
+                      {conv.unread_count>0&&<div style={{ background:"#075e54",color:"#fff",borderRadius:10,fontSize:11,fontWeight:700,padding:"2px 7px",minWidth:20,textAlign:"center" }}>{conv.unread_count}</div>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          {hasMoreConversations&&(
+            <div style={{ textAlign:"center",padding:"16px" }}>
+              <button onClick={loadMoreConversations} style={{ background:"#00a88415",border:"1px solid #00a88444",borderRadius:20,padding:"8px 20px",color:"#00a884",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit" }}>
+                {loadingMore?"⏳ Carregando...":"Carregar mais"}
+              </button>
+            </div>
+          )}
+        </div>
+        {/* Bottom nav */}
+        <div style={{ background:"#fff",borderTop:"1px solid #e5e7eb",display:"flex",flexShrink:0,paddingBottom:"env(safe-area-inset-bottom,0px)" }}>
+          {[
+            {id:"inbox",icon:"💬",label:"Inbox",badge:totalUnreadMobile},
+            {id:"kanban",icon:"🗂",label:"Kanban",badge:0},
+            {id:"tasks_global",icon:"✅",label:"Tarefas",badge:totalPendingTasks},
+            {id:"profile",icon:"👤",label:"Perfil",badge:0},
+          ].map(tab=>{
+            const isActive=mobileView===tab.id||(tab.id==="inbox"&&!selected);
+            return (
+              <button key={tab.id} onClick={()=>{setSelected(null);setMobileView(tab.id);if(tab.id!=="profile")setView(tab.id);}}
+                style={{ flex:1,background:"none",border:"none",cursor:"pointer",padding:"10px 0 6px",display:"flex",flexDirection:"column",alignItems:"center",gap:3,fontFamily:"inherit",position:"relative" }}>
+                <span style={{ fontSize:22,lineHeight:1 }}>{tab.icon}</span>
+                <span style={{ fontSize:10,color:isActive?"#075e54":"#9ca3af",fontWeight:isActive?700:400 }}>{tab.label}</span>
+                {isActive&&<div style={{ position:"absolute",bottom:0,left:"50%",transform:"translateX(-50%)",width:28,height:3,background:"#075e54",borderRadius:"3px 3px 0 0" }} />}
+                {tab.badge>0&&<span style={{ position:"absolute",top:8,right:"25%",background:"#ff3b30",color:"#fff",fontSize:9,fontWeight:800,padding:"1px 5px",borderRadius:10,lineHeight:1.4 }}>{tab.badge}</span>}
+              </button>
+            );
+          })}
+        </div>
+        <style>{`@keyframes fadeInRow{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}`}</style>
+      </div>
+    );
+  }
+  // ══════════════════════════════════════════════════════════
+  // FIM DO MOBILE LAYOUT — abaixo começa o desktop
+  // ══════════════════════════════════════════════════════════
 
   return (
     <div style={{ display: "flex", height: "100dvh", width: "100vw", flexDirection: "column", background: T.app, color: T.text, fontFamily: "'DM Sans', 'Segoe UI', sans-serif", overflow: "hidden" }}>
