@@ -15,7 +15,7 @@ const parseOAuthHash = () => {
   return params.get("access_token") || null;
 };
 const getSupabase = () => null; // legacy compat
-const TENANT_ID = "98c38c97-2796-471f-bfc9-f093ff3ae6e9";
+// TENANT_ID is now dynamic — comes from auth.user.tenant_id after login
 const headers = { "x-api-key": API_KEY, "Content-Type": "application/json" };
 
 // Auth helpers
@@ -1084,7 +1084,7 @@ function AdminPanel({ auth, onLogout }) {
   const [availableInstances, setAvailableInstances] = useState([]);
 
   useEffect(() => {
-    fetch(`${API_URL}/whatsapp/tenant-instances?tenant_id=${TENANT_ID}`, { headers: aHeaders })
+    fetch(`${API_URL}/whatsapp/tenant-instances?tenant_id=${auth?.user?.tenant_id || ""}`, { headers: aHeaders })
       .then(r => r.json()).then(d => setAvailableInstances(d.instances || [])).catch(() => {});
   }, []);
   const [showChangePw, setShowChangePw] = useState(false); const [curPw, setCurPw] = useState(""); const [newPw, setNewPw] = useState(""); const [changingPw, setChangingPw] = useState(false);
@@ -1346,7 +1346,7 @@ function OnboardingView({ auth, aiCredits, instanceName, waInstances, embeddedMo
     try {
       const r = await fetch(`${API_URL}/onboarding/questionnaire`, {
         method: "POST", headers,
-        body: JSON.stringify({ tenant_id: TENANT_ID, answers })
+        body: JSON.stringify({ tenant_id: (auth?.user?.tenant_id || ""), answers })
       });
       const d = await r.json();
       clearInterval(pi);
@@ -1363,7 +1363,7 @@ function OnboardingView({ auth, aiCredits, instanceName, waInstances, embeddedMo
     try {
       const r = await fetch(`${API_URL}/onboarding/analyze`, {
         method: "POST", headers,
-        body: JSON.stringify({ tenant_id: TENANT_ID, days, instance_name: instanceName })
+        body: JSON.stringify({ tenant_id: (auth?.user?.tenant_id || ""), days, instance_name: instanceName })
       });
       const d = await r.json();
       clearInterval(pi);
@@ -1679,7 +1679,7 @@ function WhatsAppScreen({ auth, T, theme, onConnected }) {
   const fetchInstances = async (showLoading = false) => {
     if (showLoading) setInstancesLoading(true);
     try {
-      const r = await fetch(`${API_URL}/whatsapp/tenant-instances?tenant_id=${TENANT_ID}`, { headers });
+      const r = await fetch(`${API_URL}/whatsapp/tenant-instances?tenant_id=${auth?.user?.tenant_id || ""}`, { headers });
       const d = await r.json();
       setInstances(d.instances || []);
       setMaxNumbers(d.max_numbers || 1);
@@ -1712,7 +1712,7 @@ function WhatsAppScreen({ auth, T, theme, onConnected }) {
     setSyncPhase("syncing");
     fetch(`${API_URL}/whatsapp/sync`, {
       method: "POST", headers,
-      body: JSON.stringify({ tenant_id: TENANT_ID, instance: inst.instance_name, async: true })
+      body: JSON.stringify({ tenant_id: (auth?.user?.tenant_id || ""), instance: inst.instance_name, async: true })
     }).then(r => r.json()).then(d => {
       if (d.job_id) {
         setSyncProgress(10);
@@ -1745,7 +1745,7 @@ function WhatsAppScreen({ auth, T, theme, onConnected }) {
     const prog = setInterval(() => setSyncProgress(p => Math.min(p + 2, 90)), 1500);
     fetch(`${API_URL}/whatsapp/deep-sync`, {
       method: "POST", headers,
-      body: JSON.stringify({ tenant_id: TENANT_ID, instance: inst.instance_name })
+      body: JSON.stringify({ tenant_id: (auth?.user?.tenant_id || ""), instance: inst.instance_name })
     }).then(r => r.json()).then(d => {
       clearInterval(prog);
       setSyncProgress(100);
@@ -1761,7 +1761,7 @@ function WhatsAppScreen({ auth, T, theme, onConnected }) {
     try {
       const r = await fetch(`${API_URL}/whatsapp/resolve-lids`, {
         method: "POST", headers,
-        body: JSON.stringify({ tenant_id: TENANT_ID, instance: inst.instance_name })
+        body: JSON.stringify({ tenant_id: (auth?.user?.tenant_id || ""), instance: inst.instance_name })
       });
       const d = await r.json();
       showToast(`✅ ${d.stats?.lids_resolved || 0} números resolvidos, ${d.stats?.duplicates_merged || 0} duplicatas removidas`, "#00a884");
@@ -1838,7 +1838,7 @@ function WhatsAppScreen({ auth, T, theme, onConnected }) {
     try {
       const r = await fetch(`${API_URL}/whatsapp/create-instance`, {
         method: "POST", headers,
-        body: JSON.stringify({ tenant_id: TENANT_ID, label: newLabel.trim() })
+        body: JSON.stringify({ tenant_id: (auth?.user?.tenant_id || ""), label: newLabel.trim() })
       });
       const d = await r.json();
       if (d.ok) {
@@ -1864,7 +1864,7 @@ function WhatsAppScreen({ auth, T, theme, onConnected }) {
     try {
       await fetch(`${API_URL}/whatsapp/delete-instance`, {
         method: "DELETE", headers,
-        body: JSON.stringify({ tenant_id: TENANT_ID, instance_id: inst.id, instance_name: inst.instance_name, delete_history: true })
+        body: JSON.stringify({ tenant_id: (auth?.user?.tenant_id || ""), instance_id: inst.id, instance_name: inst.instance_name, delete_history: true })
       });
       if (activeInst?.id === inst.id) setActiveInst(null);
       fetchInstances();
@@ -1893,7 +1893,7 @@ function WhatsAppScreen({ auth, T, theme, onConnected }) {
     try {
       const r = await fetch(`${API_URL}/whatsapp/sync`, {
         method: "POST", headers,
-        body: JSON.stringify({ tenant_id: TENANT_ID, instance: inst.instance_name, async: true })
+        body: JSON.stringify({ tenant_id: (auth?.user?.tenant_id || ""), instance: inst.instance_name, async: true })
       });
       const d = await r.json();
       if (d.job_id) {
@@ -2400,7 +2400,7 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
   const fetchBroadcasts = async () => {
     setLoading(true);
     try {
-      const r = await fetch(`${API_URL}/broadcasts?tenant_id=${TENANT_ID}`, { headers });
+      const r = await fetch(`${API_URL}/broadcasts?tenant_id=${auth?.user?.tenant_id || ""}`, { headers });
       const d = await r.json();
       setBroadcasts(d.broadcasts || []);
     } catch (e) {}
@@ -2408,7 +2408,7 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
   };
   const fetchScheduled = async () => {
     try {
-      const r = await fetch(`${API_URL}/scheduled-messages?tenant_id=${TENANT_ID}`, { headers });
+      const r = await fetch(`${API_URL}/scheduled-messages?tenant_id=${auth?.user?.tenant_id || ""}`, { headers });
       const d = await r.json();
       setScheduledMsgs(d.scheduled_messages || []);
     } catch (e) {}
@@ -2449,7 +2449,7 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
     if (!aiObjective.trim() || loadingAI) return;
     setLoadingAI(true);
     try {
-      const r = await fetch(`${API_URL}/broadcasts/suggest-message`, { method: "POST", headers, body: JSON.stringify({ tenant_id: TENANT_ID, objective: aiObjective }) });
+      const r = await fetch(`${API_URL}/broadcasts/suggest-message`, { method: "POST", headers, body: JSON.stringify({ tenant_id: (auth?.user?.tenant_id || ""), objective: aiObjective }) });
       const d = await r.json();
       setBMessage(d.suggestion || "");
     } catch (e) {}
@@ -2466,7 +2466,7 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
       const first = recs[0];
       const r = await fetch(`${API_URL}/broadcasts/preview-resume`, {
         method: "POST", headers,
-        body: JSON.stringify({ tenant_id: TENANT_ID, conversation_id: first.conversation_id, contact_name: first.name, contact_phone: first.phone, objective: bMessage })
+        body: JSON.stringify({ tenant_id: (auth?.user?.tenant_id || ""), conversation_id: first.conversation_id, contact_name: first.name, contact_phone: first.phone, objective: bMessage })
       });
       if (r.status === 402) { showToast("❌ Créditos insuficientes para gerar preview", "#f44336"); setLoadingPreview(false); return; }
       const d = await r.json();
@@ -2490,7 +2490,7 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
     setCreating(true);
     try {
       const resp = await fetch(`${API_URL}/broadcasts`, { method: "POST", headers, body: JSON.stringify({
-        tenant_id: TENANT_ID, name: bName, message: bMessage || (bResumeConv ? "(retomar conversa)" : "(IA personaliza)"),
+        tenant_id: (auth?.user?.tenant_id || ""), name: bName, message: bMessage || (bResumeConv ? "(retomar conversa)" : "(IA personaliza)"),
         interval_min: bIntervalMin, interval_max: bIntervalMax,
         scheduled_at: bScheduledAt || null, recipients: recs,
         ai_personalize: bAiPersonalize,
@@ -2528,7 +2528,7 @@ function BroadcastsView({ conversations, labels, agents, kanbanCols, instanceFil
     setCreatingSched(true);
     try {
       await fetch(`${API_URL}/scheduled-messages`, { method: "POST", headers, body: JSON.stringify({
-        tenant_id: TENANT_ID, contact_phone: sPhone.replace(/\D/g, ""), contact_name: sName,
+        tenant_id: (auth?.user?.tenant_id || ""), contact_phone: sPhone.replace(/\D/g, ""), contact_name: sName,
         message: sMessage, scheduled_at: sDate, recurrence: sRecurrence || null,
         conversation_id: sConvId || null
       })});
@@ -3006,14 +3006,14 @@ function GlobalTasksView({ pendingTasksMap, conversations, agents, onSelectConv,
 
   const fetchOpen = async () => {
     try {
-      const r = await fetch(`${API_URL}/tasks?tenant_id=${TENANT_ID}`, { headers });
+      const r = await fetch(`${API_URL}/tasks?tenant_id=${auth?.user?.tenant_id || ""}`, { headers });
       const d = await r.json();
       setOpenTasks((d.tasks || []).filter(t => !t.done));
     } catch (e) {}
   };
   const fetchDone = async () => {
     try {
-      const r = await fetch(`${API_URL}/tasks/completed?tenant_id=${TENANT_ID}&days=7`, { headers });
+      const r = await fetch(`${API_URL}/tasks/completed?tenant_id=${auth?.user?.tenant_id || ""}&days=7`, { headers });
       const d = await r.json();
       setDoneTasks(d.tasks || []);
     } catch (e) {}
@@ -3391,7 +3391,7 @@ function TasksPanel({ convId, agents, onClose, onTaskDone }) {
   const fetchTasks = async () => {
     try {
       // Try conversation-scoped endpoint first, fallback to /tasks filtered
-      const r = await fetch(`${API_URL}/tasks?tenant_id=${TENANT_ID}&conversation_id=${convId}`, { headers });
+      const r = await fetch(`${API_URL}/tasks?tenant_id=${auth?.user?.tenant_id || ""}&conversation_id=${convId}`, { headers });
       if (r.ok) {
         const d = await r.json();
         const list = d.tasks || d || [];
@@ -3406,7 +3406,7 @@ function TasksPanel({ convId, agents, onClose, onTaskDone }) {
     setCreating(true);
     setTaskError("");
     try {
-      const payload = { tenant_id: TENANT_ID, conversation_id: convId, title: title.trim(), description: description.trim() || null, assigned_to: assignedTo || null, due_at: dueAt || null };
+      const payload = { tenant_id: (auth?.user?.tenant_id || ""), conversation_id: convId, title: title.trim(), description: description.trim() || null, assigned_to: assignedTo || null, due_at: dueAt || null };
       const resp = await fetch(`${API_URL}/tasks`, { method: "POST", headers, body: JSON.stringify(payload) });
       if (resp.ok) {
         setTitle(""); setDescription(""); setDueAt(""); setAssignedTo("");
@@ -3621,7 +3621,7 @@ function ReportsView({ auth, T = { app: "#f0f2f5", card: "#ffffff", border: "#e9
     const instParam = (inst !== undefined ? inst : reportInstance);
     try {
       const instQ = instParam ? `&instance_name=${encodeURIComponent(instParam)}` : "";
-      const r = await fetch(`${API_URL}/reports/${type}?tenant_id=${TENANT_ID}&days=${days}${instQ}`, { headers });
+      const r = await fetch(`${API_URL}/reports/${type}?tenant_id=${auth?.user?.tenant_id || ""}&days=${days}${instQ}`, { headers });
       const d = await r.json();
       setData(prev => ({ ...prev, [type]: d }));
     } catch(e) {}
@@ -4726,6 +4726,8 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   };
 
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  // ── TENANT_ID dinâmico — sempre do usuário logado, NUNCA hardcoded ──
+  const TENANT_ID = auth?.user?.tenant_id || "";
   const [mobileView, setMobileView] = useState("inbox"); // inbox | chat | profile
   const [mobileFilter, setMobileFilter] = useState("todas"); // todas | nao_lidas | pendentes
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -4751,7 +4753,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
 
   const fetchTrialStatus = async () => {
     try {
-      const r = await fetch(`${API_URL}/tenant/trial-status?tenant_id=${TENANT_ID}`, { headers });
+      const r = await fetch(`${API_URL}/tenant/trial-status?tenant_id=${auth?.user?.tenant_id || ""}`, { headers });
       const d = await r.json();
       setTrialInfo(d);
       // Mostra tour guiado para novos usuários trial (apenas 1x)
@@ -4856,7 +4858,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   useEffect(() => {
     const fetchWaStatus = async () => {
       try {
-        const r = await fetch(`${API_URL}/whatsapp/tenant-instances?tenant_id=${TENANT_ID}`, { headers });
+        const r = await fetch(`${API_URL}/whatsapp/tenant-instances?tenant_id=${auth?.user?.tenant_id || ""}`, { headers });
         const d = await r.json();
         const insts = d.instances || [];
         // Filter instances by user's allowed_instances (if not admin and has restrictions)
@@ -4868,7 +4870,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
         // Eagerly load instance configs so IA badge shows without opening Config IA
         visibleInsts.forEach(inst => {
           if (!inst.instance_name) return;
-          fetch(`${API_URL}/whatsapp/instance-config?tenant_id=${TENANT_ID}&instance_name=${inst.instance_name}`, { headers })
+          fetch(`${API_URL}/whatsapp/instance-config?tenant_id=${auth?.user?.tenant_id || ""}&instance_name=${inst.instance_name}`, { headers })
             .then(r => r.ok ? r.json() : null)
             .then(d => { if (d) setInstanceConfigs(prev => ({ ...prev, [inst.instance_name]: d })); })
             .catch(() => {});
@@ -4894,7 +4896,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const fetchLabels = useCallback(async () => {
     setLabelsError("");
     try {
-      const r = await fetch(`${API_URL}/labels?tenant_id=${TENANT_ID}`, { headers });
+      const r = await fetch(`${API_URL}/labels?tenant_id=${auth?.user?.tenant_id || ""}`, { headers });
       if (!r.ok) {
         const fallback = loadLabels();
         setLabels(fallback);
@@ -4912,7 +4914,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
         for (const lbl of localUnsynced) {
           try {
             const cr = await fetch(`${API_URL}/labels`, { method: "POST", headers,
-              body: JSON.stringify({ tenant_id: TENANT_ID, name: lbl.name, color: lbl.color }) });
+              body: JSON.stringify({ tenant_id: (auth?.user?.tenant_id || ""), name: lbl.name, color: lbl.color }) });
             if (cr.ok) { const cd = await cr.json(); migrated.push(cd.label); }
           } catch (_) {}
         }
@@ -4979,7 +4981,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const fetchConversations = useCallback(async () => {
     try {
       const instParam = instanceFilter ? `&instance_name=${encodeURIComponent(instanceFilter)}` : "";
-      const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}&limit=50${instParam}`, { headers });
+      const r = await fetch(`${API_URL}/conversations?tenant_id=${auth?.user?.tenant_id || ""}&user_id=${auth.user.id}&limit=50${instParam}`, { headers });
       if (r.status === 401) {
         const err = await r.json().catch(() => ({}));
         if ((err.detail || "").includes("Sessão encerrada")) {
@@ -5018,7 +5020,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
             const last = allConvs[allConvs.length - 1];
             if (!last?.last_message_at) break;
             try {
-              const rp = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}&limit=50&before=${encodeURIComponent(last.last_message_at)}${instParam}`, { headers });
+              const rp = await fetch(`${API_URL}/conversations?tenant_id=${auth?.user?.tenant_id || ""}&user_id=${auth.user.id}&limit=50&before=${encodeURIComponent(last.last_message_at)}${instParam}`, { headers });
               const dp = await rp.json();
               const more = mergeConvs(dp.conversations || []);
               if (more.length === 0) break;
@@ -5048,7 +5050,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
       if (!last?.last_message_at) return;
       const before = encodeURIComponent(last.last_message_at);
       const instParam = instanceFilter ? `&instance_name=${encodeURIComponent(instanceFilter)}` : "";
-      const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}&limit=10&before=${before}${instParam}`, { headers });
+      const r = await fetch(`${API_URL}/conversations?tenant_id=${auth?.user?.tenant_id || ""}&user_id=${auth.user.id}&limit=10&before=${before}${instParam}`, { headers });
       const d = await r.json();
       const more = mergeConvs(d.conversations || []);
       // Append avoiding duplicates
@@ -5062,7 +5064,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   }, [conversations, loadingMoreConvs, mergeConvs, instanceFilter]);
   const fetchAllConversations = useCallback(async () => {
     try {
-      const r = await fetch(`${API_URL}/conversations?tenant_id=${TENANT_ID}&user_id=${auth.user.id}&limit=10`, { headers });
+      const r = await fetch(`${API_URL}/conversations?tenant_id=${auth?.user?.tenant_id || ""}&user_id=${auth.user.id}&limit=10`, { headers });
       const d = await r.json();
       const fresh = mergeConvs(d.conversations || []);
       setConversations(prev => {
@@ -5241,7 +5243,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     setLoadingMoreMsgs(false);
   }, []);
   const fetchAgents = useCallback(async () => {
-    try { const r = await fetch(`${API_URL}/users?tenant_id=${TENANT_ID}`, { headers }); const d = await r.json(); setAgents(d.users || []); } catch (e) {}
+    try { const r = await fetch(`${API_URL}/users?tenant_id=${auth?.user?.tenant_id || ""}`, { headers }); const d = await r.json(); setAgents(d.users || []); } catch (e) {}
   }, []);
   const loadUserPreferences = useCallback(async () => {
     try {
@@ -5260,7 +5262,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   }, []);
 
   const fetchTenant = useCallback(async () => {
-    try { const r = await fetch(`${API_URL}/tenant?tenant_id=${TENANT_ID}`, { headers }); const d = await r.json();
+    try { const r = await fetch(`${API_URL}/tenant?tenant_id=${auth?.user?.tenant_id || ""}`, { headers }); const d = await r.json();
       // Dados globais do tenant (créditos, plano) — prompt/modo agora é por instância
       if (d.ai_credits !== undefined) setAiCredits({ credits: d.ai_credits, limit: d.ai_credits_limit, plan: d.plan, pct: d.ai_credits_pct, warning: d.ai_credits_pct <= 25 });
     } catch (e) {}
@@ -5269,7 +5271,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const fetchInstanceConfig = useCallback(async (instanceName) => {
     if (!instanceName) return;
     try {
-      const r = await fetch(`${API_URL}/whatsapp/instance-config?tenant_id=${TENANT_ID}&instance_name=${instanceName}`, { headers });
+      const r = await fetch(`${API_URL}/whatsapp/instance-config?tenant_id=${auth?.user?.tenant_id || ""}&instance_name=${instanceName}`, { headers });
       if (!r.ok) return;
       const d = await r.json();
       setInstanceConfigs(prev => ({ ...prev, [instanceName]: d }));
@@ -5283,14 +5285,14 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
 
   const fetchCredits = useCallback(async () => {
     try {
-      const r = await fetch(`${API_URL}/credits?tenant_id=${TENANT_ID}`, { headers });
+      const r = await fetch(`${API_URL}/credits?tenant_id=${auth?.user?.tenant_id || ""}`, { headers });
       const d = await r.json();
       setAiCredits({ credits: d.credits, limit: d.limit, plan: d.plan, pct: d.pct, warning: d.warning });
     } catch(e) {}
   }, []);
   const fetchPendingTasks = useCallback(async () => {
     try {
-      const r = await fetch(`${API_URL}/tasks?tenant_id=${TENANT_ID}`, { headers });
+      const r = await fetch(`${API_URL}/tasks?tenant_id=${auth?.user?.tenant_id || ""}`, { headers });
       const d = await r.json();
       const map = {};
       (d.tasks || []).forEach(t => {
@@ -5307,7 +5309,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     setSavingPrompt(true); setPromptSaved(false);
     try {
       const body = {
-        tenant_id: TENANT_ID,
+        tenant_id: (auth?.user?.tenant_id || ""),
         instance_name: configIaInstance,   // SEMPRE obrigatório
         copilot_prompt: copilotPrompt,
         copilot_auto_mode: copilotAutoMode,
@@ -5331,7 +5333,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
     try {
       showToast("🔄 Sincronizando nomes...");
       const inst = instanceFilter || instances[0]?.name || "default";
-      const r = await fetch(`${API_URL}/contacts/sync-names`, { method: "POST", headers, body: JSON.stringify({ tenant_id: TENANT_ID, instance: inst }) });
+      const r = await fetch(`${API_URL}/contacts/sync-names`, { method: "POST", headers, body: JSON.stringify({ tenant_id: (auth?.user?.tenant_id || ""), instance: inst }) });
       const d = await r.json();
       showToast(`✅ ${d.updated || 0} nomes sincronizados!`);
       fetchConversations();
@@ -5421,7 +5423,7 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
   const fetchConvQuality = async (instanceName) => {
     if (!instanceName) return;
     try {
-      const r = await fetch(`${API_URL}/onboarding/conv-count?tenant_id=${TENANT_ID}&instance_name=${encodeURIComponent(instanceName)}`, { headers });
+      const r = await fetch(`${API_URL}/onboarding/conv-count?tenant_id=${auth?.user?.tenant_id || ""}&instance_name=${encodeURIComponent(instanceName)}`, { headers });
       if (r.ok) { const d = await r.json(); setConvQuality(d); }
     } catch {}
   };
@@ -5737,7 +5739,7 @@ A mensagem deve:
         if (aiCredits.plan === "starter") { setShowUpgrade("Co-pilot IA"); return; }
         setShowBuyCredits(true); return;
       }
-      const r = await fetch(`${API_URL}/conversations/${selected.id}/suggest?tenant_id=${TENANT_ID}`, { headers });
+      const r = await fetch(`${API_URL}/conversations/${selected.id}/suggest?tenant_id=${auth?.user?.tenant_id || ""}`, { headers });
       if (r.status === 402) { const e = await r.json(); showToast(e.detail, "#f44336"); fetchCredits(); return; }
       const d = await r.json();
       setSuggestion(d.suggestion || "");
@@ -5792,7 +5794,7 @@ A mensagem deve:
       if (!lastInbound) return;
       if (autoProcessedRef.current.has(lastInbound.id)) return;
       autoProcessedRef.current.add(lastInbound.id);
-      const sr = await fetch(`${API_URL}/conversations/${conv.id}/suggest?tenant_id=${TENANT_ID}`, { headers });
+      const sr = await fetch(`${API_URL}/conversations/${conv.id}/suggest?tenant_id=${auth?.user?.tenant_id || ""}`, { headers });
       if (sr.status === 402) { console.warn("Auto-reply: sem créditos"); return; }
       if (!sr.ok) { console.error("Suggest failed:", sr.status); return; }
       const sd = await sr.json();
@@ -6557,7 +6559,7 @@ A mensagem deve:
                       {p.features.map(f => <div key={f} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, color: "#8696a0" }}><span style={{ color: p.color }}>✓</span>{f}</div>)}
                     </div>
                     <button onClick={async () => {
-                      await fetch(`${API_URL}/tenant/activate-plan`, { method: "POST", headers, body: JSON.stringify({ tenant_id: TENANT_ID, plan: p.plan }) });
+                      await fetch(`${API_URL}/tenant/activate-plan`, { method: "POST", headers, body: JSON.stringify({ tenant_id: (auth?.user?.tenant_id || ""), plan: p.plan }) });
                       await fetchTrialStatus();
                       setView("inbox");
                     }} style={{ width: "100%", padding: "11px 0", borderRadius: 10, border: "none", background: p.highlight ? `linear-gradient(135deg, ${p.color}, #017561)` : `${p.color}22`, color: p.highlight ? "#000" : p.color, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
@@ -6869,7 +6871,7 @@ A mensagem deve:
                       setSyncingPhotos(true);
                       setPhotoSyncResult(null);
                       try {
-                        const r = await fetch(`${API_URL}/contacts/sync-profile-pictures?tenant_id=${TENANT_ID}`, { method: "POST", headers });
+                        const r = await fetch(`${API_URL}/contacts/sync-profile-pictures?tenant_id=${auth?.user?.tenant_id || ""}`, { method: "POST", headers });
                         const d = await r.json();
                         setPhotoSyncResult(d);
                         if (d.updated > 0) showToast(`📸 ${d.updated} fotos sincronizadas!`);
@@ -7633,13 +7635,13 @@ A mensagem deve:
         </div>
       )}
       {showUpgrade && <UpgradeModal feature={showUpgrade} currentPlan={aiCredits?.plan} onClose={() => setShowUpgrade(null)} />}
-      {showBuyCredits && <BuyCreditsModal tenantId={TENANT_ID} authHeaders={headers} plan={aiCredits?.plan} onClose={() => setShowBuyCredits(false)} onSuccess={(n) => { setAiCredits(p => p ? { ...p, credits: p.credits + n } : p); showToast(`✅ +${n} créditos adicionados!`); }} />}
+      {showBuyCredits && <BuyCreditsModal tenantId={auth?.user?.tenant_id || ""} authHeaders={headers} plan={aiCredits?.plan} onClose={() => setShowBuyCredits(false)} onSuccess={(n) => { setAiCredits(p => p ? { ...p, credits: p.credits + n } : p); showToast(`✅ +${n} créditos adicionados!`); }} />}
       {showLabelManager && (
         <LabelManagerModal
           labels={labels}
           onChange={(newLabels) => { setLabels(newLabels); saveLabels(newLabels); }}
           onClose={() => setShowLabelManager(false)}
-          tenantId={TENANT_ID}
+          tenantId={auth?.user?.tenant_id || ""}
           authHeaders={headers}
           labelsApiError={labelsError}
         />
