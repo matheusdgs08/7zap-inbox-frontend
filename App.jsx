@@ -2138,6 +2138,14 @@ function WhatsAppScreen({ auth, T, theme, onConnected }) {
                             </>
                           )}
                           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+                            <button onClick={() => resolveInstanceLids(inst)}
+                              style={{ padding: "9px 20px", borderRadius: 9, border: "1px solid #ff980044", background: "#ff980015", color: "#ff9800", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                              🔧 Corrigir números (LID)
+                            </button>
+                            <button onClick={() => { setSyncResult(null); setAutoSyncInst(null); }}
+                              style={{ padding: "9px 20px", borderRadius: 9, border: "1px solid #9c27b044", background: "#9c27b015", color: "#9c27b0", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                              ← Voltar
+                            </button>
                             <button onClick={() => { setActiveInst(null); setView("inbox"); }}
                               style={{ padding: "9px 20px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#00a884,#017561)", color: "#fff", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
                               → Ir para o Inbox
