@@ -5035,13 +5035,13 @@ function AppInner({ auth, onLogout, theme, toggleTheme }) {
         return updated ? { ...prev, ...updated } : prev;
       });
 
-      // Background: auto-load remaining pages silently (max 2000 conversas)
+      // Background: auto-load remaining pages silently (max 500 conversas mais recentes)
       if (d.has_more && instanceChanged) {
         (async () => {
           let allConvs = [...fresh];
           let hasMore = d.has_more;
           const currentInstance = instanceFilter;
-          while (hasMore && allConvs.length < 2000) {
+          while (hasMore && allConvs.length < 500) {
             if (convInstanceRef.current !== currentInstance) break; // instância mudou
             const last = allConvs[allConvs.length - 1];
             if (!last?.last_message_at) break;
